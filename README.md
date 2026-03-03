@@ -179,53 +179,35 @@ pnpm typecheck
 pnpm lint
 ```
 
-## 🎯 待优化项
+## 🎯 优化完成
 
-### 🟡 中优先级
-
-#### 1. 虚拟滚动
-- **位置**: `src/components/chat/MessageList.tsx`
-- **问题**: 长对话列表 (>100 条消息) 可能导致性能问题
-- **方案**: 使用 `react-window` 或 `react-virtuoso` 实现虚拟化渲染
-
-#### 2. 工具状态响应性
-- **位置**: `src/stores/tools.ts:129`
-- **问题**: `toolRegistry` 是单例类，变更不会自动触发 React 更新
-- **现状**: 使用 `refreshTools()` hack 强制重新渲染
-- **方案**: 将工具列表状态移入 Zustand store，或使用事件订阅模式
-
-### 🟢 低优先级
-
-#### 3. 快捷键系统初始化
-- **位置**: `src/utils/keyboardShortcuts.ts`
-- **问题**: `initGlobalShortcuts()` 从未被调用，`ShortcutsHelp.tsx` 未被使用
-- **现状**: 只有 App.tsx 中硬编码的 `Ctrl+\`` 快捷键生效
-- **方案**: 在 App.tsx 中调用 `initGlobalShortcuts()`，在 Header 中添加快捷键帮助按钮
-
-#### 4. 单一数据源
-- **位置**: `src/stores/settings.ts` 和 `src/utils/api.ts`
-- **问题**: `proxyWorkerUrl` 同时存储在 Zustand store 和 localStorage
-- **方案**: 统一使用 Zustand store，移除 `api.ts` 中的重复存储逻辑
-
-#### 5. 懒加载优化
-- **位置**: `src/components/layout/Header.tsx`
-- **问题**: `SettingsModal` 未懒加载，但不是关键路径组件
-- **方案**: 使用 `lazy()` 和 `Suspense` 懒加载 SettingsModal
+所有优化项已完成！🎉
 
 ### ✅ 已完成的优化
 
-- ✅ MCP 客户端并发竞态问题修复
-- ✅ Anthropic provider 完整实现
-- ✅ 文件系统 readdir 性能优化
-- ✅ Vite Bundle 分包配置
-- ✅ 代码分割和懒加载 (FileEditor, ConsolePanel)
-- ✅ 消除 any 类型
-- ✅ ErrorBoundary 添加
-- ✅ currentSession 派生状态
-- ✅ 组件目录分组
-- ✅ MessageItem 组件记忆化
-- ✅ Radix UI 依赖配置
-- ✅ 死代码清理 (messageConverter.ts)
+#### 性能优化
+- ✅ **虚拟滚动** - 长对话列表 (>50 条) 使用 react-virtuoso 虚拟化渲染
+- ✅ **组件懒加载** - FileEditor, ConsolePanel, SettingsModal, ShortcutsHelp
+- ✅ **组件记忆化** - MessageItem 及所有子组件使用 React.memo
+- ✅ **Vite Bundle 分包** - 手动分包配置，分离 vendor 代码
+- ✅ **文件系统优化** - readdir 使用 IndexedDB 范围查询
+
+#### 架构改进
+- ✅ **工具状态响应性** - ToolRegistry 订阅/通知机制，自动触发 React 更新
+- ✅ **单一数据源** - proxyWorkerUrl 统一使用 Zustand store
+- ✅ **派生状态** - currentSession 使用 selector 从 sessions 派生
+- ✅ **组件目录分组** - 按功能分组 (chat/sidebar/settings/layout/memory)
+
+#### 功能完善
+- ✅ **快捷键系统** - 初始化全局快捷键，添加帮助对话框
+- ✅ **ErrorBoundary** - 顶层错误边界
+- ✅ **MCP 客户端** - 修复并发竞态问题
+- ✅ **Anthropic provider** - 完整实现
+
+#### 代码质量
+- ✅ **消除 any 类型** - 添加明确类型定义
+- ✅ **死代码清理** - 移除 messageConverter.ts
+- ✅ **依赖配置** - Radix UI 移至 dependencies
 
 ## 📝 许可证
 
