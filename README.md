@@ -45,8 +45,8 @@
 - **远程执行** - 调用远程工具和资源
 
 ### 💬 多 LLM 支持
-- **OpenAI** - GPT-3.5/GPT-4 系列
-- **Anthropic** - Claude 系列
+- **OpenAI**
+- **Anthropic**
 - **自定义端点** - 支持 vLLM、Ollama 等本地部署
 - **流式输出** - SSE 实时响应
 
@@ -178,36 +178,6 @@ pnpm typecheck
 # Lint
 pnpm lint
 ```
-
-## 🎯 优化完成
-
-所有优化项已完成！🎉
-
-### ✅ 已完成的优化
-
-#### 性能优化
-- ✅ **虚拟滚动** - 长对话列表 (>50 条) 使用 react-virtuoso 虚拟化渲染
-- ✅ **组件懒加载** - FileEditor, ConsolePanel, SettingsModal, ShortcutsHelp
-- ✅ **组件记忆化** - MessageItem 及所有子组件使用 React.memo
-- ✅ **Vite Bundle 分包** - 手动分包配置，分离 vendor 代码
-- ✅ **文件系统优化** - readdir 使用 IndexedDB 范围查询
-
-#### 架构改进
-- ✅ **工具状态响应性** - ToolRegistry 订阅/通知机制，自动触发 React 更新
-- ✅ **单一数据源** - proxyWorkerUrl 统一使用 Zustand store
-- ✅ **派生状态** - currentSession 使用 selector 从 sessions 派生
-- ✅ **组件目录分组** - 按功能分组 (chat/sidebar/settings/layout/memory)
-
-#### 功能完善
-- ✅ **快捷键系统** - 初始化全局快捷键，添加帮助对话框
-- ✅ **ErrorBoundary** - 顶层错误边界
-- ✅ **MCP 客户端** - 修复并发竞态问题
-- ✅ **Anthropic provider** - 完整实现
-
-#### 代码质量
-- ✅ **消除 any 类型** - 添加明确类型定义
-- ✅ **死代码清理** - 移除 messageConverter.ts
-- ✅ **依赖配置** - Radix UI 移至 dependencies
 
 ## 📝 许可证
 

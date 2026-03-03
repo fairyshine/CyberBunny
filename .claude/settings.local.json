@@ -40,7 +40,10 @@
       "WebFetch(domain:github.com)",
       "Bash(pnpm:*)",
       "Bash(GITHUB_PAGES=true npx vite:*)",
-      "Bash(git remote:*)"
+      "Bash(git remote:*)",
+      "Bash(git push:*)",
+      "Bash(GITHUB_PAGES=true pnpm build:*)",
+      "Bash(git pull:*)"
     ]
   }
 }
