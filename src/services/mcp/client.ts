@@ -6,6 +6,7 @@ import { MCPServer, MCPTool } from '../../types';
 export class MCPClient {
   private servers: Map<string, MCPServer> = new Map();
   private connections: Map<string, WebSocket | EventSource> = new Map();
+  // 使用 requestId 作为 key，支持并发请求
   private messageHandlers: Map<string, (message: unknown) => void> = new Map();
 
   async connect(server: MCPServer): Promise<void> {
@@ -90,10 +91,17 @@ export class MCPClient {
     });
   }
 
-  private handleMessage(serverId: string, message: unknown): void {
-    const handler = this.messageHandlers.get(serverId);
-    if (handler) {
-      handler(message);
+  private handleMessage(_serverId: string, message: unknown): void {
+    const msg = message as { id?: string; result?: unknown; error?: unknown };
+
+    // 根据 requestId 查找对应的 handler
+    if (msg.id) {
+      const handler = this.messageHandlers.get(msg.id);
+      if (handler) {
+        handler(message);
+        // 处理完成后删除 handler
+        this.messageHandlers.delete(msg.id);
+      }
     }
   }
 
@@ -139,18 +147,15 @@ export class MCPClient {
     }
 
     return new Promise((resolve, reject) => {
-      const requestId = Math.random().toString(36).substring(7);
-      
-      // 设置响应处理器
-      this.messageHandlers.set(serverId, (message: unknown) => {
+      const requestId = `${serverId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+      // 设置响应处理器，使用 requestId 作为 key
+      this.messageHandlers.set(requestId, (message: unknown) => {
         const msg = message as { id?: string; result?: unknown; error?: unknown };
-        if (msg.id === requestId) {
-          if (msg.error) {
-            reject(msg.error);
-          } else {
-            resolve(msg.result);
-          }
-          this.messageHandlers.delete(serverId);
+        if (msg.error) {
+          reject(msg.error);
+        } else {
+          resolve(msg.result);
         }
       });
 
@@ -166,8 +171,10 @@ export class MCPClient {
 
       // 超时处理
       setTimeout(() => {
-        this.messageHandlers.delete(serverId);
-        reject(new Error('Tool call timeout'));
+        if (this.messageHandlers.has(requestId)) {
+          this.messageHandlers.delete(requestId);
+          reject(new Error('Tool call timeout'));
+        }
       }, 30000);
     });
   }
