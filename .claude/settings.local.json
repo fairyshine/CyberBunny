@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(pnpm typecheck:*)",
+      "Bash(curl:*)",
+      "Bash(echo:*)",
+      "Bash(lsof:*)",
+      "Bash(pkill:*)"
+    ]
+  }
+}
