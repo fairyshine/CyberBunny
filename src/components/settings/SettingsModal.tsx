@@ -29,40 +29,54 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] md:max-w-4xl max-h-[95vh] md:max-h-[85vh] p-0 gap-0 flex flex-col overflow-hidden">
-        <DialogHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3 md:pb-4 border-b flex-shrink-0">
-          <DialogTitle className="text-lg md:text-xl flex items-center gap-2">
+      <DialogContent className="w-[900px] h-[680px] max-w-[90vw] max-h-[85vh] p-0 gap-0 flex flex-col">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
+          <DialogTitle className="text-xl flex items-center gap-2">
             <Settings className="w-5 h-5" />
             {t('settings.title')}
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="llm" className="flex-1 flex flex-col min-h-0">
-          <div className="px-4 md:px-6 pt-3 md:pt-4 flex-shrink-0">
-            <TabsList className="grid w-full grid-cols-3 h-auto gap-1">
-              <TabsTrigger value="llm" className="text-xs sm:text-sm px-2">{t('settings.tabs.llm')}</TabsTrigger>
-              <TabsTrigger value="tools" className="text-xs sm:text-sm px-2">{t('settings.tabs.tools')}</TabsTrigger>
-              <TabsTrigger value="general" className="text-xs sm:text-sm px-2">{t('settings.tabs.general')}</TabsTrigger>
+        <Tabs defaultValue="llm" className="flex-1 flex flex-col overflow-hidden">
+          <div className="px-6 pt-4 shrink-0">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="llm">{t('settings.tabs.llm')}</TabsTrigger>
+              <TabsTrigger value="tools">{t('settings.tabs.tools')}</TabsTrigger>
+              <TabsTrigger value="general">{t('settings.tabs.general')}</TabsTrigger>
             </TabsList>
           </div>
 
-          <TabsContent value="llm" className="flex-1 min-h-0 mt-0 overflow-y-auto">
-            <div className="space-y-4 px-4 md:px-6 py-4 md:pb-6">
-              <div className="space-y-2">
-                <Label htmlFor="provider" className="text-sm font-medium">{t('settings.provider')}</Label>
-                <Select
-                  value={llmConfig.provider}
-                  onValueChange={(value) => setLLMConfig({ provider: value as any })}
-                >
-                  <SelectTrigger id="provider" className="h-10">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="openai">OpenAI</SelectItem>
-                    <SelectItem value="anthropic">Anthropic</SelectItem>
-                    <SelectItem value="custom">{t('settings.provider.custom')}</SelectItem>
-                  </SelectContent>
-                </Select>
+          <TabsContent value="llm" className="flex-1 overflow-y-auto mt-0">
+            <div className="space-y-5 px-6 py-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="provider" className="text-sm font-medium">{t('settings.provider')}</Label>
+                  <Select
+                    value={llmConfig.provider}
+                    onValueChange={(value) => setLLMConfig({ provider: value as any })}
+                  >
+                    <SelectTrigger id="provider" className="h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="openai">OpenAI</SelectItem>
+                      <SelectItem value="anthropic">Anthropic</SelectItem>
+                      <SelectItem value="custom">{t('settings.provider.custom')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="model" className="text-sm font-medium">{t('settings.model')}</Label>
+                  <Input
+                    id="model"
+                    type="text"
+                    value={llmConfig.model}
+                    onChange={(e) => setLLMConfig({ model: e.target.value })}
+                    placeholder="gpt-4"
+                    className="h-10"
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -73,18 +87,6 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   value={llmConfig.apiKey}
                   onChange={(e) => setLLMConfig({ apiKey: e.target.value })}
                   placeholder="sk-..."
-                  className="h-10"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="model" className="text-sm font-medium">{t('settings.model')}</Label>
-                <Input
-                  id="model"
-                  type="text"
-                  value={llmConfig.model}
-                  onChange={(e) => setLLMConfig({ model: e.target.value })}
-                  placeholder="gpt-4"
                   className="h-10"
                 />
               </div>
@@ -105,7 +107,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
               <Separator />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="temperature" className="text-sm font-medium">
                     {t('settings.temperature')} <span className="text-primary font-semibold">{llmConfig.temperature}</span>
@@ -150,40 +152,31 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   className="h-10"
                 />
                 <p className="text-xs text-muted-foreground flex items-start gap-1.5">
-                  <Lightbulb className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                  <Lightbulb className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                   <span>{t('settings.proxyHint')}</span>
                 </p>
               </div>
 
               <Separator />
 
-              <details className="group" onToggle={(e) => {
-                if ((e.target as HTMLDetailsElement).open) {
-                  requestAnimationFrame(() => {
-                    const tabContent = (e.target as HTMLElement).closest('[role="tabpanel"]');
-                    if (tabContent) {
-                      tabContent.scrollTo({ top: tabContent.scrollHeight, behavior: 'smooth' });
-                    }
-                  });
-                }
-              }}>
+              <details className="group">
                 <summary className="cursor-pointer text-sm font-medium py-2 flex items-center gap-2 hover:text-primary transition-colors">
                   <ChevronRight className="w-4 h-4 transition-transform group-open:rotate-90" />
                   {t('settings.connectionTest')}
                 </summary>
-                <div className="pt-2">
+                <div className="pt-3">
                   <ConnectionTest />
                 </div>
               </details>
             </div>
           </TabsContent>
 
-          <TabsContent value="tools" className="flex-1 min-h-0 mt-0 overflow-y-auto">
+          <TabsContent value="tools" className="flex-1 overflow-y-auto mt-0">
             <ToolManager />
           </TabsContent>
 
-          <TabsContent value="general" className="flex-1 min-h-0 mt-0 overflow-y-auto">
-            <div className="space-y-4 px-4 md:px-6 py-4 md:pb-6">
+          <TabsContent value="general" className="flex-1 overflow-y-auto mt-0">
+            <div className="space-y-5 px-6 py-5">
               <div className="space-y-2">
                 <Label htmlFor="language" className="text-sm font-medium">{t('settings.language')}</Label>
                 <Select

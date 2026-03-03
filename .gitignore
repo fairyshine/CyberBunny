@@ -1,4 +1,4 @@
-.claude/
+.claude/**
 
 # Dependencies
 node_modules
