@@ -1,11 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import ChatContainer from './components/chat/ChatContainer';
 import Sidebar from './components/sidebar/Sidebar';
 import Header from './components/layout/Header';
 import WelcomeScreen from './components/layout/WelcomeScreen';
-import FileEditor from './components/sidebar/FileEditor';
-import ConsolePanel from './components/layout/ConsolePanel';
 import { useSessionStore, selectCurrentSession } from './stores/session';
 import { useSettingsStore } from './stores/settings';
 import { useToolStore } from './stores/tools';
@@ -13,6 +11,10 @@ import { pythonExecutor } from './services/python/executor';
 import { fileSystem } from './services/filesystem';
 import { logSystem } from './services/console/logger';
 import { applyTheme, setupSystemThemeListener } from './utils/theme';
+
+// Lazy load non-critical components
+const FileEditor = lazy(() => import('./components/sidebar/FileEditor'));
+const ConsolePanel = lazy(() => import('./components/layout/ConsolePanel'));
 
 function App() {
   const { t } = useTranslation();
@@ -127,7 +129,9 @@ function App() {
             />
             <WelcomeScreen onStart={handleStart} />
           </div>
-          <ConsolePanel isOpen={showConsole} onClose={() => setShowConsole(false)} />
+          <Suspense fallback={<div />}>
+            <ConsolePanel isOpen={showConsole} onClose={() => setShowConsole(false)} />
+          </Suspense>
         </div>
       </div>
     );
@@ -155,12 +159,14 @@ function App() {
           {/* 主内容区 - 聊天或文件编辑器 */}
           <main className="flex-1 flex flex-col min-w-0">
             {selectedFile ? (
-              <FileEditor
-                path={selectedFile}
-                content={fileContent}
-                onClose={handleCloseFile}
-                onSave={handleSaveFile}
-              />
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center">Loading...</div>}>
+                <FileEditor
+                  path={selectedFile}
+                  content={fileContent}
+                  onClose={handleCloseFile}
+                  onSave={handleSaveFile}
+                />
+              </Suspense>
             ) : currentSession ? (
               <ChatContainer sessionId={currentSession.id} />
             ) : (
@@ -172,7 +178,9 @@ function App() {
         </div>
 
         {/* 控制台面板 */}
-        <ConsolePanel isOpen={showConsole} onClose={() => setShowConsole(false)} />
+        <Suspense fallback={<div />}>
+          <ConsolePanel isOpen={showConsole} onClose={() => setShowConsole(false)} />
+        </Suspense>
       </div>
     </div>
   );
