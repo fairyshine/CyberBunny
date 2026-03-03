@@ -29,6 +29,9 @@ interface DiaryEntry {
 export function MemoryViewer({ isOpen, onClose }: MemoryViewerProps) {
   const { t } = useTranslation();
 
+  // Tab state
+  const [activeTab, setActiveTab] = useState('memory');
+
   // Memory state
   const [memoryContent, setMemoryContent] = useState('');
   const [memoryDirty, setMemoryDirty] = useState(false);
@@ -52,6 +55,7 @@ export function MemoryViewer({ isOpen, onClose }: MemoryViewerProps) {
 
   useEffect(() => {
     if (isOpen) {
+      setActiveTab('memory');
       loadData();
     }
   }, [isOpen]);
@@ -112,8 +116,10 @@ export function MemoryViewer({ isOpen, onClose }: MemoryViewerProps) {
       setDiarySaved(false);
       setDiaryPreview(false);
       setSelectedDate(new Date(date));
+      setActiveTab('diary'); // Switch to diary tab
     } catch {
       setCurrentDiary({ date, content: '' });
+      setActiveTab('diary'); // Switch to diary tab even on error
     } finally {
       setLoading(false);
     }
@@ -208,7 +214,7 @@ export function MemoryViewer({ isOpen, onClose }: MemoryViewerProps) {
         {loading && !currentDiary ? (
           <p className="text-sm text-muted-foreground py-4">{t('common.loading')}</p>
         ) : (
-          <Tabs defaultValue="memory" className="flex-1 flex flex-col min-h-0">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
             <TabsList className="shrink-0">
               <TabsTrigger value="memory">{t('tools.memory.tabMemory')}</TabsTrigger>
               <TabsTrigger value="diary">{t('tools.memory.tabDiary')}</TabsTrigger>
