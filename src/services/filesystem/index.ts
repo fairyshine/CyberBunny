@@ -143,26 +143,30 @@ export class FileSystem {
     return text;
   }
 
-  // 列出目录内容
-  async readdir(path: string): Promise<FileSystemEntry[]> {
+  // 列出目录内容（优化版：使用 IndexedDB 范围查询）
+  async readdir(path: string, recursive = false): Promise<FileSystemEntry[]> {
     await this.initialize();
     const normalizedPath = this.normalizePath(path);
-    const allFiles = await this.db!.getAll('files');
 
-    return allFiles.filter(entry => {
-      const entryPath = entry.path;
-      // 排除自身
-      if (entryPath === normalizedPath) return false;
+    // 使用 IndexedDB 范围查询优化性能
+    const tx = this.db!.transaction('files', 'readonly');
+    const store = tx.objectStore('files');
 
-      // 检查是否是直接子项
-      // 例如：normalizedPath = '/sandbox', entryPath = '/sandbox/test_dir'
-      // 或者：normalizedPath = '/sandbox/test_dir', entryPath = '/sandbox/test_dir/1.md'
-      if (!entryPath.startsWith(normalizedPath + '/')) return false;
+    // 创建范围查询：查找所有以 normalizedPath/ 开头的路径
+    const lowerBound = normalizedPath + '/';
+    const upperBound = normalizedPath + '0'; // '0' 的 ASCII 码大于 '/'
+    const range = IDBKeyRange.bound(lowerBound, upperBound, false, true);
 
-      // 获取相对路径部分
-      const relativePath = entryPath.substring(normalizedPath.length + 1);
+    const allEntries = await store.getAll(range);
 
-      // 如果相对路径中还有 '/'，说明是更深层的子项，不是直接子项
+    if (recursive) {
+      // 递归模式：返回所有子项
+      return allEntries;
+    }
+
+    // 非递归模式：只返回直接子项
+    return allEntries.filter(entry => {
+      const relativePath = entry.path.substring(normalizedPath.length + 1);
       return !relativePath.includes('/');
     });
   }
