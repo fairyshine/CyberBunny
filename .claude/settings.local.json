@@ -38,7 +38,9 @@
       "WebFetch(domain:docs.exa.ai)",
       "WebFetch(domain:exa.ai)",
       "WebFetch(domain:github.com)",
-      "Bash(pnpm:*)"
+      "Bash(pnpm:*)",
+      "Bash(GITHUB_PAGES=true npx vite:*)",
+      "Bash(git remote:*)"
     ]
   }
 }

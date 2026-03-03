@@ -178,7 +178,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             </div>
           </TabsContent>
 
-          <TabsContent value="tools" className="flex-1 min-h-0 mt-0">
+          <TabsContent value="tools" className="flex-1 min-h-0 mt-0 overflow-y-auto">
             <ToolManager />
           </TabsContent>
 

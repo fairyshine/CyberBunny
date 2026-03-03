@@ -373,63 +373,61 @@ export function ToolManager() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-muted/30">
-      <div className="flex items-center justify-between p-4 bg-background border-b">
+    <div>
+      <div className="flex items-center justify-between px-4 md:px-6 pt-4 pb-3">
         <h2 className="text-lg font-semibold">{t('tools.management')}</h2>
         <Button onClick={resetDialog}>{t('tools.addSource')}</Button>
       </div>
 
       {error && (
-        <div className="mx-4 mt-4">
+        <div className="mx-4 md:mx-6 mb-3">
           <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>
         </div>
       )}
 
-      <ScrollArea className="flex-1">
-        <div className="p-4 space-y-6">
-          {groups.map(group => (
-            <div key={group.type}>
-              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                {group.label}
-                <span className="text-xs font-normal text-muted-foreground">
-                  {t('tools.toolCount', { count: group.entries.reduce((n, e) => n + e.tools.length, 0) })}
-                </span>
-              </h3>
+      <div className="px-4 md:px-6 pb-4 md:pb-6 space-y-6">
+        {groups.map(group => (
+          <div key={group.type}>
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              {group.label}
+              <span className="text-xs font-normal text-muted-foreground">
+                {t('tools.toolCount', { count: group.entries.reduce((n, e) => n + e.tools.length, 0) })}
+              </span>
+            </h3>
 
-              <div className="space-y-2">
-                {group.entries.map(({ source, tools }) =>
-                  source.type === 'builtin' ? (
-                    <div key={source.id} className="border rounded-lg">
-                      <div className="px-3 pb-3 pt-2">
-                        {tools.map(tool => (
-                          <ToolRow
-                            key={tool.metadata.id}
-                            tool={tool}
-                            enabled={enabledTools.includes(tool.metadata.id)}
-                            onToggle={() => toggleTool(tool.metadata.id)}
-                          />
-                        ))}
-                      </div>
+            <div className="space-y-2">
+              {group.entries.map(({ source, tools }) =>
+                source.type === 'builtin' ? (
+                  <div key={source.id} className="border rounded-lg">
+                    <div className="px-3 pb-3 pt-2">
+                      {tools.map(tool => (
+                        <ToolRow
+                          key={tool.metadata.id}
+                          tool={tool}
+                          enabled={enabledTools.includes(tool.metadata.id)}
+                          onToggle={() => toggleTool(tool.metadata.id)}
+                        />
+                      ))}
                     </div>
-                  ) : (
-                    <SourceSection
-                      key={source.id}
-                      source={source}
-                      tools={tools}
-                      loading={loading}
-                      enabledTools={enabledTools}
-                      toggleTool={toggleTool}
-                      toggleSource={toggleSource}
-                      reloadSource={reloadSource}
-                      removeSource={removeSource}
-                    />
-                  )
-                )}
-              </div>
+                  </div>
+                ) : (
+                  <SourceSection
+                    key={source.id}
+                    source={source}
+                    tools={tools}
+                    loading={loading}
+                    enabledTools={enabledTools}
+                    toggleTool={toggleTool}
+                    toggleSource={toggleSource}
+                    reloadSource={reloadSource}
+                    removeSource={removeSource}
+                  />
+                )
+              )}
             </div>
-          ))}
-        </div>
-      </ScrollArea>
+          </div>
+        ))}
+      </div>
 
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent className={newSource.type === 'code' ? 'max-w-2xl' : 'max-w-md'}>
