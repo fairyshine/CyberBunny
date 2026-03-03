@@ -245,6 +245,15 @@ class FileManagerTool extends BaseTool {
         };
       }
 
+      // 阻止访问 .memory 目录
+      const normalizedPath = path.trim();
+      if (normalizedPath.includes('/.memory') || normalizedPath === '/sandbox/.memory') {
+        return {
+          content: '[Error] Access to .memory directory is restricted',
+          metadata: { error: true }
+        };
+      }
+
       await fileSystem.initialize();
 
       switch (operation) {
@@ -311,15 +320,16 @@ class FileManagerTool extends BaseTool {
   private async listFiles(path: string): Promise<ToolExecuteResult> {
     const targetPath = path.trim() || '/sandbox';
     const entries = await fileSystem.readdir(targetPath);
+    const filtered = entries.filter((e: any) => e.name !== '.memory');
 
-    if (entries.length === 0) {
+    if (filtered.length === 0) {
       return {
         content: `📁 ${targetPath}\n${t('tools.exec.emptyFolder')}`,
         metadata: { operation: 'list', path: targetPath, count: 0 }
       };
     }
 
-    const sorted = entries.sort((a: any, b: any) => {
+    const sorted = filtered.sort((a: any, b: any) => {
       if (a.type === 'directory' && b.type !== 'directory') return -1;
       if (a.type !== 'directory' && b.type === 'directory') return 1;
       return a.name.localeCompare(b.name);
@@ -331,10 +341,10 @@ class FileManagerTool extends BaseTool {
       return `${icon} ${e.name}${size}`;
     });
 
-    logFile('info', t('tools.exec.listDir', { path: targetPath }), { count: entries.length });
+    logFile('info', t('tools.exec.listDir', { path: targetPath }), { count: filtered.length });
     return {
-      content: `📁 ${targetPath} (${t('tools.exec.dirItems', { count: entries.length })}):\n\n${lines.join('\n')}`,
-      metadata: { operation: 'list', path: targetPath, count: entries.length, entries }
+      content: `📁 ${targetPath} (${t('tools.exec.dirItems', { count: filtered.length })}):\n\n${lines.join('\n')}`,
+      metadata: { operation: 'list', path: targetPath, count: filtered.length, entries: filtered }
     };
   }
 

@@ -42,7 +42,8 @@ export default function WelcomeScreen({ onStart }: WelcomeScreenProps) {
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center p-6 sm:p-8 gradient-bg">
+    <div className="flex-1 overflow-y-auto">
+      <div className="min-h-full flex items-center justify-center p-6 sm:p-8 gradient-bg">
       <div className="max-w-3xl w-full animate-fade-in">
         {/* Logo & Title */}
         <div className="text-center mb-12">
@@ -111,6 +112,7 @@ export default function WelcomeScreen({ onStart }: WelcomeScreenProps) {
             </Badge>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

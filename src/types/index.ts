@@ -128,4 +128,5 @@ export interface Session {
   messages: Message[];
   createdAt: number;
   updatedAt: number;
+  deletedAt?: number; // 软删除时间戳
 }

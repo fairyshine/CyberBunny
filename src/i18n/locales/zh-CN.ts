@@ -163,6 +163,9 @@ export default {
   'tools.memory.noMemoryYet': '暂无记忆',
   'tools.memory.noDiariesYet': '暂无日记',
   'tools.memory.loadFailed': '加载记忆数据失败',
+  'tools.memory.editing': '编辑中',
+  'tools.memory.saved': '已保存',
+  'tools.memory.back': '返回',
   // Tool execution messages
   'tools.exec.code': '执行代码 ({{length}} 字符)',
   'tools.exec.failed': '执行失败',

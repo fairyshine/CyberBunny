@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSessionStore, selectCurrentSession } from '../../stores/session';
-import { Trash, ChevronLeft, ChevronRight, MessageSquare, Folder, Edit2 } from '../icons';
+import { Trash, ChevronLeft, ChevronRight, MessageSquare, Folder, Edit2, Plus } from '../icons';
 import FileTree from './FileTree';
 import { Button } from '../ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
@@ -20,7 +20,7 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
   const { t } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('sessions');
-  const { sessions, setCurrentSession, deleteSession, renameSession } = useSessionStore();
+  const { sessions, setCurrentSession, deleteSession, renameSession, createSession } = useSessionStore();
   const currentSession = useSessionStore(selectCurrentSession);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -126,18 +126,34 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
           <span className="text-sm font-semibold tracking-tight">
             {activeTab === 'sessions' ? t('sidebar.sessions') : t('sidebar.files')}
           </span>
-          <Button
-            onClick={() => {
-              setIsCollapsed(true);
-              if (onClose) onClose();
-            }}
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            title={t('sidebar.collapse')}
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            {activeTab === 'sessions' && (
+              <Button
+                onClick={() => {
+                  createSession(t('header.newSession'));
+                  handleItemClick();
+                }}
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                title={t('header.newSession')}
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            )}
+            <Button
+              onClick={() => {
+                setIsCollapsed(true);
+                if (onClose) onClose();
+              }}
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              title={t('sidebar.collapse')}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)} className="flex-1 flex flex-col">

@@ -39,7 +39,9 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
   const loadDirectory = useCallback(async (path: string): Promise<TreeNode[]> => {
     try {
       const entries = await fileSystem.readdir(path);
-      return entries.sort((a, b) => {
+      return entries
+        .filter(entry => entry.name !== '.memory')
+        .sort((a, b) => {
         if (a.type === 'directory' && b.type !== 'directory') return -1;
         if (a.type !== 'directory' && b.type === 'directory') return 1;
         return a.name.localeCompare(b.name);

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Settings, Plus, Menu } from '../icons';
-import { useSessionStore } from '../../stores/session';
+import { Settings, Menu, Brain } from '../icons';
 import SettingsModal from '../settings/SettingsModal';
+import { MemoryViewer } from '../memory/MemoryViewer';
 import { ThemeToggle } from './ThemeToggle';
 import { Button } from '../ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
@@ -15,7 +15,7 @@ interface HeaderProps {
 export default function Header({ onToggleConsole, onToggleSidebar }: HeaderProps) {
   const { t } = useTranslation();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const { createSession } = useSessionStore();
+  const [isMemoryOpen, setIsMemoryOpen] = useState(false);
 
   return (
     <>
@@ -41,15 +41,18 @@ export default function Header({ onToggleConsole, onToggleSidebar }: HeaderProps
 
         <TooltipProvider>
           <div className="flex items-center gap-1">
-            <Button
-              onClick={() => createSession(t('header.newSession'))}
-              size="sm"
-              variant="ghost"
-              className="flex items-center gap-2 font-medium"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">{t('header.newSession')}</span>
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={() => setIsMemoryOpen(true)}
+                  variant="ghost"
+                  size="icon"
+                >
+                  <Brain className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('tools.memory.name')}</TooltipContent>
+            </Tooltip>
 
             {onToggleConsole && (
               <Tooltip>
@@ -85,6 +88,7 @@ export default function Header({ onToggleConsole, onToggleSidebar }: HeaderProps
       </header>
 
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <MemoryViewer isOpen={isMemoryOpen} onClose={() => setIsMemoryOpen(false)} />
     </>
   );
 }

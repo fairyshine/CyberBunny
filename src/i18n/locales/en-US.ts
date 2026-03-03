@@ -163,6 +163,9 @@ export default {
   'tools.memory.noMemoryYet': 'No memories yet',
   'tools.memory.noDiariesYet': 'No diaries yet',
   'tools.memory.loadFailed': 'Failed to load memory data',
+  'tools.memory.editing': 'Editing',
+  'tools.memory.saved': 'Saved',
+  'tools.memory.back': 'Back',
   // Tool execution messages
   'tools.exec.code': 'Execute code ({{length}} chars)',
   'tools.exec.failed': 'Execution failed',
