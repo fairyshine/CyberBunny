@@ -20,8 +20,8 @@ export interface LogEntry {
   level: LogLevel;
   category: LogCategory;
   message: string;
-  details?: any;
-  metadata?: Record<string, any>;
+  details?: unknown;
+  metadata?: Record<string, unknown>;
 }
 
 class ConsoleLogger {
@@ -36,8 +36,8 @@ class ConsoleLogger {
     level: LogLevel,
     category: LogCategory,
     message: string,
-    details?: any,
-    metadata?: Record<string, any>
+    details?: unknown,
+    metadata?: Record<string, unknown>
   ): void {
     const entry: LogEntry = {
       id: crypto.randomUUID(),
@@ -68,23 +68,23 @@ class ConsoleLogger {
   /**
    * 便捷方法
    */
-  info(category: LogCategory, message: string, details?: any, metadata?: Record<string, any>): void {
+  info(category: LogCategory, message: string, details?: unknown, metadata?: Record<string, unknown>): void {
     this.log('info', category, message, details, metadata);
   }
 
-  success(category: LogCategory, message: string, details?: any, metadata?: Record<string, any>): void {
+  success(category: LogCategory, message: string, details?: unknown, metadata?: Record<string, unknown>): void {
     this.log('success', category, message, details, metadata);
   }
 
-  warning(category: LogCategory, message: string, details?: any, metadata?: Record<string, any>): void {
+  warning(category: LogCategory, message: string, details?: unknown, metadata?: Record<string, unknown>): void {
     this.log('warning', category, message, details, metadata);
   }
 
-  error(category: LogCategory, message: string, details?: any, metadata?: Record<string, any>): void {
+  error(category: LogCategory, message: string, details?: unknown, metadata?: Record<string, unknown>): void {
     this.log('error', category, message, details, metadata);
   }
 
-  debug(category: LogCategory, message: string, details?: any, metadata?: Record<string, any>): void {
+  debug(category: LogCategory, message: string, details?: unknown, metadata?: Record<string, unknown>): void {
     this.log('debug', category, message, details, metadata);
   }
 
@@ -161,23 +161,23 @@ class ConsoleLogger {
 export const consoleLogger = new ConsoleLogger();
 
 // 便捷导出
-export const logLLM = (level: LogLevel, message: string, details?: any, metadata?: Record<string, any>) =>
+export const logLLM = (level: LogLevel, message: string, details?: unknown, metadata?: Record<string, unknown>) =>
   consoleLogger.log(level, 'llm', message, details, metadata);
 
-export const logTool = (level: LogLevel, message: string, details?: any, metadata?: Record<string, any>) =>
+export const logTool = (level: LogLevel, message: string, details?: unknown, metadata?: Record<string, unknown>) =>
   consoleLogger.log(level, 'tool', message, details, metadata);
 
-export const logFile = (level: LogLevel, message: string, details?: any, metadata?: Record<string, any>) =>
+export const logFile = (level: LogLevel, message: string, details?: unknown, metadata?: Record<string, unknown>) =>
   consoleLogger.log(level, 'file', message, details, metadata);
 
-export const logSettings = (level: LogLevel, message: string, details?: any, metadata?: Record<string, any>) =>
+export const logSettings = (level: LogLevel, message: string, details?: unknown, metadata?: Record<string, unknown>) =>
   consoleLogger.log(level, 'settings', message, details, metadata);
 
-export const logMCP = (level: LogLevel, message: string, details?: any, metadata?: Record<string, any>) =>
+export const logMCP = (level: LogLevel, message: string, details?: unknown, metadata?: Record<string, unknown>) =>
   consoleLogger.log(level, 'mcp', message, details, metadata);
 
-export const logPython = (level: LogLevel, message: string, details?: any, metadata?: Record<string, any>) =>
+export const logPython = (level: LogLevel, message: string, details?: unknown, metadata?: Record<string, unknown>) =>
   consoleLogger.log(level, 'python', message, details, metadata);
 
-export const logSystem = (level: LogLevel, message: string, details?: any, metadata?: Record<string, any>) =>
+export const logSystem = (level: LogLevel, message: string, details?: unknown, metadata?: Record<string, unknown>) =>
   consoleLogger.log(level, 'system', message, details, metadata);

@@ -38,8 +38,8 @@ export interface OpenAIToolCall {
 /**
  * 将 ToolParameter 转换为 JSON Schema
  */
-function convertParameterToJsonSchema(param: ToolParameter): any {
-  const schema: any = {
+function convertParameterToJsonSchema(param: ToolParameter): Record<string, unknown> {
+  const schema: Record<string, unknown> = {
     type: param.type,
     description: param.description,
   };
@@ -57,7 +57,7 @@ function convertParameterToJsonSchema(param: ToolParameter): any {
     const required: string[] = [];
 
     for (const [key, value] of Object.entries(param.properties)) {
-      schema.properties[key] = convertParameterToJsonSchema(value);
+      (schema.properties as Record<string, unknown>)[key] = convertParameterToJsonSchema(value);
       if (value.required) {
         required.push(key);
       }
@@ -79,7 +79,7 @@ function convertParameterToJsonSchema(param: ToolParameter): any {
  * 将内部工具元数据转换为 OpenAI Tool 格式
  */
 export function convertToOpenAITool(metadata: ToolMetadata): OpenAITool {
-  const properties: Record<string, any> = {};
+  const properties: Record<string, Record<string, unknown>> = {};
   const required: string[] = [];
 
   if (metadata.parameters) {

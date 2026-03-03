@@ -63,7 +63,15 @@ export function useLLM(config: LLMConfig) {
       let maxTokens = config.maxTokens ?? 4096;
 
       const makeRequest = async (tokens: number) => {
-        const requestBody: any = {
+        const requestBody: {
+          model: string;
+          messages: LLMMessage[];
+          stream: boolean;
+          temperature: number;
+          max_tokens: number;
+          tools?: unknown[];
+          tool_choice?: string;
+        } = {
           model: config.model,
           messages,
           stream: true,
@@ -91,10 +99,10 @@ export function useLLM(config: LLMConfig) {
 
       if (!response.ok) {
         let errorMsg = `HTTP ${response.status}`;
-        let errorData: any;
+        let errorData: { error?: { message?: string } | string } | undefined;
         try {
           errorData = await response.json();
-          errorMsg = errorData.error?.message || errorData.error || errorMsg;
+          errorMsg = (typeof errorData?.error === 'object' ? errorData.error.message : errorData?.error) || errorMsg;
         } catch {
           const errorText = await response.text();
           errorMsg = errorText.slice(0, 200) || errorMsg;
