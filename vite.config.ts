@@ -11,7 +11,7 @@ export default defineConfig({
     },
   },
   // GitHub Pages 部署配置 - 根据仓库名自动调整
-  base: process.env.GITHUB_PAGES ? '/CyberBunny/' : '/',
+  base: process.env.GITHUB_PAGES ? '/cyberbunny/' : '/',
   server: {
     // 配置代理以解决 CORS 问题
     proxy: {
