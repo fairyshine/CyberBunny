@@ -37,7 +37,8 @@
       "Bash(mv:*)",
       "WebFetch(domain:docs.exa.ai)",
       "WebFetch(domain:exa.ai)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(pnpm:*)"
     ]
   }
 }
