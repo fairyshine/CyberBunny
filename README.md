@@ -179,79 +179,53 @@ pnpm typecheck
 pnpm lint
 ```
 
-## 🎯 架构优化建议
+## 🎯 待优化项
 
-### 当前架构优势
-- ✅ 清晰的分层架构 (组件/服务/状态)
-- ✅ 类型安全的 TypeScript 实现
-- ✅ 模块化的工具系统设计
-- ✅ 响应式状态管理 (Zustand)
+### 🟡 中优先级
 
-### 待优化项
+#### 1. 虚拟滚动
+- **位置**: `src/components/chat/MessageList.tsx`
+- **问题**: 长对话列表 (>100 条消息) 可能导致性能问题
+- **方案**: 使用 `react-window` 或 `react-virtuoso` 实现虚拟化渲染
 
-#### 1. 代码组织
-- **组件分组**: 将扁平的 components 目录按功能分组 (chat/sidebar/settings/layout)
-- **类型去重**: 统一 `LLMMessage` 类型定义到 `types/index.ts`
-- **移除死代码**: 清理未使用的 `messageConverter.ts` 和未初始化的快捷键系统
+#### 2. 工具状态响应性
+- **位置**: `src/stores/tools.ts:129`
+- **问题**: `toolRegistry` 是单例类，变更不会自动触发 React 更新
+- **现状**: 使用 `refreshTools()` hack 强制重新渲染
+- **方案**: 将工具列表状态移入 Zustand store，或使用事件订阅模式
 
-#### 2. 性能优化
-- **组件记忆化**: 为 `MessageItem` 等高频渲染组件添加 `React.memo`
-- **虚拟滚动**: 长对话列表使用虚拟化渲染
-- **代码分割**: 懒加载设置面板、文件编辑器等非关键组件
-- **Bundle 优化**: 配置 Vite 手动分包，分离 vendor 代码
+### 🟢 低优先级
 
-#### 3. 状态管理
-- **派生状态**: `currentSession` 应从 `sessions` 数组派生，避免状态不同步
-- **工具状态响应**: 修复 `toolRegistry` 变更不触发 React 更新的问题
-- **单一数据源**: 统一 `proxyWorkerUrl` 的存储位置
+#### 3. 快捷键系统初始化
+- **位置**: `src/utils/keyboardShortcuts.ts`
+- **问题**: `initGlobalShortcuts()` 从未被调用，`ShortcutsHelp.tsx` 未被使用
+- **现状**: 只有 App.tsx 中硬编码的 `Ctrl+\`` 快捷键生效
+- **方案**: 在 App.tsx 中调用 `initGlobalShortcuts()`，在 Header 中添加快捷键帮助按钮
 
-#### 4. 服务层改进
-- **MCP 客户端**: 修复并发工具调用的消息处理竞态问题
-- **文件系统**: 优化 `readdir` 使用 IndexedDB 范围查询，支持递归同步
-- **错误处理**: 添加顶层 `ErrorBoundary`，统一错误消息格式化
+#### 4. 单一数据源
+- **位置**: `src/stores/settings.ts` 和 `src/utils/api.ts`
+- **问题**: `proxyWorkerUrl` 同时存储在 Zustand store 和 localStorage
+- **方案**: 统一使用 Zustand store，移除 `api.ts` 中的重复存储逻辑
 
-#### 5. 类型安全
-- **消除 `any`**: 为 `requestBody`、`fileSystem` 参数等添加明确类型
-- **Provider 实现**: 完善 Anthropic provider 的 API 调用逻辑
-- **依赖修正**: 将 Radix UI 包从 `devDependencies` 移至 `dependencies`
+#### 5. 懒加载优化
+- **位置**: `src/components/layout/Header.tsx`
+- **问题**: `SettingsModal` 未懒加载，但不是关键路径组件
+- **方案**: 使用 `lazy()` 和 `Suspense` 懒加载 SettingsModal
 
-### 优先级建议
-1. 🔴 **高优先级**: 修复 `currentSession` 状态同步 bug (数据完整性风险)
-2. 🟡 **中优先级**: 添加 `React.memo` 和 ErrorBoundary (用户体验)
-3. 🟢 **低优先级**: 代码重组和 Bundle 优化 (长期维护性)
+### ✅ 已完成的优化
 
-详细的架构分析和重构指南请参考 [架构文档](./docs/ARCHITECTURE.md)。
-
-## 🚢 部署
-
-### GitHub Pages
-
-```bash
-export GITHUB_PAGES=true
-pnpm build
-# 部署 dist 目录到 gh-pages 分支
-```
-
-### Cloudflare Pages / Vercel
-
-```bash
-# 构建命令
-pnpm build
-
-# 输出目录
-dist
-```
-
-## 📚 文档
-
-- [架构文档](./docs/ARCHITECTURE.md)
-- [开发指南](./docs/DEVELOPMENT.md)
-- [工具开发](./docs/TOOL_DEVELOPMENT.md)
-- [MCP 集成](./docs/MCP_INTEGRATION.md)
-
-## 🤝 贡献
-
-欢迎贡献！请查看 [贡献指南](./CONTRIBUTING.md)。
+- ✅ MCP 客户端并发竞态问题修复
+- ✅ Anthropic provider 完整实现
+- ✅ 文件系统 readdir 性能优化
+- ✅ Vite Bundle 分包配置
+- ✅ 代码分割和懒加载 (FileEditor, ConsolePanel)
+- ✅ 消除 any 类型
+- ✅ ErrorBoundary 添加
+- ✅ currentSession 派生状态
+- ✅ 组件目录分组
+- ✅ MessageItem 组件记忆化
+- ✅ Radix UI 依赖配置
+- ✅ 死代码清理 (messageConverter.ts)
 
 ## 📝 许可证
 
@@ -269,4 +243,3 @@ MIT License - 查看 [LICENSE](./LICENSE) 文件
 <div align="center">
 Made with ❤️ by RadiCato
 </div>
-
