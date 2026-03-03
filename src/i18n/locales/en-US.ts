@@ -43,6 +43,7 @@ const enUS = {
   'settings.title': 'Settings',
   'settings.tabs.llm': 'LLM',
   'settings.tabs.tools': 'Tools',
+  'settings.tabs.skills': 'Skills',
   'settings.tabs.general': 'General',
   'settings.provider': 'Provider',
   'settings.provider.custom': 'Custom',
@@ -135,6 +136,24 @@ export default {
   },
 };
 `,
+
+  // Skills
+  'settings.skills.installed': 'Installed Skills',
+  'settings.skills.addSource': 'Add Skill Source',
+  'settings.skills.noSkills': 'No skills loaded',
+  'settings.skills.requires': 'Requires',
+  'settings.skills.reload': 'Reload',
+  'settings.skills.remove': 'Remove',
+  'settings.skills.builtin': 'Built-in',
+  'settings.skills.sources': 'Skill Sources',
+  'settings.skills.confirmRemove': 'Are you sure you want to remove this skill source?',
+  'settings.skills.sourceType': 'Source Type',
+  'settings.skills.sourceName': 'Source Name',
+  'settings.skills.sourceNamePlaceholder': 'e.g., My Custom Skill',
+  'settings.skills.file': 'File',
+  'settings.skills.code': 'Code',
+  'settings.skills.filePath': 'File Path',
+  'settings.skills.codePlaceholder': '// Write skill code...',
 
   // Tool names & descriptions (builtin)
   'tools.python.name': 'Python Interpreter',

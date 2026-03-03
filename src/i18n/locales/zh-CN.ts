@@ -43,6 +43,7 @@ const zhCN = {
   'settings.title': '设置',
   'settings.tabs.llm': '大模型',
   'settings.tabs.tools': '工具',
+  'settings.tabs.skills': '技能',
   'settings.tabs.general': '通用',
   'settings.provider': '提供商',
   'settings.provider.custom': '自定义',
@@ -135,6 +136,24 @@ export default {
   },
 };
 `,
+
+  // Skills
+  'settings.skills.installed': '已安装的 Skills',
+  'settings.skills.addSource': '添加 Skill 源',
+  'settings.skills.noSkills': '暂无已加载 Skill',
+  'settings.skills.requires': '需要',
+  'settings.skills.reload': '重载',
+  'settings.skills.remove': '移除',
+  'settings.skills.builtin': '内置',
+  'settings.skills.sources': 'Skill 源',
+  'settings.skills.confirmRemove': '确定要移除这个 Skill 源吗？',
+  'settings.skills.sourceType': '源类型',
+  'settings.skills.sourceName': '源名称',
+  'settings.skills.sourceNamePlaceholder': '例如: 我的自定义 Skill',
+  'settings.skills.file': '文件',
+  'settings.skills.code': '代码',
+  'settings.skills.filePath': '文件路径',
+  'settings.skills.codePlaceholder': '// 编写 Skill 代码...',
 
   // Tool names & descriptions (builtin)
   'tools.python.name': 'Python 解释器',

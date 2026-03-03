@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useSessionStore } from '../../stores/session';
 import { useSettingsStore } from '../../stores/settings';
 import { ToolManager } from './ToolManager';
+import { SkillManager } from './SkillManager';
 import ConnectionTest from './ConnectionTest';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
@@ -39,9 +40,10 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
         <Tabs defaultValue="llm" className="flex-1 flex flex-col overflow-hidden">
           <div className="px-6 pt-4 shrink-0">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="llm">{t('settings.tabs.llm')}</TabsTrigger>
               <TabsTrigger value="tools">{t('settings.tabs.tools')}</TabsTrigger>
+              <TabsTrigger value="skills">{t('settings.tabs.skills')}</TabsTrigger>
               <TabsTrigger value="general">{t('settings.tabs.general')}</TabsTrigger>
             </TabsList>
           </div>
@@ -173,6 +175,12 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
           <TabsContent value="tools" className="flex-1 overflow-y-auto mt-0">
             <ToolManager />
+          </TabsContent>
+
+          <TabsContent value="skills" className="flex-1 overflow-y-auto mt-0">
+            <div className="px-6 py-5">
+              <SkillManager />
+            </div>
           </TabsContent>
 
           <TabsContent value="general" className="flex-1 overflow-y-auto mt-0">

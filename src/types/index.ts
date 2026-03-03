@@ -79,6 +79,7 @@ export interface ToolContext {
 
 // 工具执行结果（不带 toolCallId）
 export interface ToolExecuteResult {
+  success?: boolean;
   content: string;
   metadata?: Record<string, unknown>;
 }
