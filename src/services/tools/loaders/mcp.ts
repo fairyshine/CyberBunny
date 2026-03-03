@@ -51,7 +51,7 @@ class MCPToolWrapper extends BaseTool {
       id: `mcp_${serverId}_${mcpTool.name}`,
       name: mcpTool.name,
       description: mcpTool.description,
-      icon: '🔌',
+      icon: 'plug',
       tags: ['mcp', serverId],
     });
   }

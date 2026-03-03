@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { fileSystem, FileSystemEntry } from '../services/filesystem';
-import { Folder, File as FileIcon, FileText, Trash2, Upload, Download, RefreshCw, X, Check } from './icons';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { ScrollArea } from './ui/scroll-area';
+import { fileSystem, FileSystemEntry } from '../../services/filesystem';
+import { Folder, File as FileIcon, FileText, Trash2, Upload, Download, RefreshCw, X, Check } from '../icons';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { ScrollArea } from '../ui/scroll-area';
 
 interface FileManagerProps {
   isOpen: boolean;

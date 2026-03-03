@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { X, Save, Download } from './icons';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
+import { X, Save, Download } from '../icons';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
 
 interface FileEditorProps {
   path: string;

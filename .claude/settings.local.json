@@ -33,7 +33,8 @@
       "Bash(/Users/wumengsong/Code/GitHub/cyberbunny/docs/README.md:*)",
       "Bash(/tmp/session_summary.md:*)",
       "Bash(ls:*)",
-      "Bash(FILE_MANAGER_SUMMARY.md:*)"
+      "Bash(FILE_MANAGER_SUMMARY.md:*)",
+      "Bash(mv:*)"
     ]
   }
 }

@@ -10,6 +10,7 @@ interface SessionState {
 
   // Actions
   createSession: (name?: string) => Session;
+  renameSession: (id: string, name: string) => void;
   deleteSession: (id: string) => void;
   setCurrentSession: (id: string) => void;
   addMessage: (sessionId: string, message: Message) => void;
@@ -28,7 +29,7 @@ export const useSessionStore = create<SessionState>()(
   persist(
     (set, get) => ({
       sessions: [],
-      currentSession: null,
+      currentSessionId: null,
       llmConfig: {
         provider: 'openai',
         apiKey: '',
@@ -48,22 +49,32 @@ export const useSessionStore = create<SessionState>()(
 
         set((state) => ({
           sessions: [session, ...state.sessions],
-          currentSession: session,
+          currentSessionId: session.id,
         }));
 
         return session;
       },
 
+      renameSession: (id: string, name: string) => {
+        const trimmed = name.trim();
+        if (!trimmed) return;
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === id ? { ...s, name: trimmed, updatedAt: Date.now() } : s
+          ),
+        }));
+      },
+
       deleteSession: (id: string) => {
         set((state) => {
           const newSessions = state.sessions.filter((s) => s.id !== id);
-          const newCurrent = state.currentSession?.id === id 
-            ? newSessions[0] || null 
-            : state.currentSession;
-          
+          const newCurrentId = state.currentSessionId === id
+            ? (newSessions[0]?.id || null)
+            : state.currentSessionId;
+
           return {
             sessions: newSessions,
-            currentSession: newCurrent,
+            currentSessionId: newCurrentId,
           };
         });
       },
@@ -71,7 +82,7 @@ export const useSessionStore = create<SessionState>()(
       setCurrentSession: (id: string) => {
         const session = get().sessions.find((s) => s.id === id);
         if (session) {
-          set({ currentSession: session });
+          set({ currentSessionId: id });
         }
       },
 
@@ -86,14 +97,6 @@ export const useSessionStore = create<SessionState>()(
                 }
               : session
           ),
-          currentSession:
-            state.currentSession?.id === sessionId
-              ? {
-                  ...state.currentSession,
-                  messages: [...state.currentSession.messages, message],
-                  updatedAt: Date.now(),
-                }
-              : state.currentSession,
         }));
       },
 
@@ -109,15 +112,6 @@ export const useSessionStore = create<SessionState>()(
                 }
               : session
           ),
-          currentSession:
-            state.currentSession?.id === sessionId
-              ? {
-                  ...state.currentSession,
-                  messages: state.currentSession.messages.map((msg) =>
-                    msg.id === messageId ? { ...msg, ...updates } : msg
-                  ),
-                }
-              : state.currentSession,
         }));
       },
 
@@ -130,7 +124,7 @@ export const useSessionStore = create<SessionState>()(
       },
 
       clearAllSessions: () => {
-        set({ sessions: [], currentSession: null });
+        set({ sessions: [], currentSessionId: null });
       },
     }),
     {

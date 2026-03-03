@@ -24,12 +24,12 @@ export default defineConfig({
           proxy.on('proxyReq', (proxyReq, req, res) => {
             const url = new URL(req.url || '', `http://${req.headers.host}`);
             const target = url.searchParams.get('target');
-            
+
             if (target) {
               // 使用自定义目标
               const targetUrl = new URL(decodeURIComponent(target));
               console.log(`[Proxy] Forwarding to custom target: ${targetUrl.origin}`);
-              
+
               // 修改请求头
               proxyReq.setHeader('host', targetUrl.host);
               proxyReq.path = targetUrl.pathname + targetUrl.search;
@@ -43,6 +43,27 @@ export default defineConfig({
     },
   },
   build: {
-    target: 'esnext'
-  }
+    target: 'esnext',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-radix': [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-label',
+            '@radix-ui/react-scroll-area',
+            '@radix-ui/react-select',
+            '@radix-ui/react-separator',
+            '@radix-ui/react-slot',
+            '@radix-ui/react-switch',
+            '@radix-ui/react-tabs',
+            '@radix-ui/react-tooltip',
+          ],
+          'vendor-ui': ['lucide-react', 'class-variance-authority', 'clsx', 'tailwind-merge'],
+          'vendor-state': ['zustand'],
+        },
+      },
+    },
+  },
 })

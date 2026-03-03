@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader, Code, X } from './icons';
-import { Button } from './ui/button';
-import { Textarea } from './ui/textarea';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { Send, Loader, Code, X } from '../icons';
+import { Button } from '../ui/button';
+import { Textarea } from '../ui/textarea';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -48,9 +48,9 @@ export default function ChatInput({ onSend, onStop, isLoading, disabled, placeho
   };
 
   return (
-    <div className="border-t border-border bg-background p-3 md:p-4 pb-safe">
-      <div className="max-w-3xl mx-auto">
-        <div className="relative flex items-end gap-2 bg-secondary/50 border border-border rounded-2xl p-2">
+    <div className="border-t border-border bg-background p-4 md:p-6 pb-safe">
+      <div className="max-w-4xl mx-auto">
+        <div className="relative flex items-end gap-2 bg-muted/30 border border-border rounded-xl p-2 shadow-elegant">
           <TooltipProvider>
             {/* 工具按钮 */}
             <Tooltip>
@@ -59,12 +59,12 @@ export default function ChatInput({ onSend, onStop, isLoading, disabled, placeho
                   onClick={insertCodeBlock}
                   variant="ghost"
                   size="icon"
-                  className="flex-shrink-0"
+                  className="flex-shrink-0 h-9 w-9"
                 >
-                  <Code className="w-5 h-5" />
+                  <Code className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>插入 Python 代码块</TooltipContent>
+              <TooltipContent>插入代码块</TooltipContent>
             </Tooltip>
 
             {/* 输入框 */}
@@ -73,9 +73,9 @@ export default function ChatInput({ onSend, onStop, isLoading, disabled, placeho
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={placeholder || (disabled ? '处理中...' : '输入消息...')}
+              placeholder={placeholder || (disabled ? '处理中...' : '输入消息 (Enter 发送，Shift+Enter 换行)')}
               disabled={disabled}
-              className="flex-1 bg-transparent border-none resize-none outline-none min-h-[24px] max-h-[200px] focus-visible:ring-0"
+              className="flex-1 bg-transparent border-none resize-none outline-none min-h-[24px] max-h-[200px] focus-visible:ring-0 text-sm"
               rows={1}
             />
 
@@ -85,35 +85,30 @@ export default function ChatInput({ onSend, onStop, isLoading, disabled, placeho
                 <TooltipTrigger asChild>
                   <Button
                     onClick={onStop}
-                    variant="destructive"
+                    variant="ghost"
                     size="icon"
-                    className="flex-shrink-0 h-10 w-10"
+                    className="flex-shrink-0 h-9 w-9"
                   >
-                    <X className="w-5 h-5" />
+                    <X className="w-4 h-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>停止生成</TooltipContent>
+                <TooltipContent>停止</TooltipContent>
               </Tooltip>
             ) : (
               <Button
                 onClick={handleSubmit}
                 disabled={!input.trim() || disabled || isLoading}
                 size="icon"
-                className="flex-shrink-0 h-10 w-10"
+                className="flex-shrink-0 h-9 w-9 shadow-elegant"
               >
                 {isLoading ? (
-                  <Loader className="w-5 h-5" />
+                  <Loader className="w-4 h-4 animate-spin" />
                 ) : (
-                  <Send className="w-5 h-5" />
+                  <Send className="w-4 h-4" />
                 )}
               </Button>
             )}
           </TooltipProvider>
-        </div>
-
-        {/* 提示文字 */}
-        <div className="text-center text-xs text-muted-foreground mt-2">
-          按 Enter 发送，Shift + Enter 换行
         </div>
       </div>
     </div>

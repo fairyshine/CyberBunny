@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { consoleLogger, LogEntry, LogCategory, LogLevel } from '../services/console/logger';
-import { X } from './icons';
-import { Badge } from './ui/badge';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { ScrollArea } from './ui/scroll-area';
-import { Switch } from './ui/switch';
+import { consoleLogger, LogEntry, LogCategory, LogLevel } from '../../services/console/logger';
+import { X } from '../icons';
+import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { ScrollArea } from '../ui/scroll-area';
+import { Switch } from '../ui/switch';
 
 interface ConsolePanelProps {
   isOpen: boolean;

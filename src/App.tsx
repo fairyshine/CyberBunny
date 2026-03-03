@@ -1,19 +1,21 @@
 import { useEffect, useState } from 'react';
-import ChatContainer from './components/ChatContainer';
-import Sidebar from './components/Sidebar';
-import Header from './components/Header';
-import WelcomeScreen from './components/WelcomeScreen';
-import FileEditor from './components/FileEditor';
-import ConsolePanel from './components/ConsolePanel';
-import { useSessionStore } from './stores/session';
+import ChatContainer from './components/chat/ChatContainer';
+import Sidebar from './components/sidebar/Sidebar';
+import Header from './components/layout/Header';
+import WelcomeScreen from './components/layout/WelcomeScreen';
+import FileEditor from './components/sidebar/FileEditor';
+import ConsolePanel from './components/layout/ConsolePanel';
+import { useSessionStore, selectCurrentSession } from './stores/session';
 import { useSettingsStore } from './stores/settings';
 import { pythonExecutor } from './services/python/executor';
 import { fileSystem } from './services/filesystem';
 import { logSystem } from './services/console/logger';
+import { applyTheme, setupSystemThemeListener } from './utils/theme';
 
 function App() {
-  const { currentSession, createSession } = useSessionStore();
-  const { initializePython } = useSettingsStore();
+  const currentSession = useSessionStore(selectCurrentSession);
+  const { createSession } = useSessionStore();
+  const { initializePython, theme } = useSettingsStore();
   const [showWelcome, setShowWelcome] = useState(!currentSession);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [fileContent, setFileContent] = useState<string>('');
@@ -23,26 +25,18 @@ function App() {
   // Apply theme on mount
   useEffect(() => {
     // Initialize theme on mount
-    const { theme } = useSettingsStore.getState();
-    const root = window.document.documentElement;
-    root.classList.remove('light', 'dark');
+    applyTheme(theme);
 
+    // Listen for system theme changes if theme is 'system'
     if (theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      root.classList.add(systemTheme);
-
-      // Listen for system theme changes
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const handleChange = (e: MediaQueryListEvent) => {
+      const cleanup = setupSystemThemeListener((systemTheme) => {
+        const root = window.document.documentElement;
         root.classList.remove('light', 'dark');
-        root.classList.add(e.matches ? 'dark' : 'light');
-      };
-      mediaQuery.addEventListener('change', handleChange);
-      return () => mediaQuery.removeEventListener('change', handleChange);
-    } else {
-      root.classList.add(theme);
+        root.classList.add(systemTheme);
+      });
+      return cleanup;
     }
-  }, []);
+  }, [theme]);
 
   // 启动日志（只执行一次）
   useEffect(() => {

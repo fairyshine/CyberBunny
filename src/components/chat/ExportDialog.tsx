@@ -1,11 +1,11 @@
 // 消息导出功能组件
 import { useState } from 'react';
-import { Message } from '../types';
-import { MessageHistoryManager } from '../utils/messageHistory';
-import { Button } from './ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Download } from './icons';
+import { Message } from '../../types';
+import { MessageHistoryManager } from '../../utils/messageHistory';
+import { Button } from '../ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { Download } from '../icons';
 
 interface ExportDialogProps {
   messages: Message[];

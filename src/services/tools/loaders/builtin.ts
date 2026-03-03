@@ -31,9 +31,9 @@ class PythonTool extends BaseTool {
   constructor() {
     super({
       id: 'python',
-      name: 'Python 代码执行',
+      name: 'Python 解释器',
       description: '执行 Python 代码并返回结果，支持数学计算、数据分析、绘图等',
-      icon: '🐍',
+      icon: 'python',
       parameters: [
         {
           name: 'code',
@@ -69,7 +69,7 @@ class WebSearchTool extends BaseTool {
       id: 'web_search',
       name: '网页搜索',
       description: '使用 DuckDuckGo 搜索网络信息，获取实时资讯',
-      icon: '🔍',
+      icon: 'search',
       parameters: [
         {
           name: 'query',
@@ -140,7 +140,7 @@ class CalculatorTool extends BaseTool {
       id: 'calculator',
       name: '计算器',
       description: '执行数学计算表达式，支持 Python math 库',
-      icon: '🧮',
+      icon: 'calculator',
       parameters: [
         {
           name: 'expression',
@@ -176,7 +176,7 @@ class FileManagerTool extends BaseTool {
       id: 'file_manager',
       name: '文件管理',
       description: '管理沙盒文件系统：读取、写入、列出、创建文件夹、删除文件',
-      icon: '📁',
+      icon: 'folder',
       parameters: [
         {
           name: 'operation',
@@ -350,7 +350,7 @@ class MCPToolCallTool extends BaseTool {
       id: 'mcp_tool',
       name: 'MCP 工具调用',
       description: '调用已连接的 MCP 服务器工具',
-      icon: '🔌',
+      icon: 'plug',
       parameters: [
         {
           name: 'serverId',

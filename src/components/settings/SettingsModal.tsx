@@ -1,19 +1,20 @@
 import { useState } from 'react';
-import { useSessionStore } from '../stores/session';
-import { useSettingsStore } from '../stores/settings';
-import { Plus, Trash } from './icons';
-import { toolRegistry } from '../services/tools/registry';
+import { useSessionStore } from '../../stores/session';
+import { useSettingsStore } from '../../stores/settings';
+import { Plus, Trash } from '../icons';
+import { toolRegistry } from '../../services/tools/registry';
+import { ToolIcon } from '../ToolIcon';
 import { ToolManager } from './ToolManager';
 import ConnectionTest from './ConnectionTest';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Label } from './ui/label';
-import { Input } from './ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Switch } from './ui/switch';
-import { Button } from './ui/button';
-import { ScrollArea } from './ui/scroll-area';
-import { Separator } from './ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { Label } from '../ui/label';
+import { Input } from '../ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Switch } from '../ui/switch';
+import { Button } from '../ui/button';
+import { ScrollArea } from '../ui/scroll-area';
+import { Separator } from '../ui/separator';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -177,7 +178,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <span className="text-3xl flex-shrink-0">{tool.metadata.icon}</span>
+                      <ToolIcon icon={tool.metadata.icon} className="w-8 h-8 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm">{tool.metadata.name}</p>
                         <p className="text-sm text-muted-foreground line-clamp-2">{tool.metadata.description}</p>

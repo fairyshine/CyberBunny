@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Settings, Plus, Menu } from './icons';
-import { useSessionStore } from '../stores/session';
-import SettingsModal from './SettingsModal';
+import { Settings, Plus, Menu } from '../icons';
+import { useSessionStore } from '../../stores/session';
+import SettingsModal from '../settings/SettingsModal';
 import { ThemeToggle } from './ThemeToggle';
-import { Button } from './ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { Button } from '../ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 interface HeaderProps {
   onToggleConsole?: () => void;
@@ -17,7 +17,7 @@ export default function Header({ onToggleConsole, onToggleSidebar }: HeaderProps
 
   return (
     <>
-      <header className="h-14 bg-background border-b border-border flex items-center justify-between px-4">
+      <header className="h-14 bg-background border-b border-border flex items-center justify-between px-4 shadow-elegant">
         <div className="flex items-center gap-3">
           {onToggleSidebar && (
             <Button
@@ -29,18 +29,21 @@ export default function Header({ onToggleConsole, onToggleSidebar }: HeaderProps
               <Menu className="w-5 h-5" />
             </Button>
           )}
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold">
-            🐰
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-foreground rounded-md flex items-center justify-center text-background text-sm">
+              🐰
+            </div>
+            <h1 className="font-semibold text-foreground tracking-tight">CyberBunny</h1>
           </div>
-          <h1 className="font-semibold text-foreground">CyberBunny</h1>
         </div>
 
         <TooltipProvider>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <Button
               onClick={() => createSession('新会话')}
               size="sm"
-              className="flex items-center gap-2"
+              variant="ghost"
+              className="flex items-center gap-2 font-medium"
             >
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">新会话</span>
@@ -54,7 +57,7 @@ export default function Header({ onToggleConsole, onToggleSidebar }: HeaderProps
                     variant="ghost"
                     size="icon"
                   >
-                    <span className="font-mono text-sm">&gt;_</span>
+                    <span className="font-mono text-sm font-medium">&gt;_</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>控制台</TooltipContent>
@@ -70,7 +73,7 @@ export default function Header({ onToggleConsole, onToggleSidebar }: HeaderProps
                   variant="ghost"
                   size="icon"
                 >
-                  <Settings className="w-5 h-5" />
+                  <Settings className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>设置</TooltipContent>

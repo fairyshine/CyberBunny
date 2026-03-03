@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { setProxyWorkerUrl as persistProxyUrl } from '../utils/api';
 import { logSettings } from '../services/console/logger';
+import { applyTheme, type Theme } from '../utils/theme';
 
 interface SettingsState {
   // Python 设置
@@ -20,8 +21,8 @@ interface SettingsState {
   toggleAutoConnect: (id: string) => void;
 
   // 界面设置
-  theme: 'light' | 'dark' | 'system';
-  setTheme: (theme: 'light' | 'dark' | 'system') => void;
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
 
   // 工具设置
   enabledTools: string[];
@@ -65,15 +66,7 @@ export const useSettingsStore = create<SettingsState>()(
       theme: 'system',
       setTheme: (theme) => {
         set({ theme });
-        // Apply theme to document
-        const root = window.document.documentElement;
-        root.classList.remove('light', 'dark');
-        if (theme === 'system') {
-          const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-          root.classList.add(systemTheme);
-        } else {
-          root.classList.add(theme);
-        }
+        applyTheme(theme);
       },
 
       enabledTools: ['python', 'calculator', 'web_search', 'read_file', 'write_file', 'list_files', 'create_folder'],

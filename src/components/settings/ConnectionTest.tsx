@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { useSessionStore } from '../stores/session';
-import { buildChatCompletionsUrl } from '../utils/api';
-import { Button } from './ui/button';
-import { Card, CardContent } from './ui/card';
-import { ScrollArea } from './ui/scroll-area';
+import { useSessionStore } from '../../stores/session';
+import { buildChatCompletionsUrl } from '../../utils/api';
+import { Button } from '../ui/button';
+import { Card, CardContent } from '../ui/card';
+import { ScrollArea } from '../ui/scroll-area';
 
 export default function ConnectionTest() {
   const [result, setResult] = useState<string>('');

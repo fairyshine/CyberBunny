@@ -2,18 +2,19 @@
 // 用于管理工具源和查看已加载的工具
 
 import { useState } from 'react';
-import { useToolStore } from '../stores/tools';
-import { toolRegistry } from '../services/tools/registry';
-import { ToolSource } from '../services/tools/base';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { Badge } from './ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Alert, AlertDescription } from './ui/alert';
-import { ScrollArea } from './ui/scroll-area';
+import { useToolStore } from '../../stores/tools';
+import { toolRegistry } from '../../services/tools/registry';
+import { ToolSource } from '../../services/tools/base';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { Badge } from '../ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Alert, AlertDescription } from '../ui/alert';
+import { ScrollArea } from '../ui/scroll-area';
+import { ToolIcon } from '../ToolIcon';
 
 export function ToolManager() {
   const { sources, loading, error, addSource, removeSource, toggleSource, reloadSource } = useToolStore();
@@ -129,9 +130,7 @@ export function ToolManager() {
                 <Card key={tool.metadata.id}>
                   <CardHeader className="p-3">
                     <div className="flex items-start gap-2">
-                      {tool.metadata.icon && (
-                        <span className="text-2xl">{tool.metadata.icon}</span>
-                      )}
+                      <ToolIcon icon={tool.metadata.icon} className="w-6 h-6 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <CardTitle className="text-sm truncate">
                           {tool.metadata.name}

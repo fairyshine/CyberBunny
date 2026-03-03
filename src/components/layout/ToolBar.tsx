@@ -1,7 +1,8 @@
-import { useSettingsStore } from '../stores/settings';
-import { toolRegistry } from '../services/tools/registry';
-import { ITool } from '../services/tools/base';
-import { Badge } from './ui/badge';
+import { useSettingsStore } from '../../stores/settings';
+import { toolRegistry } from '../../services/tools/registry';
+import { ITool } from '../../services/tools/base';
+import { Badge } from '../ui/badge';
+import { ToolIcon } from '../ToolIcon';
 
 export default function ToolBar() {
   const { enabledTools, toggleTool } = useSettingsStore();
@@ -21,7 +22,7 @@ export default function ToolBar() {
             }`}
             title={tool.metadata.description}
           >
-            <span className="text-sm mr-1">{tool.metadata.icon}</span>
+            <ToolIcon icon={tool.metadata.icon} className="w-3.5 h-3.5 mr-1" />
             <span>{tool.metadata.name}</span>
           </Badge>
         ))}

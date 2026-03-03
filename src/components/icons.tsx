@@ -1,4 +1,17 @@
 // 简单的 SVG 图标组件
+// 部分图标直接从 lucide-react 导出
+
+export {
+  Zap,
+  AlertTriangle,
+  Terminal as TerminalSquare,
+  Brain,
+  Wrench,
+  CheckCircle,
+  FileCode,
+  Globe,
+  FolderOpen,
+} from 'lucide-react';
 
 export function Plus({ className }: { className?: string }) {
   return (

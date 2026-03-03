@@ -1,20 +1,20 @@
 import { useState, useRef, useEffect } from 'react';
-import { useSessionStore } from '../stores/session';
-import { useSettingsStore } from '../stores/settings';
-import { toolRegistry } from '../services/tools/registry';
-import { getOpenAITools, parseToolCallArguments, convertArgumentsToInput, generateOpenAISystemPrompt } from '../services/tools/openai-format';
-import { Message } from '../types';
-import { useLLM } from '../hooks/useLLM';
-import { logLLM, logTool } from '../services/console/logger';
-import { LLMConversation } from '../services/llm/conversation';
+import { useSessionStore } from '../../stores/session';
+import { useSettingsStore } from '../../stores/settings';
+import { toolRegistry } from '../../services/tools/registry';
+import { getOpenAITools, parseToolCallArguments, convertArgumentsToInput, generateOpenAISystemPrompt } from '../../services/tools/openai-format';
+import { Message } from '../../types';
+import { useLLM } from '../../hooks/useLLM';
+import { logLLM, logTool } from '../../services/console/logger';
+import { LLMConversation } from '../../services/llm/conversation';
 import MessageList from './MessageList';
 import ChatInput from './ChatInput';
-import ToolBar from './ToolBar';
+import ToolBar from '../layout/ToolBar';
 import ExportDialog from './ExportDialog';
-import { Badge } from './ui/badge';
-import { Button } from './ui/button';
-import { Download } from './icons';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
+import { Download } from '../icons';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 interface ChatContainerProps {
   sessionId: string;
