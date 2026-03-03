@@ -203,7 +203,7 @@ export function MemoryViewer({ isOpen, onClose }: MemoryViewerProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[85vh] flex flex-col">
+      <DialogContent className="w-[1100px] h-[750px] max-w-[90vw] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Brain className="w-5 h-5" />
@@ -350,37 +350,37 @@ export function MemoryViewer({ isOpen, onClose }: MemoryViewerProps) {
                 // Diary List View
                 <>
                   {/* Statistics Cards */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="rounded-lg border bg-muted/30 p-3">
+                  <div className="grid grid-cols-3 gap-2 shrink-0">
+                    <div className="rounded-lg border bg-muted/30 p-2">
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                         <CalendarIcon className="w-3 h-3" />
                         {t('tools.memory.totalDiaries')}
                       </div>
-                      <div className="text-2xl font-semibold">{diaryStats.totalDiaries}</div>
+                      <div className="text-xl font-semibold">{diaryStats.totalDiaries}</div>
                     </div>
-                    <div className="rounded-lg border bg-muted/30 p-3">
+                    <div className="rounded-lg border bg-muted/30 p-2">
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                         <BarChart3 className="w-3 h-3" />
                         {t('tools.memory.totalWords')}
                       </div>
-                      <div className="text-2xl font-semibold">
+                      <div className="text-xl font-semibold">
                         {diaryStats.totalWords < 1024
                           ? `${diaryStats.totalWords} B`
                           : `${(diaryStats.totalWords / 1024).toFixed(1)} KB`}
                       </div>
                     </div>
-                    <div className="rounded-lg border bg-muted/30 p-3">
+                    <div className="rounded-lg border bg-muted/30 p-2">
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                         🔥 {t('tools.memory.streak')}
                       </div>
-                      <div className="text-2xl font-semibold">
+                      <div className="text-xl font-semibold">
                         {diaryStats.streak} {t('tools.memory.streakDays')}
                       </div>
                     </div>
                   </div>
 
                   {/* Quick Actions */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 shrink-0">
                     <Button onClick={openTodayDiary} size="sm" className="h-8 text-xs">
                       <CalendarIcon className="w-3 h-3 mr-1" />
                       {t('tools.memory.todayDiary')}
