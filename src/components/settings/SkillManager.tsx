@@ -66,10 +66,9 @@ Provide examples...
     if (skill instanceof MarkdownSkill) {
       const skillPath = skill.getSkillPath();
 
-      // 对于内置 skills
+      // 对于内置 skills，返回 null（不支持文件树浏览）
       if (skillPath.startsWith('builtin/')) {
-        // 内置 skills 在源码中，返回相对路径
-        return `src/services/skills/${skillPath}`;
+        return null;
       }
 
       // 对于用户自定义 skills
@@ -78,22 +77,36 @@ Provide examples...
     return null;
   };
 
+  // 检查是否是内置 skill
+  const isBuiltinSkill = (skill: any): boolean => {
+    if (skill instanceof MarkdownSkill) {
+      return skill.getSkillPath().startsWith('builtin/');
+    }
+    return false;
+  };
+
   // 查看 Skill 文件夹
   const handleViewSkill = async (skill: any) => {
     setSelectedSkill(skill);
 
-    const folderPath = getSkillFolderPath(skill);
-    if (folderPath) {
-      // 默认选择 SKILL.md
-      const skillMdPath = `${folderPath}/SKILL.md`;
-      setSelectedFilePath(skillMdPath);
+    // 对于内置 skills，直接显示 SKILL.md 内容
+    if (isBuiltinSkill(skill) && skill instanceof MarkdownSkill) {
+      setSelectedFilePath('SKILL.md');
+      setEditContent(skill.getRawInstructions());
+    } else {
+      const folderPath = getSkillFolderPath(skill);
+      if (folderPath) {
+        // 默认选择 SKILL.md
+        const skillMdPath = `${folderPath}/SKILL.md`;
+        setSelectedFilePath(skillMdPath);
 
-      try {
-        const content = await fileSystem.readFileText(skillMdPath);
-        setEditContent(content || '');
-      } catch (error) {
-        console.error('Failed to read SKILL.md:', error);
-        setEditContent('');
+        try {
+          const content = await fileSystem.readFileText(skillMdPath);
+          setEditContent(content || '');
+        } catch (error) {
+          console.error('Failed to read SKILL.md:', error);
+          setEditContent('');
+        }
       }
     }
 
@@ -104,18 +117,24 @@ Provide examples...
   const handleEditSkill = async (skill: any) => {
     setSelectedSkill(skill);
 
-    const folderPath = getSkillFolderPath(skill);
-    if (folderPath) {
-      // 默认选择 SKILL.md
-      const skillMdPath = `${folderPath}/SKILL.md`;
-      setSelectedFilePath(skillMdPath);
+    // 对于内置 skills，直接显示 SKILL.md 内容
+    if (isBuiltinSkill(skill) && skill instanceof MarkdownSkill) {
+      setSelectedFilePath('SKILL.md');
+      setEditContent(skill.getRawInstructions());
+    } else {
+      const folderPath = getSkillFolderPath(skill);
+      if (folderPath) {
+        // 默认选择 SKILL.md
+        const skillMdPath = `${folderPath}/SKILL.md`;
+        setSelectedFilePath(skillMdPath);
 
-      try {
-        const content = await fileSystem.readFileText(skillMdPath);
-        setEditContent(content || '');
-      } catch (error) {
-        console.error('Failed to read SKILL.md:', error);
-        setEditContent('');
+        try {
+          const content = await fileSystem.readFileText(skillMdPath);
+          setEditContent(content || '');
+        } catch (error) {
+          console.error('Failed to read SKILL.md:', error);
+          setEditContent('');
+        }
       }
     }
 
@@ -537,14 +556,25 @@ Provide examples...
           </DialogHeader>
 
           <div className="grid grid-cols-[250px_1fr] gap-4 h-[65vh]">
-            {/* 左侧: 文件树 */}
+            {/* 左侧: 文件树 (仅对非内置 skills 显示) */}
             <div className="border rounded-lg overflow-hidden">
-              {selectedSkill && getSkillFolderPath(selectedSkill) && (
+              {selectedSkill && !isBuiltinSkill(selectedSkill) && getSkillFolderPath(selectedSkill) ? (
                 <SkillFolderViewer
                   skillPath={getSkillFolderPath(selectedSkill)!}
                   onFileSelect={handleFileSelect}
                   selectedFile={selectedFilePath}
                 />
+              ) : (
+                <div className="flex items-center justify-center h-full p-4 text-center text-sm text-muted-foreground">
+                  {isBuiltinSkill(selectedSkill) ? (
+                    <div>
+                      <p className="font-medium mb-2">Built-in Skill</p>
+                      <p>File tree not available for built-in skills</p>
+                    </div>
+                  ) : (
+                    'No file tree available'
+                  )}
+                </div>
               )}
             </div>
 
@@ -604,12 +634,16 @@ Provide examples...
           <div className="grid grid-cols-[250px_1fr] gap-4 h-[70vh]">
             {/* 左侧: 文件树 */}
             <div className="border rounded-lg overflow-hidden">
-              {selectedSkill && getSkillFolderPath(selectedSkill) && (
+              {selectedSkill && !isBuiltinSkill(selectedSkill) && getSkillFolderPath(selectedSkill) ? (
                 <SkillFolderViewer
                   skillPath={getSkillFolderPath(selectedSkill)!}
                   onFileSelect={handleFileSelect}
                   selectedFile={selectedFilePath}
                 />
+              ) : (
+                <div className="flex items-center justify-center h-full p-4 text-center text-sm text-muted-foreground">
+                  No file tree available
+                </div>
               )}
             </div>
 

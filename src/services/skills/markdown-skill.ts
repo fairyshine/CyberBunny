@@ -112,4 +112,11 @@ Please follow the instructions above to complete the user's request. Use the ava
   getSkillPath(): string {
     return this.skillPath;
   }
+
+  /**
+   * 获取原始指令内容
+   */
+  getRawInstructions(): string {
+    return this.instructions;
+  }
 }
