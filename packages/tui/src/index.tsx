@@ -1,12 +1,23 @@
 #!/usr/bin/env node
 import React from 'react';
 import { render } from 'ink';
-import { initTUIPlatform } from './platform/node';
+import { initNodePlatform } from '@shared/platform/node';
+import type { IPlatformStorage } from '@shared/platform';
+import Conf from 'conf';
 import { useSessionStore } from '@shared/stores/session';
 import App from './App';
 
 // Initialize platform
-initTUIPlatform();
+const store = new Conf({ projectName: 'cyberbunny' });
+const storage: IPlatformStorage = {
+  getItem: (key: string) => (store.get(key) as string) ?? null,
+  setItem: (key: string, value: string) => store.set(key, value),
+  removeItem: (key: string) => store.delete(key),
+};
+initNodePlatform(
+  { type: 'tui', isBrowser: false, isDesktop: false, isMobile: false, isCLI: false, isTUI: true },
+  storage,
+);
 
 // Parse CLI args
 const args = process.argv.slice(2);

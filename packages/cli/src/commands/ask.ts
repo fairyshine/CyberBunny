@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { callLLM } from '../utils/llm';
+import { callLLM } from '@shared/services/llm/streaming';
 import { useSessionStore } from '@shared/stores/session';
 import type { LLMMessage } from '@shared/types';
 

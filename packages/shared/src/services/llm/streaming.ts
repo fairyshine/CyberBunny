@@ -1,8 +1,8 @@
-import { LLMConfig, LLMMessage } from '@shared/types';
-import { buildChatCompletionsUrl } from '@shared/utils/api';
-import { logLLM } from '@shared/services/console/logger';
+import { LLMConfig, LLMMessage } from '../../types';
+import { buildChatCompletionsUrl } from '../../utils/api';
+import { logLLM } from '../console/logger';
 
-interface StreamOptions {
+export interface StreamOptions {
   onChunk?: (chunk: string) => void;
   onComplete?: () => void;
   onError?: (error: string) => void;

@@ -1,6 +1,6 @@
-# CyberBunny 🐰
+# 🐰 CyberBunny — Cross-platform OpenClaw
 
-一个纯前端 AI Agent 平台，支持多平台运行（浏览器、桌面、移动端、命令行、终端 UI）。
+一个跨平台的个人AI Assistant，支持多平台运行（浏览器、桌面、移动端、命令行、终端 UI）。
 
 ## ✨ 特性
 
@@ -140,20 +140,20 @@ cyberbunny-tui -k YOUR_API_KEY
 ### 核心技术
 
 - **Monorepo**: pnpm workspace
-- **语言**: TypeScript 5.2
+- **语言**: TypeScript
 - **构建**: Vite 5
 - **包管理**: pnpm
 
 ### 前端框架
 
 - **Web/Desktop**: React 19 + Vite
-- **TUI**: Ink 5 (React for CLI)
+- **TUI**: Ink 6 (React for CLI)
 - **UI 组件**: shadcn/ui (Radix UI)
-- **样式**: Tailwind CSS 3.4
+- **样式**: Tailwind CSS
 
 ### 状态管理
 
-- **Store**: Zustand 4.4
+- **Store**: Zustand
 - **持久化**: localStorage / IndexedDB / conf
 
 ### 平台支持
@@ -165,11 +165,11 @@ cyberbunny-tui -k YOUR_API_KEY
 
 ### 工具链
 
-- **CLI**: Commander.js 11
-- **Terminal UI**: Ink 5
-- **Desktop**: Electron 28 + electron-builder
-- **Python**: Pyodide 0.25 (浏览器内 Python)
-- **国际化**: i18next 25
+- **CLI**: Commander.js
+- **Terminal UI**: Ink 6
+- **Desktop**: Electron + electron-builder
+- **Python**: Pyodide (浏览器内 Python)
+- **国际化**: i18next
 
 ## 📚 文档
 
@@ -217,6 +217,23 @@ const platform = getPlatform();
 - **FS**: 文件系统 (可选)
 
 ## 🧪 开发
+
+### 依赖管理（pnpm 严格模式）
+
+本项目使用 pnpm workspace，默认运行在**严格模式**下：每个包只能访问自己 `package.json` 中声明的直接依赖。
+
+由于 `shared` 和 `ui-web` 等 workspace 包以**源码形式**被消费（`"main": "./src/index.ts"`，非编译产物），Vite 构建时会直接处理它们的源码。这意味着它们的 `import` 语句需要从消费方（如 `web`、`desktop`）的 `node_modules` 中解析。
+
+**因此，`web` 和 `desktop` 的 `package.json` 必须显式声明 `shared` / `ui-web` 的传递依赖**（如 Radix UI、i18next、zustand 等），即使自身源码并不直接 import 这些包。
+
+```
+web/desktop 源码
+  → import { Foo } from '@cyberbunny/ui-web'    # workspace 源码引用
+    → ui-web 源码 import '@radix-ui/react-dialog'  # 传递依赖
+      → Vite 从 web/desktop 的 node_modules 解析  # 严格模式下必须声明
+```
+
+> **注意**：不要随意移除 `web`/`desktop` 中看似"冗余"的依赖，否则构建会失败。如果未来将 workspace 包改为发布编译产物，则可以移除这些重复声明。
 
 ### 类型检查
 

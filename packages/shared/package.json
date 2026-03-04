@@ -13,6 +13,7 @@
     "./utils/*": "./src/utils/*.ts",
     "./lib/*": "./src/lib/*.ts",
     "./platform": "./src/platform/index.ts",
+    "./platform/node": "./src/platform/node.ts",
     "./i18n": "./src/i18n/index.ts"
   },
   "scripts": {

@@ -19,6 +19,8 @@ export { mcpClient } from './services/mcp/client';
 export { toolRegistry } from './services/tools/registry';
 export { skillRegistry } from './services/skills/registry';
 export { LLMConversation } from './services/llm/conversation';
+export { callLLM } from './services/llm/streaming';
+export type { StreamOptions } from './services/llm/streaming';
 
 // Hooks
 export { useLLM } from './hooks/useLLM';

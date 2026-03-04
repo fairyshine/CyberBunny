@@ -1,6 +1,7 @@
 import { setPlatformContext } from '@shared/platform';
 import type { IPlatformStorage, IPlatformFS, IPlatformAPI } from '@shared/platform';
 import { setThemeHandler, setLanguageHandler } from '@shared/stores/settings';
+import { applyTheme } from '@cyberbunny/ui-web';
 import i18n from '@shared/i18n';
 
 // Type for the electronAPI exposed via preload
@@ -46,17 +47,6 @@ const electronFS: IPlatformFS = {
 const electronAPI: IPlatformAPI = {
   fetch: (url: string, options?: RequestInit) => fetch(url, options),
 };
-
-function applyTheme(theme: 'light' | 'dark' | 'system'): void {
-  const root = window.document.documentElement;
-  root.classList.remove('light', 'dark');
-  if (theme === 'system') {
-    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    root.classList.add(systemTheme);
-  } else {
-    root.classList.add(theme);
-  }
-}
 
 /**
  * Initialize Electron desktop platform context

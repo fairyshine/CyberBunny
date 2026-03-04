@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { Box, Text, useApp } from 'ink';
 import TextInput from 'ink-text-input';
 import Spinner from 'ink-spinner';
-import { callLLM } from './utils/llm';
+import { callLLM } from '@shared/services/llm/streaming';
 import type { LLMMessage, LLMConfig } from '@shared/types';
 
 interface AppProps {
