@@ -103,6 +103,16 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
     const anthropicTools = isAnthropicProvider ? getAnthropicTools(enabledTools) : undefined;
     const anthropicSkills = isAnthropicProvider ? getAnthropicSkills() : undefined;
 
+    // 记录 Skills 数量
+    const skillCount = isAnthropicProvider ? (anthropicSkills?.length || 0) : (openaiSkills?.length || 0);
+    if (skillCount > 0) {
+      logTool('info', `${skillCount} skills available`, {
+        skills: isAnthropicProvider
+          ? anthropicSkills?.map(s => s.name).join(', ')
+          : openaiSkills?.map(s => s.function.name).join(', ')
+      });
+    }
+
     // 合并 tools 和 skills
     const allOpenAITools = openaiTools && openaiSkills ? [...openaiTools, ...openaiSkills] : (openaiTools || openaiSkills);
     const allAnthropicTools = anthropicTools && anthropicSkills ? [...anthropicTools, ...anthropicSkills] : (anthropicTools || anthropicSkills);
