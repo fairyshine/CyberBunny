@@ -2,9 +2,8 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { initDesktopPlatform } from './platform/electron'
 import '@shared/i18n'
-import App from './App.tsx'
-import ErrorBoundary from './components/ErrorBoundary.tsx'
-import './index.css'
+import { App, ErrorBoundary } from '@cyberbunny/ui-web'
+import '@cyberbunny/ui-web/styles'
 
 // Initialize desktop platform before rendering
 initDesktopPlatform()

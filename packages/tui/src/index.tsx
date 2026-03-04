@@ -1,0 +1,64 @@
+#!/usr/bin/env node
+import React from 'react';
+import { render } from 'ink';
+import { initTUIPlatform } from './platform/node';
+import { useSessionStore } from '@shared/stores/session';
+import App from './App';
+
+// Initialize platform
+initTUIPlatform();
+
+// Parse CLI args
+const args = process.argv.slice(2);
+let model = 'gpt-4';
+let provider: 'openai' | 'anthropic' = 'openai';
+let apiKey = process.env.CYBERBUNNY_API_KEY || '';
+let baseUrl: string | undefined;
+let systemPrompt: string | undefined;
+let temperature = 0.7;
+let maxTokens = 4096;
+
+for (let i = 0; i < args.length; i++) {
+  switch (args[i]) {
+    case '-m': case '--model': model = args[++i]; break;
+    case '-p': case '--provider': provider = args[++i] as 'openai' | 'anthropic'; break;
+    case '-k': case '--api-key': apiKey = args[++i]; break;
+    case '-b': case '--base-url': baseUrl = args[++i]; break;
+    case '-s': case '--system': systemPrompt = args[++i]; break;
+    case '-t': case '--temperature': temperature = parseFloat(args[++i]); break;
+    case '--max-tokens': maxTokens = parseInt(args[++i]); break;
+    case '-h': case '--help':
+      console.log(`
+cyberbunny-tui - Interactive terminal UI for CyberBunny
+
+Options:
+  -m, --model <model>       Model to use (default: gpt-4)
+  -p, --provider <provider> Provider: openai|anthropic (default: openai)
+  -k, --api-key <key>       API key (or set CYBERBUNNY_API_KEY env)
+  -b, --base-url <url>      Custom API base URL
+  -s, --system <prompt>     System prompt
+  -t, --temperature <temp>  Temperature (default: 0.7)
+  --max-tokens <tokens>     Max tokens (default: 4096)
+  -h, --help                Show help
+
+Commands inside TUI:
+  /quit, /exit              Exit
+  /clear                    Clear chat history
+`);
+      process.exit(0);
+  }
+}
+
+// Fallback to stored config
+if (!apiKey) {
+  apiKey = useSessionStore.getState().llmConfig.apiKey;
+}
+
+if (!apiKey) {
+  console.error('Error: API key required. Use --api-key or set CYBERBUNNY_API_KEY env.');
+  process.exit(1);
+}
+
+const config = { provider, apiKey, model, baseUrl, temperature, maxTokens };
+
+render(React.createElement(App, { config, systemPrompt }));

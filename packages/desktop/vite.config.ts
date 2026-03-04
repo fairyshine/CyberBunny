@@ -31,9 +31,11 @@ export default defineConfig({
     renderer(),
   ],
   resolve: {
+    dedupe: ['react', 'react-dom', 'zustand', 'react-i18next'],
     alias: {
-      '@': path.resolve(__dirname, './src'),
       '@shared': path.resolve(__dirname, '../shared/src'),
+      '@cyberbunny/ui-web/styles': path.resolve(__dirname, '../ui-web/src/index.css'),
+      '@cyberbunny/ui-web': path.resolve(__dirname, '../ui-web/src'),
     },
   },
   build: {
@@ -42,19 +44,6 @@ export default defineConfig({
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom'],
-          'vendor-radix': [
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-dropdown-menu',
-            '@radix-ui/react-label',
-            '@radix-ui/react-scroll-area',
-            '@radix-ui/react-select',
-            '@radix-ui/react-separator',
-            '@radix-ui/react-slot',
-            '@radix-ui/react-switch',
-            '@radix-ui/react-tabs',
-            '@radix-ui/react-tooltip',
-          ],
-          'vendor-ui': ['lucide-react', 'class-variance-authority', 'clsx', 'tailwind-merge'],
           'vendor-state': ['zustand'],
         },
       },

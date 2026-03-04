@@ -374,10 +374,11 @@ export function useLLM(config: LLMConfig) {
       // 为 "Failed to fetch" 提供更有用的诊断信息
       if (errorMsg === 'Failed to fetch') {
         const hints: string[] = [];
+        const isDev = (() => { try { return import.meta.env?.DEV; } catch { return false; } })();
         if (config.baseUrl) {
           hints.push(`无法连接到 ${config.baseUrl}`);
           hints.push('请检查: 1) 服务是否已启动 2) 地址是否正确 3) 服务端是否已启用 CORS 或配置代理 Worker');
-        } else if (!import.meta.env.DEV) {
+        } else if (!isDev) {
           hints.push('无法连接到 OpenAI API');
           hints.push('请检查: 1) 网络连接 2) 是否需要在设置中配置 CORS 代理 Worker URL');
         } else {

@@ -4,13 +4,14 @@
     "baseUrl": ".",
     "outDir": "./dist",
     "noEmit": false,
+    "allowImportingTsExtensions": false,
     "declaration": true,
     "module": "ESNext",
     "moduleResolution": "bundler",
     "paths": {
       "@shared/*": ["../shared/src/*"]
     },
-    "types": ["node"]
+    "types": ["node", "vite/client"]
   },
   "include": ["src"]
 }

@@ -49,7 +49,24 @@
       "Bash(git:*)",
       "Bash(xargs:*)",
       "Bash(cp:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(npx tsx:*)",
+      "Bash(./packages/cli/node_modules/.bin/tsx:*)",
+      "Bash(./node_modules/.bin/tsx:*)",
+      "Bash(/Users/wumengsong/Code/GitHub/cyberbunny/README.md:*)",
+      "Bash(/tmp/final_summary.md:*)",
+      "Bash(python3:*)",
+      "Bash(/Users/wumengsong/Code/GitHub/cyberbunny/packages/mobile/README.md:*)",
+      "WebFetch(domain:docs.expo.dev)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:blog.expo.dev)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:registry.npmjs.org)",
+      "Bash(npm view:*)",
+      "WebFetch(domain:expo.dev)",
+      "Bash(npx:*)",
+      "Bash(done)",
+      "Bash(node:*)"
     ]
   }
 }

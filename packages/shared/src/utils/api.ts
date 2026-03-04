@@ -16,8 +16,12 @@ export function getProxyWorkerUrl(): string | undefined {
   if (proxyUrl) return proxyUrl;
 
   // Fallback to env var
-  const envUrl = import.meta.env.VITE_PROXY_WORKER_URL;
-  return envUrl || undefined;
+  try {
+    const envUrl = import.meta.env?.VITE_PROXY_WORKER_URL;
+    return envUrl || undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 interface BuildResult {
@@ -55,9 +59,13 @@ export function buildChatCompletionsUrl(config: LLMConfig): BuildResult {
   }
 
   // Default OpenAI
-  if (import.meta.env.DEV) {
-    // Vite dev proxy handles CORS
-    return { url: '/api/openai/v1/chat/completions' };
+  try {
+    if (import.meta.env?.DEV) {
+      // Vite dev proxy handles CORS
+      return { url: '/api/openai/v1/chat/completions' };
+    }
+  } catch {
+    // Non-Vite environment (e.g. React Native)
   }
 
   const directUrl = 'https://api.openai.com/v1/chat/completions';

@@ -1,7 +1,7 @@
 import { setPlatformContext, detectPlatform } from '@shared/platform';
 import type { IPlatformStorage, IPlatformAPI } from '@shared/platform';
 import { setThemeHandler, setLanguageHandler } from '@shared/stores/settings';
-import { applyTheme, type Theme } from './theme';
+import { applyTheme, type Theme } from '@cyberbunny/ui-web';
 import i18n from '@shared/i18n';
 
 // Browser storage implementation (localStorage)

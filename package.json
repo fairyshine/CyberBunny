@@ -6,14 +6,21 @@
   "scripts": {
     "dev": "pnpm --filter @cyberbunny/web dev",
     "dev:desktop": "pnpm --filter @cyberbunny/desktop dev",
+    "dev:tui": "pnpm --filter @cyberbunny/tui dev",
+    "dev:mobile": "pnpm --filter @cyberbunny/mobile start",
+    "cli": "pnpm --filter @cyberbunny/cli dev --",
     "build": "pnpm --filter @cyberbunny/web build",
     "build:desktop": "pnpm --filter @cyberbunny/desktop build",
+    "build:cli": "pnpm --filter @cyberbunny/cli build",
+    "build:tui": "pnpm --filter @cyberbunny/tui build",
     "package:desktop": "pnpm --filter @cyberbunny/desktop package",
     "preview": "pnpm --filter @cyberbunny/web preview",
+    "mobile:ios": "pnpm --filter @cyberbunny/mobile ios",
+    "mobile:android": "pnpm --filter @cyberbunny/mobile android",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {
-    "typescript": "^5.2.2"
+    "typescript": "^5.3.3"
   }
 }

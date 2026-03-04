@@ -1,11 +1,13 @@
 // Platform detection and abstraction layer
-export type PlatformType = 'browser' | 'desktop' | 'mobile';
+export type PlatformType = 'browser' | 'desktop' | 'mobile' | 'cli' | 'tui';
 
 export interface PlatformInfo {
   type: PlatformType;
   isBrowser: boolean;
   isDesktop: boolean;
   isMobile: boolean;
+  isCLI?: boolean;
+  isTUI?: boolean;
 }
 
 // Platform storage interface (for Zustand persistence)

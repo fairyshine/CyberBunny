@@ -3,8 +3,9 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@shared/*": ["../shared/src/*"]
+      "@shared/*": ["../shared/src/*"],
+      "@cyberbunny/ui-web": ["../ui-web/src/index.ts"],
+      "@cyberbunny/ui-web/*": ["../ui-web/src/*"]
     }
   },
   "include": ["src", "electron"],

@@ -84,6 +84,7 @@ class WebSearchTool extends BaseTool {
 
   private getSearchConfig(): { provider: 'exa' | 'brave'; apiKey: string } {
     try {
+      if (typeof localStorage === 'undefined') return { provider: 'exa', apiKey: '' };
       const raw = localStorage.getItem('webagent-settings');
       if (raw) {
         const parsed = JSON.parse(raw);

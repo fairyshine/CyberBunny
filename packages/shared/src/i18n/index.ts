@@ -8,6 +8,7 @@ import './types';
 // Read persisted language from Zustand store in localStorage
 function getPersistedLanguage(): string | null {
   try {
+    if (typeof localStorage === 'undefined') return null;
     const raw = localStorage.getItem('webagent-settings');
     if (raw) {
       const parsed = JSON.parse(raw);
@@ -22,6 +23,7 @@ function getPersistedLanguage(): string | null {
 
 // Resolve system language to supported locale
 function resolveSystemLanguage(): string {
+  if (typeof navigator === 'undefined') return 'en-US';
   const nav = navigator.language || '';
   return nav.startsWith('zh') ? 'zh-CN' : 'en-US';
 }

@@ -1,49 +1,9 @@
-import type { IPlatformStorage, IPlatformFS, IPlatformAPI, IPlatformContext } from '@shared/platform';
-
-// Stub implementations for React Native (to be implemented later)
-
-const nativeStorage: IPlatformStorage = {
-  getItem: async (_key: string) => {
-    // TODO: Implement with AsyncStorage or similar
-    console.warn('[Mobile] Storage not implemented');
-    return null;
-  },
-  setItem: async (_key: string, _value: string) => {
-    // TODO: Implement with AsyncStorage or similar
-    console.warn('[Mobile] Storage not implemented');
-  },
-  removeItem: async (_key: string) => {
-    // TODO: Implement with AsyncStorage or similar
-    console.warn('[Mobile] Storage not implemented');
-  },
-};
-
-const nativeFS: IPlatformFS = {
-  readFile: async (_path: string) => {
-    console.warn('[Mobile] File system not implemented');
-    throw new Error('Not implemented');
-  },
-  writeFile: async (_path: string, _content: string) => {
-    console.warn('[Mobile] File system not implemented');
-    throw new Error('Not implemented');
-  },
-  readdir: async (_path: string) => {
-    console.warn('[Mobile] File system not implemented');
-    throw new Error('Not implemented');
-  },
-  mkdir: async (_path: string) => {
-    console.warn('[Mobile] File system not implemented');
-    throw new Error('Not implemented');
-  },
-  rm: async (_path: string) => {
-    console.warn('[Mobile] File system not implemented');
-    throw new Error('Not implemented');
-  },
-  rename: async (_oldPath: string, _newPath: string) => {
-    console.warn('[Mobile] File system not implemented');
-    throw new Error('Not implemented');
-  },
-};
+import { setPlatformContext } from '@shared/platform';
+import type { IPlatformAPI, IPlatformContext } from '@shared/platform';
+import { setThemeHandler, setLanguageHandler } from '@shared/stores/settings';
+import { nativeStorage } from './storage';
+import { nativeFS } from './filesystem';
+import i18n from './i18n';
 
 const nativeAPI: IPlatformAPI = {
   fetch: (url: string, options?: RequestInit) => {
@@ -53,9 +13,9 @@ const nativeAPI: IPlatformAPI = {
 };
 
 /**
- * Initialize React Native mobile platform context (stub)
+ * Initialize React Native mobile platform context
  */
-export function initMobilePlatform(): IPlatformContext {
+export function initMobilePlatform(): void {
   const context: IPlatformContext = {
     info: {
       type: 'mobile',
@@ -68,6 +28,17 @@ export function initMobilePlatform(): IPlatformContext {
     api: nativeAPI,
   };
 
-  console.log('[Platform] Initialized: mobile (React Native - stub)');
-  return context;
+  setPlatformContext(context);
+
+  // Wire up theme handler (handled by App.tsx via Paper theme)
+  setThemeHandler(() => {
+    // Theme changes are handled by App.tsx re-rendering with new theme
+  });
+
+  // Wire up language handler
+  setLanguageHandler((lang: string) => {
+    i18n.changeLanguage(lang);
+  });
+
+  console.log('[Platform] Initialized: mobile (React Native)');
 }

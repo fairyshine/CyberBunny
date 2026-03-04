@@ -2,9 +2,8 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { initBrowserPlatform } from './platform/browser'
 import '@shared/i18n'
-import App from './App.tsx'
-import ErrorBoundary from './components/ErrorBoundary.tsx'
-import './index.css'
+import { App, ErrorBoundary } from '@cyberbunny/ui-web'
+import '@cyberbunny/ui-web/styles'
 
 // Initialize browser platform before rendering
 initBrowserPlatform()

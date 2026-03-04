@@ -4,6 +4,8 @@
     { "path": "./packages/shared" },
     { "path": "./packages/web" },
     { "path": "./packages/desktop" },
-    { "path": "./packages/mobile" }
+    { "path": "./packages/mobile" },
+    { "path": "./packages/cli" },
+    { "path": "./packages/tui" }
   ]
 }

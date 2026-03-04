@@ -1,122 +1,318 @@
-# 🐰CyberBunny - Personal AI Assistant
+# CyberBunny 🐰
 
-<div align="center">
+一个纯前端 AI Agent 平台，支持多平台运行（浏览器、桌面、移动端、命令行、终端 UI）。
 
-**🐰 浏览器端 AI Agent 平台**
+## ✨ 特性
 
-一个完全运行在浏览器中的智能代理系统，支持 Python 执行、文件管理、工具扩展和 MCP 集成。
+- 🌐 **多平台支持** - Browser / Electron / React Native / CLI / TUI
+- 🔧 **工具系统** - 内置 Python 执行、文件管理、Web 搜索等工具
+- 🎯 **技能系统** - 基于 AgentSkills.io 格式的可扩展技能
+- 🔌 **MCP 支持** - Model Context Protocol 集成
+- 🌍 **国际化** - 中文/英文双语支持
+- 💾 **本地存储** - 数据完全保存在本地，隐私安全
+- 🎨 **现代 UI** - 基于 React 19 + Tailwind CSS + shadcn/ui
 
-[![React](https://img.shields.io/badge/React-19-blue.svg)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue.svg)](https://www.typescriptlang.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
+## 📦 Monorepo 结构
 
-</div>
-
-## ✨ 核心特性
-
-### 🤖 智能 Agent 系统
-- **自主任务执行** - Agent 自动分析任务并执行
-- **工具自动调用** - 智能选择和组合使用工具
-- **流式响应** - 实时显示执行过程和结果
-- **多轮对话** - 支持复杂任务的多步骤执行
-
-### 🐍 Python 运行时
-- **Pyodide 集成** - 完整的 Python 3.11 环境
-- **科学计算** - 支持 NumPy、Pandas、Matplotlib
-- **文件系统同步** - Python 与浏览器文件系统无缝集成
-- **输出捕获** - 实时显示 stdout/stderr 和图表
-
-### 📁 文件系统沙盒
-- **IndexedDB 存储** - 持久化的浏览器端文件系统
-- **POSIX 接口** - 熟悉的文件操作 API
-- **拖拽上传** - 支持文件和文件夹拖拽
-- **在线编辑** - 内置代码编辑器
-
-### 🔧 可扩展工具系统
-- **内置工具** - Python 执行、网页搜索、计算器、文件操作
-- **动态加载** - 支持从文件、HTTP、MCP 加载工具
-- **工具注册** - 简单的工具开发和注册机制
-- **参数验证** - 自动验证工具输入参数
-
-### ⚡ Skills 系统
-- **高级能力** - 编排多个工具完成复杂任务
-- **内置 Skills** - 数据分析、网页研究等
-- **多步执行** - 支持有状态的多步骤工作流
-- **动态扩展** - 支持从文件、HTTP、代码加载自定义 Skills
-
-### 🔌 MCP 集成
-- **Model Context Protocol** - 连接外部工具服务器
-- **WebSocket/SSE** - 双协议支持
-- **工具发现** - 自动发现和加载 MCP 工具
-- **远程执行** - 调用远程工具和资源
-
-### 💬 多 LLM 支持
-- **OpenAI**
-- **Anthropic**
-- **自定义端点** - 支持 vLLM、Ollama 等本地部署
-- **流式输出** - SSE 实时响应
-
-### 🎨 现代化 UI
-- **React 19** - 最新的 React 版本
-- **shadcn/ui** - 精美的组件库
-- **Tailwind CSS** - 响应式设计
-- **深色模式** - 自动切换主题
+```
+cyberbunny/
+├── packages/
+│   ├── shared/          # 平台无关的核心逻辑
+│   ├── web/             # 浏览器端 (Vite + React)
+│   ├── desktop/         # 桌面端 (Electron)
+│   ├── mobile/          # 移动端 (React Native - 预留)
+│   ├── cli/             # 命令行工具 (Commander.js)
+│   └── tui/             # 终端 UI (Ink - React for CLI)
+└── worker/              # Cloudflare Worker (CORS 代理)
+```
 
 ## 🚀 快速开始
 
-### 前置要求
-
-- Node.js 18+ 或 Bun
-- pnpm (推荐) 或 npm
-
-### 安装
+### 安装依赖
 
 ```bash
-# 克隆仓库
-git clone https://github.com/yourusername/cyberbunny.git
-cd cyberbunny
-
-# 安装依赖
+# 使用 pnpm (推荐)
 pnpm install
-
-# 启动开发服务器
-pnpm dev
 ```
 
-访问 http://localhost:5173 开始使用。
+### 开发模式
 
-### 配置 LLM
+```bash
+# 浏览器端
+pnpm dev
 
-1. 点击右上角的设置按钮
-2. 选择 "LLM 配置" 标签
-3. 选择提供商 (OpenAI/Anthropic/自定义)
-4. 输入 API Key
-5. 点击 "测试连接" 验证配置
+# 桌面端 (Electron)
+pnpm dev:desktop
+
+# 终端 UI
+pnpm dev:tui
+
+# 命令行工具
+cd packages/cli
+pnpm dev -- ask "你好"
+```
+
+### 构建
+
+```bash
+# 构建 Web
+pnpm build
+
+# 构建桌面端
+pnpm build:desktop
+
+# 构建 CLI
+pnpm build:cli
+
+# 构建 TUI
+pnpm build:tui
+
+# 打包桌面应用
+pnpm package:desktop
+```
+
+## 🎯 使用方式
+
+### 1. 浏览器端 (Web)
+
+访问 [https://fairyshine.github.io/CyberBunny/](https://fairyshine.github.io/CyberBunny/) 或本地运行：
+
+```bash
+pnpm dev
+# 访问 http://localhost:5173
+```
+
+**特性：**
+- 完整的 UI 界面
+- 文件管理系统
+- 工具和技能管理
+- 会话历史
+- 设置面板
+
+### 2. 桌面端 (Electron)
+
+```bash
+pnpm dev:desktop
+# 或构建后安装
+pnpm build:desktop
+pnpm package:desktop
+```
+
+**特性：**
+- 原生桌面应用
+- 系统集成
+- 离线使用
+- 本地文件系统访问
+
+### 3. 命令行 (CLI)
+
+```bash
+# 一次性问答
+cyberbunny ask "什么是 TypeScript?"
+
+# 交互式对话
+cyberbunny chat -k YOUR_API_KEY
+
+# 配置管理
+cyberbunny config set apiKey sk-xxx
+```
+
+**特性：**
+- 快速问答
+- 脚本集成
+- 配置管理
+- 流式输出
+
+### 4. 终端 UI (TUI)
+
+```bash
+cyberbunny-tui -k YOUR_API_KEY
+```
+
+**特性：**
+- 全屏交互界面
+- 实时流式响应
+- React 组件化
+- 消息历史
 
 ## 🛠️ 技术栈
 
-- **React 19** - UI 框架
-- **TypeScript 5** - 类型安全
-- **Vite 5** - 构建工具
-- **shadcn/ui** - 组件库
-- **Tailwind CSS** - 样式框架
-- **Zustand** - 状态管理
-- **Pyodide** - 浏览器端 Python
-- **IndexedDB** - 本地存储
+### 核心技术
 
-## 📝 许可证
+- **Monorepo**: pnpm workspace
+- **语言**: TypeScript 5.2
+- **构建**: Vite 5
+- **包管理**: pnpm
 
-MIT License - 查看 [LICENSE](./LICENSE) 文件
+### 前端框架
+
+- **Web/Desktop**: React 19 + Vite
+- **TUI**: Ink 5 (React for CLI)
+- **UI 组件**: shadcn/ui (Radix UI)
+- **样式**: Tailwind CSS 3.4
+
+### 状态管理
+
+- **Store**: Zustand 4.4
+- **持久化**: localStorage / IndexedDB / conf
+
+### 平台支持
+
+- **Browser**: localStorage + IndexedDB
+- **Electron**: IPC + electron-store
+- **Node.js**: conf (CLI/TUI)
+- **React Native**: AsyncStorage (预留)
+
+### 工具链
+
+- **CLI**: Commander.js 11
+- **Terminal UI**: Ink 5
+- **Desktop**: Electron 28 + electron-builder
+- **Python**: Pyodide 0.25 (浏览器内 Python)
+- **国际化**: i18next 25
+
+## 📚 文档
+
+- [CLI 使用指南](./packages/cli/README.md)
+- [技能系统设计](./docs/SKILLS_DESIGN.md)
+- [平台抽象层](./packages/shared/src/platform/)
+
+## 🔧 配置
+
+### 环境变量
+
+```bash
+# API Key
+CYBERBUNNY_API_KEY=sk-xxx
+
+# CORS 代理 (可选)
+VITE_PROXY_WORKER_URL=https://your-worker.workers.dev
+```
+
+### 配置文件
+
+浏览器端配置存储在 localStorage：
+- `webagent-sessions` - 会话数据
+- `webagent-settings` - 设置
+
+CLI/TUI 配置存储在：
+- macOS: `~/Library/Preferences/cyberbunny-nodejs/`
+- Linux: `~/.config/cyberbunny-nodejs/`
+- Windows: `%APPDATA%\cyberbunny-nodejs\`
+
+## 🎨 平台检测
+
+CyberBunny 在运行时自动检测平台：
+
+```typescript
+import { getPlatform } from '@shared/platform';
+
+const platform = getPlatform();
+// { type: 'browser' | 'desktop' | 'mobile' | 'cli' | 'tui' }
+```
+
+每个平台提供统一的接口：
+- **Storage**: 配置和数据持久化
+- **API**: HTTP 请求
+- **FS**: 文件系统 (可选)
+
+## 🧪 开发
+
+### 类型检查
+
+```bash
+pnpm typecheck
+```
+
+### 代码规范
+
+```bash
+pnpm lint
+```
+
+### 添加新平台
+
+1. 创建 `packages/your-platform/`
+2. 实现平台适配器 `src/platform/adapter.ts`
+3. 初始化平台上下文 `setPlatformContext()`
+4. 更新 `packages/shared/src/platform/types.ts`
+
+## 📝 可用命令
+
+```bash
+# 开发
+pnpm dev              # Web 开发服务器
+pnpm dev:desktop      # Electron 开发
+pnpm dev:tui          # TUI 开发
+
+# 构建
+pnpm build            # 构建 Web
+pnpm build:desktop    # 构建 Electron
+pnpm build:cli        # 构建 CLI
+pnpm build:tui        # 构建 TUI
+
+# 打包
+pnpm package:desktop  # 打包桌面应用
+
+# 工具
+pnpm typecheck        # 类型检查所有包
+pnpm lint             # 代码检查
+pnpm preview          # 预览 Web 构建
+```
+
+## 🌟 特色功能
+
+### 1. 工具系统
+
+内置工具：
+- **Python 执行器** - 浏览器内运行 Python (Pyodide)
+- **文件管理** - IndexedDB 文件系统
+- **Web 搜索** - Exa / Brave 搜索集成
+- **计算器** - 数学表达式计算
+- **记忆系统** - 长期记忆管理
+
+### 2. 技能系统
+
+基于 [AgentSkills.io](https://agentskills.io) 格式：
+- Markdown 格式定义
+- 工具编排
+- 可扩展架构
+
+### 3. MCP 支持
+
+Model Context Protocol 集成：
+- WebSocket / SSE 连接
+- 动态工具加载
+- 多服务器支持
+
+### 4. 多 LLM 支持
+
+- OpenAI (GPT-4, GPT-3.5)
+- Anthropic (Claude)
+- 自定义 API (vLLM, Ollama 等)
+
+## 🔒 隐私与安全
+
+- ✅ 数据完全本地存储
+- ✅ 不上传任何用户数据
+- ✅ API Key 本地加密存储
+- ✅ 支持自托管 CORS 代理
+
+## 🤝 贡献
+
+欢迎贡献代码、报告问题或提出建议！
+
+## 📄 许可证
+
+MIT License
 
 ## 🙏 致谢
 
-- [Pyodide](https://pyodide.org/)
-- [shadcn/ui](https://ui.shadcn.com/)
-- [Radix UI](https://www.radix-ui.com/)
-- [Model Context Protocol](https://modelcontextprotocol.io/)
+- [shadcn/ui](https://ui.shadcn.com/) - UI 组件
+- [Pyodide](https://pyodide.org/) - 浏览器内 Python
+- [Ink](https://github.com/vadimdemedes/ink) - React for CLI
+- [Commander.js](https://github.com/tj/commander.js) - CLI 框架
 
 ---
 
-<div align="center">
-Made with ❤️ by RadiCato
-</div>
+**CyberBunny** - 一个真正的多平台 AI Agent 🐰
