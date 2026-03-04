@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { useSessionStore } from '@shared/stores/session';
 import { useSettingsStore } from '@shared/stores/settings';
+import { providerRegistry, getProviderMeta } from '@shared/services/ai';
+import type { ProviderMeta } from '@shared/services/ai';
 import { ToolManager } from './ToolManager';
 import { SkillManager } from './SkillManager';
 import ConnectionTest from './ConnectionTest';
@@ -11,7 +13,6 @@ import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Separator } from '../ui/separator';
 import { ChevronRight, Settings } from 'lucide-react';
-import { Lightbulb } from '../icons';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -22,8 +23,6 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { t } = useTranslation();
   const { llmConfig, setLLMConfig } = useSessionStore();
   const {
-    proxyWorkerUrl,
-    setProxyWorkerUrl,
     language,
     setLanguage
   } = useSettingsStore();
@@ -55,28 +54,61 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   <Label htmlFor="provider" className="text-sm font-medium">{t('settings.provider')}</Label>
                   <Select
                     value={llmConfig.provider}
-                    onValueChange={(value) => setLLMConfig({ provider: value as any })}
+                    onValueChange={(value) => {
+                      const meta = getProviderMeta(value);
+                      if (meta) {
+                        setLLMConfig({
+                          provider: value,
+                          model: meta.models[0] || llmConfig.model,
+                          baseUrl: meta.defaultBaseUrl || llmConfig.baseUrl,
+                        });
+                      }
+                    }}
                   >
                     <SelectTrigger id="provider" className="h-10">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="openai">OpenAI</SelectItem>
-                      <SelectItem value="anthropic">Anthropic</SelectItem>
-                      <SelectItem value="custom">{t('settings.provider.custom')}</SelectItem>
+                      {providerRegistry.map((p: ProviderMeta) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="model" className="text-sm font-medium">{t('settings.model')}</Label>
+                  <Select
+                    value={llmConfig.model}
+                    onValueChange={(value) => setLLMConfig({ model: value })}
+                  >
+                    <SelectTrigger id="model" className="h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(() => {
+                        const meta = getProviderMeta(llmConfig.provider);
+                        const models = meta?.models || [];
+                        // If current model is not in the list, add it as first option
+                        const allModels = models.includes(llmConfig.model)
+                          ? models
+                          : [llmConfig.model, ...models];
+                        return allModels.map((m: string) => (
+                          <SelectItem key={m} value={m}>
+                            {m}
+                          </SelectItem>
+                        ));
+                      })()}
+                    </SelectContent>
+                  </Select>
                   <Input
-                    id="model"
                     type="text"
                     value={llmConfig.model}
                     onChange={(e) => setLLMConfig({ model: e.target.value })}
-                    placeholder="gpt-4"
-                    className="h-10"
+                    placeholder="or type custom model"
+                    className="h-8 text-xs"
                   />
                 </div>
               </div>
@@ -88,24 +120,22 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   type="password"
                   value={llmConfig.apiKey}
                   onChange={(e) => setLLMConfig({ apiKey: e.target.value })}
-                  placeholder="sk-..."
+                  placeholder={getProviderMeta(llmConfig.provider)?.apiKeyPlaceholder || 'API Key'}
                   className="h-10"
                 />
               </div>
 
-              {llmConfig.provider === 'custom' && (
-                <div className="space-y-2">
-                  <Label htmlFor="baseUrl" className="text-sm font-medium">{t('settings.baseUrl')}</Label>
-                  <Input
-                    id="baseUrl"
-                    type="text"
-                    value={llmConfig.baseUrl || ''}
-                    onChange={(e) => setLLMConfig({ baseUrl: e.target.value })}
-                    placeholder="https://api.openai.com/v1"
-                    className="h-10"
-                  />
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label htmlFor="baseUrl" className="text-sm font-medium">{t('settings.baseUrl')}</Label>
+                <Input
+                  id="baseUrl"
+                  type="text"
+                  value={llmConfig.baseUrl || ''}
+                  onChange={(e) => setLLMConfig({ baseUrl: e.target.value })}
+                  placeholder={getProviderMeta(llmConfig.provider)?.defaultBaseUrl || 'https://api.example.com/v1'}
+                  className="h-10"
+                />
+              </div>
 
               <Separator />
 
@@ -139,24 +169,6 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     className="h-10"
                   />
                 </div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2">
-                <Label htmlFor="proxyUrl" className="text-sm font-medium">{t('settings.proxyUrl')}</Label>
-                <Input
-                  id="proxyUrl"
-                  type="text"
-                  value={proxyWorkerUrl}
-                  onChange={(e) => setProxyWorkerUrl(e.target.value)}
-                  placeholder="https://cyberbunny-proxy.your-account.workers.dev"
-                  className="h-10"
-                />
-                <p className="text-xs text-muted-foreground flex items-start gap-1.5">
-                  <Lightbulb className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                  <span>{t('settings.proxyHint')}</span>
-                </p>
               </div>
 
               <Separator />

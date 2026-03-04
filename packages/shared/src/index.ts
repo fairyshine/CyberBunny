@@ -27,6 +27,8 @@ export { connectMCPServer } from './services/ai/mcp';
 export type { MCPClient } from './services/ai/mcp';
 export { runAgentLoop } from './services/ai/agent';
 export type { AgentCallbacks } from './services/ai/agent';
+export { providerRegistry, getProviderMeta } from './services/ai/providers';
+export type { ProviderMeta } from './services/ai/providers';
 
 // Services - LLM streaming (simplified with AI SDK)
 export { callLLM } from './services/llm/streaming';

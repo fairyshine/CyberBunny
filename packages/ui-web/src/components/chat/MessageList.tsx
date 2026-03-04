@@ -190,10 +190,17 @@ const ProcessBubble = memo(function ProcessBubble({ message }: { message: Messag
           <span className="text-xs text-muted-foreground font-medium">
             {message.type === 'tool_call' ? t('chat.toolCall') : t('chat.processStep')}
           </span>
+          {message.type === 'tool_call' && message.toolName && (
+            <code className="text-xs font-mono text-foreground/50">{message.toolName}</code>
+          )}
         </button>
         {expanded && (
           <div className="mt-2 px-4 py-3 rounded-2xl bg-muted/50 border-elegant text-sm text-muted-foreground animate-slide-in">
-            <ReactMarkdown content={message.content} />
+            {message.type === 'tool_call' && message.toolInput ? (
+              <ToolInputDisplay input={message.toolInput} />
+            ) : (
+              <ReactMarkdown content={message.content} />
+            )}
           </div>
         )}
         <Timestamp time={message.timestamp} />
@@ -261,4 +268,51 @@ const Timestamp = memo(function Timestamp({ time, align = 'left' }: { time: numb
       {new Date(time).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
     </div>
   );
+});
+
+const ToolInputDisplay = memo(function ToolInputDisplay({ input }: { input: string }) {
+  try {
+    const params = JSON.parse(input);
+    return (
+      <div className="space-y-2">
+        {Object.entries(params).map(([key, value]) => (
+          <div key={key} className="flex gap-3">
+            <div className="text-xs font-mono text-primary font-semibold min-w-[80px]">{key}:</div>
+            <div className="flex-1 text-xs font-mono text-foreground/80">
+              {typeof value === 'string' ? (
+                value.includes('\n') ? (
+                  <pre className="text-xs text-green-600 dark:text-green-400 bg-background/50 rounded px-2 py-1 whitespace-pre-wrap break-all">{value}</pre>
+                ) : (
+                  <span className="text-green-600 dark:text-green-400">"{value}"</span>
+                )
+              ) : typeof value === 'number' ? (
+                <span className="text-blue-600 dark:text-blue-400">{value}</span>
+              ) : typeof value === 'boolean' ? (
+                <span className="text-purple-600 dark:text-purple-400">{String(value)}</span>
+              ) : value === null ? (
+                <span className="text-muted-foreground">null</span>
+              ) : Array.isArray(value) ? (
+                <pre className="text-xs bg-background/50 rounded px-2 py-1 overflow-x-auto whitespace-pre-wrap break-all">
+                  {JSON.stringify(value, null, 2)}
+                </pre>
+              ) : typeof value === 'object' ? (
+                <pre className="text-xs bg-background/50 rounded px-2 py-1 overflow-x-auto whitespace-pre-wrap break-all">
+                  {JSON.stringify(value, null, 2)}
+                </pre>
+              ) : (
+                String(value)
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  } catch {
+    // Fallback to raw JSON if parsing fails
+    return (
+      <pre className="text-xs bg-background/50 rounded-md p-3 overflow-x-auto font-mono text-foreground/80 whitespace-pre-wrap break-all max-h-48 overflow-y-auto border-elegant">
+        {input}
+      </pre>
+    );
+  }
 });

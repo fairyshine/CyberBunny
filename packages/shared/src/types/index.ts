@@ -52,7 +52,7 @@ export interface PythonResult {
 
 // LLM 配置
 export interface LLMConfig {
-  provider: 'openai' | 'anthropic' | 'custom';
+  provider: string;
   apiKey: string;
   baseUrl?: string;
   model: string;

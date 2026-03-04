@@ -105,7 +105,7 @@ export default function ExportDialog({ messages, isOpen, onClose }: ExportDialog
               <p className="text-sm text-muted-foreground">
                 {t('export.markdownDesc')}
               </p>
-              <pre className="p-4 bg-muted rounded-lg text-xs overflow-auto max-h-64">
+              <pre className="p-4 bg-muted rounded-lg text-xs overflow-auto max-h-64 whitespace-pre-wrap break-all">
                 {getPreview()}...
               </pre>
             </TabsContent>
@@ -114,7 +114,7 @@ export default function ExportDialog({ messages, isOpen, onClose }: ExportDialog
               <p className="text-sm text-muted-foreground">
                 {t('export.jsonDesc')}
               </p>
-              <pre className="p-4 bg-muted rounded-lg text-xs overflow-auto max-h-64">
+              <pre className="p-4 bg-muted rounded-lg text-xs overflow-auto max-h-64 whitespace-pre-wrap break-all">
                 {getPreview()}...
               </pre>
             </TabsContent>
@@ -123,7 +123,7 @@ export default function ExportDialog({ messages, isOpen, onClose }: ExportDialog
               <p className="text-sm text-muted-foreground">
                 {t('export.textDesc')}
               </p>
-              <pre className="p-4 bg-muted rounded-lg text-xs overflow-auto max-h-64">
+              <pre className="p-4 bg-muted rounded-lg text-xs overflow-auto max-h-64 whitespace-pre-wrap break-all">
                 {getPreview()}...
               </pre>
             </TabsContent>

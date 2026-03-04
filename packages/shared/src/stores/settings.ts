@@ -45,10 +45,6 @@ interface SettingsState {
   enableAllTools: () => void;
   disableAllTools: () => void;
 
-  // CORS proxy settings
-  proxyWorkerUrl: string;
-  setProxyWorkerUrl: (url: string) => void;
-
   // Web search settings
   searchProvider: 'exa' | 'brave';
   setSearchProvider: (provider: 'exa' | 'brave') => void;
@@ -95,12 +91,6 @@ export const useSettingsStore = create<SettingsState>()(
           'list_files', 'create_folder', 'delete_file', 'memory']
       }),
       disableAllTools: () => set({ enabledTools: [] }),
-
-      proxyWorkerUrl: '',
-      setProxyWorkerUrl: (url) => {
-        logSettings('info', `CORS proxy URL: ${url || '(not set)'}`);
-        set({ proxyWorkerUrl: url });
-      },
 
       exaApiKey: '',
       setExaApiKey: (key) => {

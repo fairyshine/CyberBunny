@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { callLLM } from '@shared/services/llm/streaming';
 import { useSessionStore } from '@shared/stores/session';
-import type { LLMMessage } from '@shared/types';
+import type { ModelMessage } from 'ai';
 
 export const askCommand = new Command('ask')
   .description('Ask a one-shot question')
@@ -33,7 +33,7 @@ export const askCommand = new Command('ask')
       maxTokens: parseInt(opts.maxTokens),
     };
 
-    const messages: LLMMessage[] = [];
+    const messages: ModelMessage[] = [];
     if (opts.system) {
       messages.push({ role: 'system', content: opts.system });
     }

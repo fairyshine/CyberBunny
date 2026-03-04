@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { TextInput, SegmentedButtons, Text, Button, Divider, List } from 'react-native-paper';
+import { TextInput, Text, Button, Divider, List, Menu } from 'react-native-paper';
 import { useSessionStore } from '@shared/stores/session';
+import { providerRegistry, getProviderMeta } from '@shared/services/ai';
 
 export default function LLMSettingsScreen() {
   const { t } = useTranslation();
@@ -14,6 +15,8 @@ export default function LLMSettingsScreen() {
   const [baseUrl, setBaseUrl] = useState(llmConfig.baseUrl || '');
   const [temperature, setTemperature] = useState(String(llmConfig.temperature ?? 0.7));
   const [maxTokens, setMaxTokens] = useState(String(llmConfig.maxTokens ?? 4096));
+  const [providerMenuVisible, setProviderMenuVisible] = useState(false);
+  const [modelMenuVisible, setModelMenuVisible] = useState(false);
 
   const handleSave = () => {
     setLLMConfig({
@@ -26,20 +29,48 @@ export default function LLMSettingsScreen() {
     });
   };
 
+  const handleProviderChange = (newProvider: string) => {
+    const meta = getProviderMeta(newProvider);
+    if (meta) {
+      setProvider(newProvider);
+      setModel(meta.models[0] || model);
+      setBaseUrl(meta.defaultBaseUrl || '');
+      setProviderMenuVisible(false);
+    }
+  };
+
+  const currentProviderMeta = getProviderMeta(provider);
+  const currentProviderName = currentProviderMeta?.name || provider;
+  const availableModels = currentProviderMeta?.models || [];
+  const apiKeyPlaceholder = currentProviderMeta?.apiKeyPlaceholder || 'API Key';
+
   return (
     <ScrollView style={styles.container}>
       <List.Section>
         <List.Subheader>{t('settings.provider') || 'Provider'}</List.Subheader>
         <View style={styles.inputContainer}>
-          <SegmentedButtons
-            value={provider}
-            onValueChange={(v) => { setProvider(v as any); }}
-            buttons={[
-              { value: 'openai', label: 'OpenAI' },
-              { value: 'anthropic', label: 'Anthropic' },
-              { value: 'custom', label: 'Custom' },
-            ]}
-          />
+          <Menu
+            visible={providerMenuVisible}
+            onDismiss={() => setProviderMenuVisible(false)}
+            anchor={
+              <Button
+                mode="outlined"
+                onPress={() => setProviderMenuVisible(true)}
+                style={styles.menuButton}
+                contentStyle={styles.menuButtonContent}
+              >
+                {currentProviderName}
+              </Button>
+            }
+          >
+            {providerRegistry.map((p) => (
+              <Menu.Item
+                key={p.id}
+                onPress={() => handleProviderChange(p.id)}
+                title={p.name}
+              />
+            ))}
+          </Menu>
         </View>
       </List.Section>
 
@@ -51,16 +82,48 @@ export default function LLMSettingsScreen() {
         secureTextEntry
         mode="outlined"
         style={styles.input}
+        placeholder={apiKeyPlaceholder}
       />
 
+      <List.Section>
+        <List.Subheader>{t('settings.model') || 'Model'}</List.Subheader>
+        <View style={styles.inputContainer}>
+          <Menu
+            visible={modelMenuVisible}
+            onDismiss={() => setModelMenuVisible(false)}
+            anchor={
+              <Button
+                mode="outlined"
+                onPress={() => setModelMenuVisible(true)}
+                style={styles.menuButton}
+                contentStyle={styles.menuButtonContent}
+              >
+                {model}
+              </Button>
+            }
+          >
+            {availableModels.map((m) => (
+              <Menu.Item
+                key={m}
+                onPress={() => {
+                  setModel(m);
+                  setModelMenuVisible(false);
+                }}
+                title={m}
+              />
+            ))}
+          </Menu>
+        </View>
+      </List.Section>
+
       <TextInput
-        label={t('settings.model')}
+        label={t('settings.model') + ' (Custom)'}
         value={model}
         onChangeText={setModel}
         onBlur={handleSave}
         mode="outlined"
         style={styles.input}
-        placeholder="gpt-4o / claude-3-5-sonnet-20241022"
+        placeholder="or type custom model"
       />
 
       <TextInput
@@ -70,7 +133,7 @@ export default function LLMSettingsScreen() {
         onBlur={handleSave}
         mode="outlined"
         style={styles.input}
-        placeholder="https://api.example.com/v1"
+        placeholder={currentProviderMeta?.defaultBaseUrl || 'https://api.example.com/v1'}
       />
 
       <Divider style={{ marginVertical: 8 }} />
@@ -119,5 +182,11 @@ const styles = StyleSheet.create({
   saveButton: {
     marginTop: 16,
     marginBottom: 32,
+  },
+  menuButton: {
+    width: '100%',
+  },
+  menuButtonContent: {
+    justifyContent: 'flex-start',
   },
 });

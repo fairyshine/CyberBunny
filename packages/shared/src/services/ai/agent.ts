@@ -64,18 +64,9 @@ export async function runAgentLoop(
 
   systemPrompt += generateSkillsSystemPrompt();
 
-  // Create a message to show streaming text
-  const responseMessageId = callbacks.generateId();
-  callbacks.addMessage(sessionId, {
-    id: responseMessageId,
-    role: 'assistant',
-    content: '',
-    timestamp: Date.now(),
-    type: 'thought',
-    groupId,
-  });
-
   let stepCount = 0;
+  let currentStepMessageId: string | null = null;
+  let currentStepContent = '';
 
   try {
     const result = streamText({
@@ -86,12 +77,40 @@ export async function runAgentLoop(
       stopWhen: stepCountIs(10),
       temperature: llmConfig.temperature ?? 0.7,
       maxOutputTokens: llmConfig.maxTokens ?? 4096,
-      onStepFinish: ({ toolCalls, toolResults }) => {
-        stepCount++;
-        logLLM('info', `Agent loop - step ${stepCount}`);
+      onChunk: ({ chunk }) => {
+        // Create step message on first text-delta if not yet created
+        if (chunk.type === 'text-delta') {
+          if (!currentStepMessageId) {
+            stepCount++;
+            currentStepMessageId = callbacks.generateId();
+            currentStepContent = '';
+            callbacks.addMessage(sessionId, {
+              id: currentStepMessageId,
+              role: 'assistant',
+              content: '',
+              timestamp: Date.now(),
+              type: 'thought',
+              groupId,
+            });
+          }
+          currentStepContent += chunk.text;
+          callbacks.updateMessage(sessionId, currentStepMessageId, {
+            content: currentStepContent,
+          });
+        }
+      },
+      onStepFinish: ({ text, toolCalls, toolResults }) => {
+        logLLM('info', `Agent loop - step ${stepCount} finished`);
+
+        // Finalize the current step's text message
+        if (currentStepMessageId && text) {
+          callbacks.updateMessage(sessionId, currentStepMessageId, {
+            content: text,
+            type: 'response',
+          });
+        }
 
         if (toolCalls && toolCalls.length > 0 && toolResults) {
-          // Show tool calls in UI
           for (let i = 0; i < toolCalls.length; i++) {
             const tc = toolCalls[i];
             const tr = toolResults[i];
@@ -100,7 +119,6 @@ export async function runAgentLoop(
               input: JSON.stringify(tc.input).slice(0, 200),
             });
 
-            // Add tool call message
             const toolCallMsgId = callbacks.generateId();
             callbacks.addMessage(sessionId, {
               id: toolCallMsgId,
@@ -116,7 +134,6 @@ export async function runAgentLoop(
 
             callbacks.setStatus(t('chat.executing', { toolName: tc.toolName }));
 
-            // Add tool result message
             const resultContent = typeof tr.output === 'string' ? tr.output : JSON.stringify(tr.output);
             const toolResultMsgId = callbacks.generateId();
             callbacks.addMessage(sessionId, {
@@ -136,22 +153,18 @@ export async function runAgentLoop(
 
           callbacks.setStatus('');
         }
+
+        // Reset for next step
+        currentStepMessageId = null;
+        currentStepContent = '';
       },
     });
 
-    // Stream text chunks to UI
-    let fullContent = '';
-    for await (const chunk of result.textStream) {
-      fullContent += chunk;
-      callbacks.updateMessage(sessionId, responseMessageId, { content: fullContent });
+    // Consume the stream (callbacks handle UI updates via onChunk)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    for await (const _chunk of result.textStream) {
+      // textStream must be consumed to drive the stream
     }
-
-    // Final update
-    callbacks.updateMessage(sessionId, responseMessageId, {
-      type: 'response',
-      content: fullContent,
-      groupId,
-    });
 
     logLLM('success', 'Agent loop completed');
   } catch (error) {

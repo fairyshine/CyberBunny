@@ -58,7 +58,22 @@ export default function ConnectionTest() {
     } catch (error) {
       log('');
       log(t('connTest.failed'));
-      log(error instanceof Error ? error.message : String(error));
+      if (error instanceof Error) {
+        log(error.message);
+        if (error.stack) {
+          log('');
+          log('Stack trace:');
+          log(error.stack);
+        }
+        // Log the cause if available
+        if ('cause' in error && error.cause) {
+          log('');
+          log('Cause:');
+          log(String(error.cause));
+        }
+      } else {
+        log(String(error));
+      }
       log('');
       log(t('connTest.possibleReasons'));
       if (llmConfig.baseUrl) {
