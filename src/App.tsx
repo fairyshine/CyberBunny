@@ -7,6 +7,7 @@ import WelcomeScreen from './components/layout/WelcomeScreen';
 import { useSessionStore, selectCurrentSession } from './stores/session';
 import { useSettingsStore } from './stores/settings';
 import { useToolStore } from './stores/tools';
+import { useSkillStore } from './stores/skills';
 import { pythonExecutor } from './services/python/executor';
 import { fileSystem } from './services/filesystem';
 import { logSystem } from './services/console/logger';
@@ -23,6 +24,7 @@ function App() {
   const { createSession } = useSessionStore();
   const { initializePython, theme } = useSettingsStore();
   const { initSources } = useToolStore();
+  const { initSources: initSkillSources } = useSkillStore();
   const [showWelcome, setShowWelcome] = useState(!currentSession);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [fileContent, setFileContent] = useState<string>('');
@@ -68,7 +70,10 @@ function App() {
 
     // 初始化工具源（重新加载持久化的源）
     initSources().catch(console.error);
-  }, [currentSession, initializePython, initSources]);
+
+    // 初始化 Skills 源
+    initSkillSources().catch(console.error);
+  }, [currentSession, initializePython, initSources, initSkillSources]);
 
   // 初始化全局快捷键系统
   useEffect(() => {
