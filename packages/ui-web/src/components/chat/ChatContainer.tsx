@@ -25,7 +25,7 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
   const [currentStatus, setCurrentStatus] = useState<string>('');
   const [showExportDialog, setShowExportDialog] = useState(false);
   const { sessions, addMessage, updateMessage, llmConfig } = useSessionStore();
-  const { enabledTools } = useSettingsStore();
+  const { enabledTools, proxyUrl } = useSettingsStore();
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const session = sessions.find((s) => s.id === sessionId);
@@ -67,6 +67,13 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
       timestamp: Date.now(),
     };
     addMessage(sessionId, userMessage);
+
+    // Auto-rename session with first user message (max 50 chars)
+    if (session && session.messages.length === 0) {
+      const sessionName = content.trim().slice(0, 50);
+      useSessionStore.getState().renameSession(sessionId, sessionName);
+    }
+
     setIsLoading(true);
     setCurrentStatus('');
     logLLM('info', `User message: ${content.trim().slice(0, 100)}${content.length > 100 ? '...' : ''}`);
@@ -78,7 +85,8 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
         llmConfig,
         enabledTools,
         callbacks,
-        t
+        t,
+        proxyUrl
       );
     } catch (error) {
       console.error('Error:', error);

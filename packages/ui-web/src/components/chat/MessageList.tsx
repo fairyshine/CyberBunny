@@ -195,12 +195,38 @@ const ProcessBubble = memo(function ProcessBubble({ message }: { message: Messag
           )}
         </button>
         {expanded && (
-          <div className="mt-2 px-4 py-3 rounded-2xl bg-muted/50 border-elegant text-sm text-muted-foreground animate-slide-in">
-            {message.type === 'tool_call' && message.toolInput ? (
-              <ToolInputDisplay input={message.toolInput} />
-            ) : (
-              <ReactMarkdown content={message.content} />
+          <div className="mt-2 rounded-2xl bg-muted/50 border-elegant animate-slide-in overflow-hidden">
+            {message.type === 'tool_call' && message.toolName && (
+              <div className="px-4 py-3 border-b border-border/30 bg-muted/30">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Zap className="w-4 h-4 text-primary" />
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <code className="text-sm font-mono font-semibold text-foreground">{message.toolName}</code>
+                    </div>
+                    {typeof message.metadata?.toolDescription === 'string' && (
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {message.metadata.toolDescription}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
             )}
+            <div className="px-4 py-3">
+              {message.type === 'tool_call' && message.toolInput ? (
+                <>
+                  <div className="text-xs font-semibold text-muted-foreground mb-2">Parameters:</div>
+                  <ToolInputDisplay input={message.toolInput} />
+                </>
+              ) : (
+                <ReactMarkdown content={message.content} />
+              )}
+            </div>
           </div>
         )}
         <Timestamp time={message.timestamp} />

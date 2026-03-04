@@ -77,7 +77,7 @@ export class PythonExecutor {
     if (!this.pyodide) return;
     await this.fileSystem.initialize();
     try {
-      this.pyodide.FS.mkdir('/sandbox');
+      this.pyodide.FS.mkdir('/root');
     } catch {
       // Directory exists
     }
@@ -86,7 +86,7 @@ export class PythonExecutor {
 
   private async syncFromDB(): Promise<void> {
     if (!this.pyodide) return;
-    const entries = await this.fileSystem.readdir('/sandbox');
+    const entries = await this.fileSystem.readdir('/root');
     
     for (const entry of entries) {
       if (entry.type === 'file') {
@@ -107,16 +107,16 @@ export class PythonExecutor {
   private async syncToDB(): Promise<void> {
     if (!this.pyodide) return;
     try {
-      const entries = this.pyodide.FS.readdir('/sandbox');
+      const entries = this.pyodide.FS.readdir('/root');
       for (const name of entries) {
         if (name === '.' || name === '..') continue;
-        const pyPath = `/sandbox/${name}`;
+        const pyPath = `/root/${name}`;
         const stat = this.pyodide.FS.stat(pyPath);
         if ((stat.mode & 0o170000) === 0o100000) {
           const data = this.pyodide.FS.readFile(pyPath);
           const bytes = Array.from(data);
           const blob = new Blob([new Uint8Array(bytes)]);
-          await this.fileSystem.writeFile(`sandbox/${name}`, blob);
+          await this.fileSystem.writeFile(`root/${name}`, blob);
         }
       }
     } catch (e) {
@@ -180,7 +180,7 @@ old_stderr = sys.stderr
 sys.stdout = StringIO()
 sys.stderr = StringIO()
 import os
-os.chdir('/sandbox')
+os.chdir('/root')
 ${code}
 output = sys.stdout.getvalue()
 error = sys.stderr.getvalue()

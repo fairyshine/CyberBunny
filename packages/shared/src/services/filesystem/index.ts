@@ -59,10 +59,10 @@ export class IndexedDBFileSystem implements IFileSystem {
       });
 
       // 创建默认根目录（避免调用this.mkdir因为mkdir也会调用initialize）
-      const rootPath = '/sandbox';
+      const rootPath = '/root';
       const rootEntry: FileSystemEntry = {
         path: rootPath,
-        name: 'sandbox',
+        name: 'root',
         type: 'directory',
         size: 0,
         createdAt: Date.now(),
@@ -89,7 +89,7 @@ export class IndexedDBFileSystem implements IFileSystem {
 
     // 递归创建父目录
     const parentDir = normalizedPath.substring(0, normalizedPath.lastIndexOf('/'));
-    if (parentDir && parentDir !== '/sandbox' && !(await this.exists(parentDir))) {
+    if (parentDir && parentDir !== '/root' && !(await this.exists(parentDir))) {
       await this.mkdir(parentDir);
     }
 
@@ -266,7 +266,7 @@ export class IndexedDBFileSystem implements IFileSystem {
   async clear(): Promise<void> {
     await this.initialize();
     await this.db!.clear('files');
-    await this.mkdir('/sandbox');
+    await this.mkdir('/root');
   }
 
   // 获取存储使用情况
@@ -280,7 +280,7 @@ export class IndexedDBFileSystem implements IFileSystem {
   private normalizePath(path: string): string {
     let normalized = path.replace(/\/+/g, '/');
     if (!normalized.startsWith('/')) {
-      normalized = '/sandbox/' + normalized;
+      normalized = '/root/' + normalized;
     }
     return normalized;
   }

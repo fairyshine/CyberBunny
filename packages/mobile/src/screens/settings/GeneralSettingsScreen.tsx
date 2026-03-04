@@ -1,13 +1,13 @@
 import React from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { List, SegmentedButtons, Text, Divider } from 'react-native-paper';
+import { List, SegmentedButtons, Text, Divider, TextInput } from 'react-native-paper';
 import { useSettingsStore } from '@shared/stores/settings';
 import type { Theme, Language } from '@shared/stores/settings';
 
 export default function GeneralSettingsScreen() {
   const { t } = useTranslation();
-  const { theme, setTheme, language, setLanguage } = useSettingsStore();
+  const { theme, setTheme, language, setLanguage, proxyUrl, setProxyUrl } = useSettingsStore();
 
   return (
     <ScrollView style={styles.container}>
@@ -46,6 +46,24 @@ export default function GeneralSettingsScreen() {
       <Divider />
 
       <List.Section>
+        <List.Subheader>{t('settings.proxyUrl')}</List.Subheader>
+        <View style={styles.inputContainer}>
+          <TextInput
+            mode="outlined"
+            value={proxyUrl}
+            onChangeText={setProxyUrl}
+            placeholder="https://your-worker.workers.dev"
+            dense
+          />
+          <Text variant="bodySmall" style={styles.hint}>
+            {t('settings.proxyHint')}
+          </Text>
+        </View>
+      </List.Section>
+
+      <Divider />
+
+      <List.Section>
         <List.Subheader>{t('settings.about')}</List.Subheader>
         <List.Item title="CyberBunny Mobile" description={t('settings.version')} />
         <List.Item title="" description={t('settings.aboutDesc')} />
@@ -61,5 +79,9 @@ const styles = StyleSheet.create({
   inputContainer: {
     paddingHorizontal: 16,
     paddingVertical: 8,
+  },
+  hint: {
+    marginTop: 4,
+    opacity: 0.6,
   },
 });

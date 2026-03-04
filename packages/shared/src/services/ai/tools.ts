@@ -109,7 +109,7 @@ export const calculatorTool = tool({
 });
 
 export const fileManagerTool = tool({
-  description: 'Manage files: read, write, list, mkdir, delete operations on the virtual file system sandbox.',
+  description: 'Manage files: read, write, list, mkdir, delete operations on the virtual file system. The root directory is /root.',
   inputSchema: z.object({
     operation: z.enum(['read', 'write', 'list', 'mkdir', 'delete']).describe('File operation to perform'),
     path: z.string().describe('File or directory path'),
@@ -118,7 +118,7 @@ export const fileManagerTool = tool({
   execute: async ({ operation, path, content }) => {
     try {
       const normalizedPath = path.trim();
-      if (normalizedPath.includes('/.memory') || normalizedPath === '/sandbox/.memory') {
+      if (normalizedPath.includes('/.memory') || normalizedPath === '/root/.memory') {
         return '[Error] Access to .memory directory is restricted';
       }
 
@@ -149,7 +149,7 @@ export const fileManagerTool = tool({
           return t()('tools.exec.fileSaved', { path, length: content!.length });
         }
         case 'list': {
-          const targetPath = normalizedPath || '/sandbox';
+          const targetPath = normalizedPath || '/root';
           const entries = await fileSystem.readdir(targetPath);
           const filtered = entries.filter((e: any) => e.name !== '.memory');
           if (filtered.length === 0) {
@@ -202,8 +202,8 @@ export const memoryTool = tool({
     mode: z.enum(['append', 'overwrite']).optional().describe('Write mode'),
   }),
   execute: async ({ operation, content, date, mode }) => {
-    const MEMORY_DIR = '/sandbox/.memory';
-    const MEMORY_FILE = '/sandbox/.memory/MEMORY.md';
+    const MEMORY_DIR = '/root/.memory';
+    const MEMORY_FILE = '/root/.memory/MEMORY.md';
 
     try {
       await fileSystem.initialize();

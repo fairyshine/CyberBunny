@@ -11,8 +11,8 @@ import { Brain, Search, Calendar as CalendarIcon, BarChart3, Eye, Edit2, BookOpe
 import { fileSystem } from '@shared/services/filesystem';
 import ReactMarkdown from '../ReactMarkdown';
 
-const MEMORY_DIR = '/sandbox/.memory';
-const MEMORY_FILE = '/sandbox/.memory/MEMORY.md';
+const MEMORY_DIR = '/root/.memory';
+const MEMORY_FILE = '/root/.memory/MEMORY.md';
 
 interface MemoryViewerProps {
   isOpen: boolean;

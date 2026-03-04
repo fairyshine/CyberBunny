@@ -21,7 +21,7 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
   const { t } = useTranslation();
   const [tree, setTree] = useState<TreeNode[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set(['/sandbox']));
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set(['/root']));
   const [searchQuery, setSearchQuery] = useState('');
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; entry: FileSystemEntry } | null>(null);
 
@@ -69,7 +69,7 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
       return entries;
     };
 
-    setTree(await buildTree('/sandbox'));
+    setTree(await buildTree('/root'));
     setIsLoading(false);
   }, [loadDirectory, expandedPaths]);
 
@@ -144,7 +144,7 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
     }
 
     try {
-      const parentPath = renaming.path.substring(0, renaming.path.lastIndexOf('/')) || '/sandbox';
+      const parentPath = renaming.path.substring(0, renaming.path.lastIndexOf('/')) || '/root';
       const newPath = `${parentPath}/${renaming.name.trim()}`;
 
       if (newPath !== renaming.path) {
@@ -229,7 +229,7 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
       const draggedName = dragged.split('/').pop()!;
       const newPath = isDirectory
         ? `${targetPath}/${draggedName}`
-        : `${targetPath.substring(0, targetPath.lastIndexOf('/')) || '/sandbox'}/${draggedName}`;
+        : `${targetPath.substring(0, targetPath.lastIndexOf('/')) || '/root'}/${draggedName}`;
 
       if (newPath !== dragged) {
         await fileSystem.rename(dragged, newPath);
@@ -329,7 +329,7 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
         <div className="flex items-center gap-1 px-2 py-2 border-b border-border shrink-0">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button onClick={() => startCreate('/sandbox', 'folder')} variant="ghost" size="icon" className="h-8 w-8">
+              <Button onClick={() => startCreate('/root', 'folder')} variant="ghost" size="icon" className="h-8 w-8">
                 <Folder className="w-4 h-4 text-yellow-500" />
               </Button>
             </TooltipTrigger>
@@ -338,7 +338,7 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button onClick={() => startCreate('/sandbox', 'file')} variant="ghost" size="icon" className="h-8 w-8">
+              <Button onClick={() => startCreate('/root', 'file')} variant="ghost" size="icon" className="h-8 w-8">
                 <Plus className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
@@ -355,7 +355,7 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
                   const files = (e.target as HTMLInputElement).files;
                   if (files) {
                     for (const file of files) {
-                      try { await fileSystem.writeFile(`/sandbox/${file.name}`, file); } catch (err) { console.error(err); }
+                      try { await fileSystem.writeFile(`/root/${file.name}`, file); } catch (err) { console.error(err); }
                     }
                     await loadTree();
                   }
@@ -403,7 +403,7 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
       </div>
 
       {/* Create Input - Fixed (conditional) */}
-      {creating?.path === '/sandbox' && (
+      {creating?.path === '/root' && (
         <div className="flex items-center gap-1 px-2 py-1 bg-primary/5 shrink-0">
           {creating.type === 'folder' ? <Folder className="w-4 h-4 text-yellow-500" /> : <FileIcon className="w-4 h-4 text-blue-500" />}
           <Input
@@ -423,7 +423,7 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
       <div
         className="flex-1 overflow-y-auto"
         onDragOver={(e: any) => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); }}
-        onDrop={(e: any) => { if (e.dataTransfer.files.length > 0) handleDrop(e, '/sandbox', true); }}
+        onDrop={(e: any) => { if (e.dataTransfer.files.length > 0) handleDrop(e, '/root', true); }}
       >
         {isLoading ? (
           <div className="text-center py-8 text-muted-foreground">{t('common.loading')}</div>

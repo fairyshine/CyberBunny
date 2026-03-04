@@ -7,27 +7,58 @@ import { getProviderMeta } from './providers';
 
 /**
  * In browser environments, AI API calls are blocked by CORS.
- * Route through Vite dev proxy (/api/proxy) to bypass this.
+ * Routes through the appropriate proxy based on environment:
+ * - localhost → Vite dev proxy (/api/proxy?target=<url>)
+ * - production + proxyUrl → Cloudflare Worker (POST <proxyUrl>/proxy, X-Target-URL header)
+ * - otherwise → direct fetch (works for CORS-enabled providers like Ollama)
  */
-function createBrowserFetch(): typeof globalThis.fetch | undefined {
+function createBrowserFetch(proxyUrl?: string): typeof globalThis.fetch | undefined {
   if (typeof window === 'undefined') return undefined;
 
-  return async (input: RequestInfo | URL, init?: RequestInit) => {
-    const originalUrl = typeof input === 'string'
-      ? input
-      : input instanceof URL
-        ? input.toString()
-        : (input as Request).url;
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-    const encodedTarget = encodeURIComponent(originalUrl);
-    const proxyUrl = `/api/proxy?target=${encodedTarget}`;
+  // No proxy needed in dev (Vite handles it) or when no proxyUrl configured
+  if (isLocalhost) {
+    // Vite dev proxy
+    return async (input: RequestInfo | URL, init?: RequestInit) => {
+      const originalUrl = typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : (input as Request).url;
 
-    return globalThis.fetch(proxyUrl, init);
-  };
+      const encodedTarget = encodeURIComponent(originalUrl);
+      return globalThis.fetch(`/api/proxy?target=${encodedTarget}`, init);
+    };
+  }
+
+  if (proxyUrl) {
+    // Cloudflare Worker proxy
+    const workerBase = proxyUrl.replace(/\/+$/, '');
+    return async (input: RequestInfo | URL, init?: RequestInit) => {
+      const originalUrl = typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : (input as Request).url;
+
+      return globalThis.fetch(`${workerBase}/proxy`, {
+        ...init,
+        method: init?.method || 'POST',
+        headers: {
+          ...Object.fromEntries(new Headers(init?.headers).entries()),
+          'X-Target-URL': originalUrl,
+        },
+      });
+    };
+  }
+
+  // No proxy — direct fetch (for CORS-enabled providers)
+  return undefined;
 }
 
-export function createProvider(config: LLMConfig) {
-  const customFetch = createBrowserFetch();
+export function createProvider(config: LLMConfig, proxyUrl?: string) {
+  const customFetch = createBrowserFetch(proxyUrl);
   const meta = getProviderMeta(config.provider);
 
   if (!meta) {
@@ -50,8 +81,8 @@ export function createProvider(config: LLMConfig) {
   }
 }
 
-export function createModel(config: LLMConfig) {
-  const provider = createProvider(config);
+export function createModel(config: LLMConfig, proxyUrl?: string) {
+  const provider = createProvider(config, proxyUrl);
   // Use .chat() for OpenAI-compatible providers to use /chat/completions instead of /responses
   // OpenAI's new SDK defaults to /responses which most providers don't support yet
   const meta = getProviderMeta(config.provider);
@@ -64,8 +95,8 @@ export function createModel(config: LLMConfig) {
 /**
  * Quick connection test — sends a minimal request and returns the response text.
  */
-export async function testConnection(config: LLMConfig): Promise<string> {
-  const model = createModel(config);
+export async function testConnection(config: LLMConfig, proxyUrl?: string): Promise<string> {
+  const model = createModel(config, proxyUrl);
   const { text } = await generateText({
     model,
     messages: [{ role: 'user', content: 'Say "ok" and nothing else.' }],

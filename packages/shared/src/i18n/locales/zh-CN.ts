@@ -71,6 +71,21 @@ const zhCN = {
   'settings.language.system': '跟随系统',
   'settings.language.zhCN': '中文',
   'settings.language.enUS': 'English',
+  'settings.general': '通用',
+  'settings.generalDesc': '通用设置',
+  'settings.generalSettings': '通用设置',
+  'settings.llm': '大模型',
+  'settings.llmConfig': '大模型配置',
+  'settings.llmConfigDesc': '配置 AI 模型提供商和参数',
+  'settings.connectionTestDesc': '测试与 AI 服务的连接',
+  'settings.testConnection': '测试连接',
+  'settings.testing': '测试中...',
+  'settings.data': '数据',
+  'settings.capabilities': '功能',
+  'settings.theme': '主题',
+  'settings.theme.light': '浅色',
+  'settings.theme.dark': '深色',
+  'settings.theme.system': '跟随系统',
 
   // Chat
   'chat.input.placeholder': '输入消息 (Enter 发送，Shift+Enter 换行)',
@@ -92,9 +107,24 @@ const zhCN = {
   'chat.toolResult.error': '错误',
   'chat.toolResult.result': '结果',
   'chat.callTool': '调用工具: {{toolName}}',
+  'chat.export': '导出',
+  'chat.noResults': '无结果',
+  'chat.plainText': '纯文本',
+  'chat.results': '结果',
+  'chat.searchMessages': '搜索消息',
+  'chat.searchPlaceholder': '搜索消息内容...',
+  'chat.searchToolOutput': '搜索工具输出',
+  'chat.toolCalls': '工具调用',
+  'chat.totalMessages': '总消息数',
 
   // Tools
   'tools.label': '工具:',
+  'tools.title': '工具管理',
+  'tools.desc': '管理和配置可用工具',
+  'tools.enableAll': '全部启用',
+  'tools.disableAll': '全部禁用',
+  'tools.addSourceDesc': '添加自定义工具源',
+  'tools.sourceName': '源名称',
   'tools.management': '工具管理',
   'tools.addSource': '添加工具源',
   'tools.noTools': '暂无已加载工具',
@@ -166,9 +196,9 @@ export default {
   'tools.calculator.description': '计算数学表达式并返回结果，基于 Python math 库，支持三角函数、对数、幂运算等',
   'tools.calculator.param.expression': '数学表达式，如 2**10、math.sqrt(144)、math.sin(math.pi/2)',
   'tools.fileManager.name': '文件管理',
-  'tools.fileManager.description': '操作浏览器沙盒文件系统，支持文件的读取、写入、列出目录、创建文件夹和删除，文件可与 Python 解释器共享',
+  'tools.fileManager.description': '操作浏览器虚拟文件系统，支持文件的读取、写入、列出目录、创建文件夹和删除，文件可与 Python 解释器共享',
   'tools.fileManager.param.operation': '操作类型：read（读取文件）、write（写入文件）、list（列出目录）、mkdir（创建文件夹）、delete（删除）',
-  'tools.fileManager.param.path': '文件或目录路径，如 /sandbox/data.txt',
+  'tools.fileManager.param.path': '文件或目录路径，如 /root/data.txt',
   'tools.fileManager.param.content': '文件内容（仅 write 操作需要）',
   'tools.memory.name': '记忆存储',
   'tools.memory.description': '存储和读取长期记忆（MEMORY.md）和每日日记（YYYY-MM-DD.md），用于跨对话记住重要信息。',
@@ -266,6 +296,8 @@ export default {
 
   // Console Panel
   'console.title': '控制台',
+  'console.desc': '查看系统日志和调试信息',
+  'console.empty': '暂无日志',
   'console.all': '全部',
   'console.search': '搜索...',
   'console.autoScroll': '自动滚动',
@@ -287,9 +319,24 @@ export default {
   'sidebar.backToSessions': '返回会话',
   'sidebar.restore': '还原',
   'sidebar.permanentlyDelete': '永久删除',
+  'sidebar.permanentDelete': '永久删除此会话？',
   'sidebar.clearTrash': '清空回收站',
   'sidebar.confirmClearTrash': '确定要永久删除回收站中的所有会话吗？',
   'sidebar.emptyTrash': '回收站为空',
+  'sidebar.newSession': '新会话',
+  'sidebar.settings': '设置',
+  'sidebar.console': '控制台',
+  'sidebar.memory': '记忆',
+  'sidebar.tools': '工具',
+
+  // Files (Mobile)
+  'files.delete': '删除',
+  'files.discard': '放弃',
+  'files.empty': '暂无文件',
+  'files.save': '保存',
+  'files.search': '搜索文件',
+  'files.unsavedChanges': '未保存的更改',
+  'files.unsavedChangesDesc': '您有未保存的更改，是否保存？',
 
   // File Editor
   'fileEditor.close': '关闭',
@@ -379,13 +426,7 @@ export default {
 
 ## 可用工具
 
-{{toolDescriptions}}
-
-## 工具使用规则
-
-**仅在用户明确要求时才调用工具。**
-
-如果用户只是在聊天、提问或讨论，直接用你的知识回答，不要调用工具。`,
+{{toolDescriptions}}`,
   'systemPrompt.params': '参数:',
   'systemPrompt.required': '(必需)',
   'systemPrompt.optional': '(可选)',
@@ -411,6 +452,46 @@ export default {
   // Validation messages
   'validation.toolCallMissing': '工具调用 {{callId}} ({{toolName}}) 缺少对应的结果',
   'validation.toolResultMissing': '工具结果 {{callId}} ({{toolName}}) 缺少对应的调用',
+
+  // Memory (Mobile)
+  'memory.title': '记忆',
+  'memory.desc': '查看和管理长期记忆与日记',
+  'memory.memory': '长期记忆',
+  'memory.diary': '日记',
+  'memory.edit': '编辑',
+  'memory.preview': '预览',
+  'memory.empty': '暂无内容',
+  'memory.noDiary': '暂无日记',
+  'memory.entries': '{{count}} 条记录',
+  'memory.selectEntry': '选择一条记录查看',
+
+  // Skills (Mobile)
+  'skills.title': '技能',
+  'skills.desc': '管理和配置技能',
+  'skills.add': '添加技能',
+  'skills.empty': '暂无已加载技能',
+  'skills.name': '技能名称',
+  'skills.folderPath': '文件夹路径',
+  'skills.notFound': '技能不存在',
+
+  // Welcome (Mobile)
+  'welcome.start': '开始对话',
+  'welcome.tips': '使用提示',
+  'welcome.tip1': '1. 在设置 > 大模型配置中配置 API Key',
+  'welcome.tip2': '2. 右滑打开侧边栏查看会话和文件',
+  'welcome.tip3': '3. 在设置 > 工具中启用工具扩展 AI 能力',
+  'welcome.chat': '智能对话',
+  'welcome.chatDesc': '与 AI 助手自然对话，获取帮助',
+  'welcome.tools': '工具调用',
+  'welcome.toolsDesc': '支持 Python 执行、网页搜索等工具',
+  'welcome.files': '文件管理',
+  'welcome.filesDesc': '沙盒文件系统，安全可靠',
+  'welcome.memory': '记忆系统',
+  'welcome.memoryDesc': '跨对话记住重要信息',
+  'welcome.skills': '技能系统',
+  'welcome.skillsDesc': '可扩展的技能插件',
+  'welcome.mcp': 'MCP 协议',
+  'welcome.mcpDesc': '支持 MCP 工具服务器接入',
 } as const;
 
 export default zhCN;

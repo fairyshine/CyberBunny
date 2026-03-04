@@ -71,6 +71,21 @@ const enUS = {
   'settings.language.system': 'System',
   'settings.language.zhCN': '中文',
   'settings.language.enUS': 'English',
+  'settings.general': 'General',
+  'settings.generalDesc': 'General settings',
+  'settings.generalSettings': 'General Settings',
+  'settings.llm': 'LLM',
+  'settings.llmConfig': 'LLM Configuration',
+  'settings.llmConfigDesc': 'Configure AI model provider and parameters',
+  'settings.connectionTestDesc': 'Test connection to AI service',
+  'settings.testConnection': 'Test Connection',
+  'settings.testing': 'Testing...',
+  'settings.data': 'Data',
+  'settings.capabilities': 'Capabilities',
+  'settings.theme': 'Theme',
+  'settings.theme.light': 'Light',
+  'settings.theme.dark': 'Dark',
+  'settings.theme.system': 'System',
 
   // Chat
   'chat.input.placeholder': 'Type a message (Enter to send, Shift+Enter for new line)',
@@ -92,9 +107,24 @@ const enUS = {
   'chat.toolResult.error': 'Error',
   'chat.toolResult.result': 'Result',
   'chat.callTool': 'Calling tool: {{toolName}}',
+  'chat.export': 'Export',
+  'chat.noResults': 'No results',
+  'chat.plainText': 'Plain Text',
+  'chat.results': 'Results',
+  'chat.searchMessages': 'Search Messages',
+  'chat.searchPlaceholder': 'Search message content...',
+  'chat.searchToolOutput': 'Search tool output',
+  'chat.toolCalls': 'Tool Calls',
+  'chat.totalMessages': 'Total Messages',
 
   // Tools
   'tools.label': 'Tools:',
+  'tools.title': 'Tools',
+  'tools.desc': 'Manage and configure available tools',
+  'tools.enableAll': 'Enable All',
+  'tools.disableAll': 'Disable All',
+  'tools.addSourceDesc': 'Add custom tool source',
+  'tools.sourceName': 'Source Name',
   'tools.management': 'Tool Management',
   'tools.addSource': 'Add Tool Source',
   'tools.noTools': 'No tools loaded',
@@ -166,9 +196,9 @@ export default {
   'tools.calculator.description': 'Evaluate math expressions and return results, powered by Python math library — supports trig, logarithms, exponents, etc.',
   'tools.calculator.param.expression': 'Math expression, e.g. 2**10, math.sqrt(144), math.sin(math.pi/2)',
   'tools.fileManager.name': 'File Manager',
-  'tools.fileManager.description': 'Operate on the browser sandbox filesystem — read, write, list, create folders, and delete files. Files are shared with the Python interpreter.',
+  'tools.fileManager.description': 'Operate on the browser filesystem — read, write, list, create folders, and delete files. Files are shared with the Python interpreter.',
   'tools.fileManager.param.operation': 'Operation type: read, write, list, mkdir, delete',
-  'tools.fileManager.param.path': 'File or directory path, e.g. /sandbox/data.txt',
+  'tools.fileManager.param.path': 'File or directory path, e.g. /root/data.txt',
   'tools.fileManager.param.content': 'File content (only required for write operation)',
   'tools.memory.name': 'Memory Storage',
   'tools.memory.description': 'Store and retrieve long-term memories (MEMORY.md) and daily diaries (YYYY-MM-DD.md). Use this to remember important information across conversations.',
@@ -266,6 +296,8 @@ export default {
 
   // Console Panel
   'console.title': 'Console',
+  'console.desc': 'View system logs and debug information',
+  'console.empty': 'No logs yet',
   'console.all': 'All',
   'console.search': 'Search...',
   'console.autoScroll': 'Auto-scroll',
@@ -287,9 +319,19 @@ export default {
   'sidebar.backToSessions': 'Back to Sessions',
   'sidebar.restore': 'Restore',
   'sidebar.permanentlyDelete': 'Delete Permanently',
+  'sidebar.permanentDelete': 'Permanently delete this session?',
   'sidebar.clearTrash': 'Clear Trash',
   'sidebar.confirmClearTrash': 'Are you sure you want to permanently delete all sessions in trash?',
   'sidebar.emptyTrash': 'Trash is empty',
+
+  // Files (Mobile)
+  'files.delete': 'Delete',
+  'files.discard': 'Discard',
+  'files.empty': 'No files',
+  'files.save': 'Save',
+  'files.search': 'Search files',
+  'files.unsavedChanges': 'Unsaved Changes',
+  'files.unsavedChangesDesc': 'You have unsaved changes. Do you want to save them?',
 
   // File Editor
   'fileEditor.close': 'Close',
@@ -379,13 +421,7 @@ export default {
 
 ## Available Tools
 
-{{toolDescriptions}}
-
-## Tool Usage Rules
-
-**Only call tools when the user explicitly requests it.**
-
-If the user is just chatting, asking questions, or discussing, answer directly with your knowledge without calling tools.`,
+{{toolDescriptions}}`,
   'systemPrompt.params': 'Parameters:',
   'systemPrompt.required': '(required)',
   'systemPrompt.optional': '(optional)',
@@ -411,6 +447,46 @@ If the user is just chatting, asking questions, or discussing, answer directly w
   // Validation messages
   'validation.toolCallMissing': 'Tool call {{callId}} ({{toolName}}) is missing a corresponding result',
   'validation.toolResultMissing': 'Tool result {{callId}} ({{toolName}}) is missing a corresponding call',
+
+  // Memory (Mobile)
+  'memory.title': 'Memory',
+  'memory.desc': 'View and manage long-term memory and diaries',
+  'memory.memory': 'Long-term Memory',
+  'memory.diary': 'Diary',
+  'memory.edit': 'Edit',
+  'memory.preview': 'Preview',
+  'memory.empty': 'No content yet',
+  'memory.noDiary': 'No diary entries',
+  'memory.entries': '{{count}} entries',
+  'memory.selectEntry': 'Select an entry to view',
+
+  // Skills (Mobile)
+  'skills.title': 'Skills',
+  'skills.desc': 'Manage and configure skills',
+  'skills.add': 'Add Skill',
+  'skills.empty': 'No skills loaded',
+  'skills.name': 'Skill Name',
+  'skills.folderPath': 'Folder Path',
+  'skills.notFound': 'Skill not found',
+
+  // Welcome (Mobile)
+  'welcome.start': 'Start Chat',
+  'welcome.tips': 'Tips',
+  'welcome.tip1': '1. Configure your API key in Settings > LLM Configuration',
+  'welcome.tip2': '2. Swipe right to open the sidebar for sessions and files',
+  'welcome.tip3': '3. Enable tools in Settings > Tools to extend AI capabilities',
+  'welcome.chat': 'Smart Chat',
+  'welcome.chatDesc': 'Chat naturally with AI assistant for help',
+  'welcome.tools': 'Tool Calling',
+  'welcome.toolsDesc': 'Supports Python execution, web search, and more',
+  'welcome.files': 'File Management',
+  'welcome.filesDesc': 'Sandboxed file system, safe and reliable',
+  'welcome.memory': 'Memory System',
+  'welcome.memoryDesc': 'Remember important information across conversations',
+  'welcome.skills': 'Skill System',
+  'welcome.skillsDesc': 'Extensible skill plugins',
+  'welcome.mcp': 'MCP Protocol',
+  'welcome.mcpDesc': 'Support MCP tool server integration',
 } as const;
 
 export default enUS;

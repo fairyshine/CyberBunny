@@ -24,7 +24,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { llmConfig, setLLMConfig } = useSessionStore();
   const {
     language,
-    setLanguage
+    setLanguage,
+    proxyUrl,
+    setProxyUrl
   } = useSettingsStore();
 
   return (
@@ -212,6 +214,19 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     <SelectItem value="en-US">{t('settings.language.enUS')}</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="proxyUrl" className="text-sm font-medium">{t('settings.proxyUrl')}</Label>
+                <Input
+                  id="proxyUrl"
+                  type="text"
+                  value={proxyUrl}
+                  onChange={(e) => setProxyUrl(e.target.value)}
+                  placeholder="https://your-worker.workers.dev"
+                  className="h-10"
+                />
+                <p className="text-xs text-muted-foreground">{t('settings.proxyHint')}</p>
               </div>
 
               <Separator />

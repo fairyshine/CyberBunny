@@ -20,7 +20,7 @@ interface FileTreeMobileProps {
 export default function FileTreeMobile({ onFileSelect }: FileTreeMobileProps) {
   const { t } = useTranslation();
   const theme = useTheme();
-  const [currentPath, setCurrentPath] = useState('/sandbox');
+  const [currentPath, setCurrentPath] = useState('/root');
   const [entries, setEntries] = useState<FileSystemEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -60,7 +60,7 @@ export default function FileTreeMobile({ onFileSelect }: FileTreeMobileProps) {
 
   const handleGoUp = () => {
     const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/'));
-    if (parentPath && parentPath.startsWith('/sandbox')) {
+    if (parentPath && parentPath.startsWith('/root')) {
       setCurrentPath(parentPath);
     }
   };
@@ -124,7 +124,7 @@ export default function FileTreeMobile({ onFileSelect }: FileTreeMobileProps) {
         inputStyle={{ fontSize: 13 }}
       />
 
-      {currentPath !== '/sandbox' && (
+      {currentPath !== '/root' && (
         <List.Item
           title=".."
           left={(p) => <List.Icon {...p} icon="arrow-up" />}

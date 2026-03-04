@@ -1,28 +1,28 @@
 /**
  * Mobile FileSystem 实现
  * 基于 expo-file-system，实现 IFileSystem 接口
- * sandbox 根目录为 documentDirectory/sandbox/
+ * 根目录为 documentDirectory/root/
  */
 
 import * as ExpoFS from 'expo-file-system';
 import type { IFileSystem, FileSystemEntry } from '@cyberbunny/shared';
 
-const SANDBOX_ROOT = `${ExpoFS.documentDirectory}sandbox/`;
+const FS_ROOT = `${ExpoFS.documentDirectory}root/`;
 
 function normalizePath(path: string): string {
   let normalized = path.replace(/\/+/g, '/');
   if (!normalized.startsWith('/')) {
-    normalized = '/sandbox/' + normalized;
+    normalized = '/root/' + normalized;
   }
   return normalized;
 }
 
 function toFullPath(normalizedPath: string): string {
-  // /sandbox/foo/bar.txt → documentDirectory/sandbox/foo/bar.txt
-  const relativePath = normalizedPath.startsWith('/sandbox')
-    ? normalizedPath.slice('/sandbox'.length)
+  // /root/foo/bar.txt → documentDirectory/root/foo/bar.txt
+  const relativePath = normalizedPath.startsWith('/root')
+    ? normalizedPath.slice('/root'.length)
     : normalizedPath;
-  return `${SANDBOX_ROOT}${relativePath.startsWith('/') ? relativePath.slice(1) : relativePath}`;
+  return `${FS_ROOT}${relativePath.startsWith('/') ? relativePath.slice(1) : relativePath}`;
 }
 
 async function getFileInfo(fullPath: string): Promise<ExpoFS.FileInfo> {
@@ -36,12 +36,12 @@ export class MobileFileSystem implements IFileSystem {
     if (this.isReady) return;
 
     try {
-      const info = await getFileInfo(SANDBOX_ROOT);
+      const info = await getFileInfo(FS_ROOT);
       if (!info.exists) {
-        await ExpoFS.makeDirectoryAsync(SANDBOX_ROOT, { intermediates: true });
+        await ExpoFS.makeDirectoryAsync(FS_ROOT, { intermediates: true });
       }
       this.isReady = true;
-      console.log('[MobileFS] Initialized at', SANDBOX_ROOT);
+      console.log('[MobileFS] Initialized at', FS_ROOT);
     } catch (error) {
       console.error('[MobileFS] Failed to initialize:', error);
       throw error;
@@ -228,7 +228,7 @@ export class MobileFileSystem implements IFileSystem {
 
   async search(query: string): Promise<FileSystemEntry[]> {
     await this.initialize();
-    const allEntries = await this.readdir('/sandbox', true);
+    const allEntries = await this.readdir('/root', true);
     const lowerQuery = query.toLowerCase();
     return allEntries.filter((entry) => entry.name.toLowerCase().includes(lowerQuery));
   }
@@ -236,8 +236,8 @@ export class MobileFileSystem implements IFileSystem {
   async clear(): Promise<void> {
     await this.initialize();
     try {
-      await ExpoFS.deleteAsync(SANDBOX_ROOT, { idempotent: true });
-      await ExpoFS.makeDirectoryAsync(SANDBOX_ROOT, { intermediates: true });
+      await ExpoFS.deleteAsync(FS_ROOT, { idempotent: true });
+      await ExpoFS.makeDirectoryAsync(FS_ROOT, { intermediates: true });
     } catch (error) {
       console.error('[MobileFS] Failed to clear:', error);
     }
@@ -245,7 +245,7 @@ export class MobileFileSystem implements IFileSystem {
 
   async getStorageInfo(): Promise<{ used: number; total: number }> {
     await this.initialize();
-    const allEntries = await this.readdir('/sandbox', true);
+    const allEntries = await this.readdir('/root', true);
     const used = allEntries.reduce((sum, entry) => sum + entry.size, 0);
     return { used, total: 1024 * 1024 * 1024 }; // 1GB hint
   }

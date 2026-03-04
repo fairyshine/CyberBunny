@@ -15,7 +15,7 @@ interface FileManagerProps {
 export default function FileManager({ isOpen, onClose }: FileManagerProps) {
   const { t } = useTranslation();
   const [files, setFiles] = useState<FileSystemEntry[]>([]);
-  const [currentPath, setCurrentPath] = useState('/sandbox');
+  const [currentPath, setCurrentPath] = useState('/root');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<FileSystemEntry | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -151,8 +151,8 @@ export default function FileManager({ isOpen, onClose }: FileManagerProps) {
   };
 
   const navigateUp = () => {
-    if (currentPath === '/sandbox') return;
-    const parent = currentPath.substring(0, currentPath.lastIndexOf('/')) || '/sandbox';
+    if (currentPath === '/root') return;
+    const parent = currentPath.substring(0, currentPath.lastIndexOf('/')) || '/root';
     setCurrentPath(parent);
   };
 
@@ -173,7 +173,7 @@ export default function FileManager({ isOpen, onClose }: FileManagerProps) {
               <Folder className="w-5 h-5" />
               {t('fileManager.title')}
             </DialogTitle>
-            <button onClick={navigateUp} disabled={currentPath === '/sandbox'} className="text-sm text-muted-foreground hover:text-foreground disabled:opacity-50">
+            <button onClick={navigateUp} disabled={currentPath === '/root'} className="text-sm text-muted-foreground hover:text-foreground disabled:opacity-50">
               {currentPath}
             </button>
           </div>

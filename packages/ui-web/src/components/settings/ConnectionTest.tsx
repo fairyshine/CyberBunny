@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSessionStore } from '@shared/stores/session';
+import { useSettingsStore } from '@shared/stores/settings';
 import { testConnection as testLLMConnection } from '@shared/services/ai/provider';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
@@ -11,6 +12,7 @@ export default function ConnectionTest() {
   const [result, setResult] = useState<string>('');
   const [testing, setTesting] = useState(false);
   const { llmConfig } = useSessionStore();
+  const { proxyUrl } = useSettingsStore();
   const containerRef = useRef<HTMLDivElement>(null);
 
   const scrollParentToBottom = () => {
@@ -48,7 +50,7 @@ export default function ConnectionTest() {
       log('Using AI SDK to test connection...');
       log('');
 
-      const text = await testLLMConnection(llmConfig);
+      const text = await testLLMConnection(llmConfig, proxyUrl);
 
       log('');
       log(t('connTest.success'));

@@ -330,6 +330,9 @@ importers:
       '@cyberbunny/shared':
         specifier: workspace:*
         version: link:../shared
+      ai:
+        specifier: ^6.0.111
+        version: 6.0.111(zod@4.3.6)
       conf:
         specifier: ^12.0.0
         version: 12.0.0

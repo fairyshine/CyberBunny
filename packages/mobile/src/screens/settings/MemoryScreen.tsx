@@ -16,8 +16,8 @@ import {
 import { fileSystem } from '@shared/services/filesystem';
 import Markdown from 'react-native-markdown-display';
 
-const MEMORY_PATH = '/sandbox/memory/MEMORY.md';
-const DIARY_DIR = '/sandbox/memory/diary';
+const MEMORY_PATH = '/root/memory/MEMORY.md';
+const DIARY_DIR = '/root/memory/diary';
 
 export default function MemoryScreen() {
   const { t } = useTranslation();

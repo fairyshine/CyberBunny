@@ -103,7 +103,7 @@ export default function AddSkillScreen() {
           onChangeText={setFolderPath}
           mode="outlined"
           style={styles.input}
-          placeholder="/sandbox/skills/my-skill"
+          placeholder="/root/skills/my-skill"
         />
       )}
 

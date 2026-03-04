@@ -67,7 +67,8 @@
       "Bash(npx:*)",
       "Bash(done)",
       "Bash(node:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(do echo:*)"
     ]
   }
 }

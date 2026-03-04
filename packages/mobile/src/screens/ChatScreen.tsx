@@ -23,7 +23,7 @@ export default function ChatScreen() {
   const { sessionId } = route.params;
 
   const { sessions, addMessage, updateMessage, llmConfig } = useSessionStore();
-  const { enabledTools } = useSettingsStore();
+  const { enabledTools, proxyUrl } = useSettingsStore();
   const session = sessions.find((s) => s.id === sessionId);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -72,6 +72,12 @@ export default function ChatScreen() {
       timestamp: Date.now(),
     };
     addMessage(sessionId, userMessage);
+
+    // Auto-rename session with first user message
+    if (session.messages.length === 0) {
+      useSessionStore.getState().renameSession(sessionId, content.trim().slice(0, 50));
+    }
+
     setIsLoading(true);
     setCurrentStatus('');
     logLLM('info', `User message: ${content.trim().slice(0, 100)}${content.length > 100 ? '...' : ''}`);
@@ -83,7 +89,8 @@ export default function ChatScreen() {
         llmConfig,
         enabledTools,
         callbacks,
-        t
+        t,
+        proxyUrl
       );
     } catch (error) {
       console.error('[Chat] Agent loop error:', error);

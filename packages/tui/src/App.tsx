@@ -3,7 +3,8 @@ import { Box, Text, useApp } from 'ink';
 import TextInput from 'ink-text-input';
 import Spinner from 'ink-spinner';
 import { callLLM } from '@shared/services/llm/streaming';
-import type { LLMMessage, LLMConfig } from '@shared/types';
+import type { LLMConfig } from '@shared/types';
+import type { ModelMessage } from 'ai';
 
 interface AppProps {
   config: LLMConfig;
@@ -19,7 +20,7 @@ function App({ config, systemPrompt }: AppProps) {
   const { exit } = useApp();
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [history, setHistory] = useState<LLMMessage[]>(
+  const [history, setHistory] = useState<ModelMessage[]>(
     systemPrompt ? [{ role: 'system', content: systemPrompt }] : []
   );
   const [streaming, setStreaming] = useState('');
@@ -47,7 +48,7 @@ function App({ config, systemPrompt }: AppProps) {
     setError('');
     setMessages(prev => [...prev, { role: 'user', content: trimmed }]);
 
-    const newHistory: LLMMessage[] = [...history, { role: 'user', content: trimmed }];
+    const newHistory: ModelMessage[] = [...history, { role: 'user', content: trimmed }];
     setHistory(newHistory);
     setIsLoading(true);
     setStreaming('');

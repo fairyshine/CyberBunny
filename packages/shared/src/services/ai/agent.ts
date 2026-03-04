@@ -29,7 +29,8 @@ export async function runAgentLoop(
   llmConfig: LLMConfig,
   enabledTools: string[],
   callbacks: AgentCallbacks,
-  t: TFunction
+  t: TFunction,
+  proxyUrl?: string
 ): Promise<void> {
   if (!llmConfig.apiKey) {
     callbacks.addMessage(sessionId, {
@@ -42,7 +43,7 @@ export async function runAgentLoop(
   }
 
   const groupId = callbacks.generateId();
-  const model = createModel(llmConfig);
+  const model = createModel(llmConfig, proxyUrl);
   const tools = getEnabledTools(enabledTools);
 
   const toolCount = Object.keys(tools).length;
@@ -120,6 +121,7 @@ export async function runAgentLoop(
             });
 
             const toolCallMsgId = callbacks.generateId();
+            const toolDescription = (tools[tc.toolName] as any)?.description || '';
             callbacks.addMessage(sessionId, {
               id: toolCallMsgId,
               role: 'assistant',
@@ -130,6 +132,7 @@ export async function runAgentLoop(
               toolInput: JSON.stringify(tc.input, null, 2),
               toolCallId: tc.toolCallId,
               groupId,
+              metadata: { toolDescription },
             });
 
             callbacks.setStatus(t('chat.executing', { toolName: tc.toolName }));
