@@ -43,7 +43,13 @@
       "Bash(git remote:*)",
       "Bash(git push:*)",
       "Bash(GITHUB_PAGES=true pnpm build:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(/tmp/skills-final-summary.md:*)",
+      "WebFetch(domain:electron-vite.org)",
+      "Bash(git:*)",
+      "Bash(xargs:*)",
+      "Bash(cp:*)",
+      "Bash(sed:*)"
     ]
   }
 }
