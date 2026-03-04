@@ -2,6 +2,7 @@ import React from 'react';
 import { View, FlatList, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
+import { DrawerActions } from '@react-navigation/native';
 import { Appbar, List, FAB, IconButton, Text } from 'react-native-paper';
 import { useSessionStore, selectActiveSessions } from '@shared/stores/session';
 import type { SessionListScreenNavigationProp } from '../navigation/types';
@@ -25,10 +26,15 @@ export default function SessionListScreen() {
     deleteSession(sessionId);
   };
 
+  const openDrawer = () => {
+    navigation.dispatch(DrawerActions.openDrawer());
+  };
+
   if (sessions.length === 0) {
     return (
       <View style={styles.container}>
         <Appbar.Header>
+          <Appbar.Action icon="menu" onPress={openDrawer} />
           <Appbar.Content title={t('header.newSession')} />
         </Appbar.Header>
         <View style={styles.emptyContainer}>
@@ -49,7 +55,8 @@ export default function SessionListScreen() {
   return (
     <View style={styles.container}>
       <Appbar.Header>
-        <Appbar.Content title="会话列表" />
+        <Appbar.Action icon="menu" onPress={openDrawer} />
+        <Appbar.Content title="Sessions" />
       </Appbar.Header>
       <FlatList
         data={sessions}
@@ -57,7 +64,7 @@ export default function SessionListScreen() {
         renderItem={({ item }) => (
           <List.Item
             title={item.name}
-            description={`${item.messages.length} 条消息`}
+            description={`${item.messages.length} msgs`}
             onPress={() => handleSelectSession(item.id)}
             right={(props) => (
               <IconButton

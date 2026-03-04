@@ -1,5 +1,6 @@
 // 文件系统沙盒 - 基于 IndexedDB 的浏览器文件存储
 // 提供类似 POSIX 的文件操作接口
+// 支持可插拔替换（Mobile 用 expo-file-system 实现）
 
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 
@@ -13,6 +14,25 @@ export interface FileSystemEntry {
   modifiedAt: number;
 }
 
+/**
+ * IFileSystem 接口 - 可插拔的文件系统抽象
+ */
+export interface IFileSystem {
+  initialize(): Promise<void>;
+  mkdir(path: string): Promise<void>;
+  writeFile(path: string, content: Blob | string): Promise<void>;
+  readFile(path: string): Promise<Blob | null>;
+  readFileText(path: string): Promise<string | null>;
+  readdir(path: string, recursive?: boolean): Promise<FileSystemEntry[]>;
+  exists(path: string): Promise<boolean>;
+  stat(path: string): Promise<FileSystemEntry | null>;
+  rm(path: string, recursive?: boolean): Promise<void>;
+  rename(oldPath: string, newPath: string): Promise<void>;
+  search(query: string): Promise<FileSystemEntry[]>;
+  clear(): Promise<void>;
+  getStorageInfo(): Promise<{ used: number; total: number }>;
+}
+
 interface FileSystemSchema extends DBSchema {
   files: {
     key: string;
@@ -20,7 +40,7 @@ interface FileSystemSchema extends DBSchema {
   };
 }
 
-export class FileSystem {
+export class IndexedDBFileSystem implements IFileSystem {
   private db: IDBPDatabase<FileSystemSchema> | null = null;
   private dbName = 'webagent-filesystem';
   private dbVersion = 1;
@@ -48,12 +68,12 @@ export class FileSystem {
         createdAt: Date.now(),
         modifiedAt: Date.now(),
       };
-      
+
       const existing = await this.db.get('files', rootPath);
       if (!existing) {
         await this.db.put('files', rootEntry);
       }
-      
+
       this.isReady = true;
       console.log('[FileSystem] Initialized');
     } catch (error) {
@@ -126,11 +146,11 @@ export class FileSystem {
     await this.initialize();
     const normalizedPath = this.normalizePath(path);
     const entry = await this.db!.get('files', normalizedPath);
-    
+
     if (!entry || entry.type !== 'file') {
       return null;
     }
-    
+
     return entry.content || null;
   }
 
@@ -191,7 +211,7 @@ export class FileSystem {
     await this.initialize();
     const normalizedPath = this.normalizePath(path);
     const entry = await this.db!.get('files', normalizedPath);
-    
+
     if (!entry) {
       throw new Error(`ENOENT: no such file or directory, '${path}'`);
     }
@@ -215,7 +235,7 @@ export class FileSystem {
     await this.initialize();
     const normalizedOldPath = this.normalizePath(oldPath);
     const normalizedNewPath = this.normalizePath(newPath);
-    
+
     const entry = await this.db!.get('files', normalizedOldPath);
     if (!entry) {
       throw new Error(`ENOENT: no such file or directory, '${oldPath}'`);
@@ -223,11 +243,11 @@ export class FileSystem {
 
     // 删除旧条目，创建新条目
     await this.db!.delete('files', normalizedOldPath);
-    
+
     entry.path = normalizedNewPath;
     entry.name = normalizedNewPath.split('/').pop() || '';
     entry.modifiedAt = Date.now();
-    
+
     await this.db!.put('files', entry);
   }
 
@@ -236,8 +256,8 @@ export class FileSystem {
     await this.initialize();
     const allFiles = await this.db!.getAll('files');
     const lowerQuery = query.toLowerCase();
-    
-    return allFiles.filter(entry => 
+
+    return allFiles.filter(entry =>
       entry.name.toLowerCase().includes(lowerQuery)
     );
   }
@@ -266,5 +286,31 @@ export class FileSystem {
   }
 }
 
-// 单例导出
-export const fileSystem = new FileSystem();
+// Backward compat alias
+export { IndexedDBFileSystem as FileSystem };
+const defaultFileSystem = new IndexedDBFileSystem();
+
+// 可插拔实例
+let customFileSystem: IFileSystem | null = null;
+
+/**
+ * 注册自定义文件系统实现（例如 Mobile 端的 expo-file-system）
+ */
+export function setFileSystemInstance(fs: IFileSystem): void {
+  customFileSystem = fs;
+  console.log('[FileSystem] Custom implementation registered');
+}
+
+/**
+ * 导出的 fileSystem 代理：优先使用注入的实现，否则使用 IndexedDB 默认实现
+ */
+export const fileSystem: IFileSystem = new Proxy({} as IFileSystem, {
+  get(_target, prop: string) {
+    const instance = customFileSystem || defaultFileSystem;
+    const value = (instance as any)[prop];
+    if (typeof value === 'function') {
+      return value.bind(instance);
+    }
+    return value;
+  },
+});

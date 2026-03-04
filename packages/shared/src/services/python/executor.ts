@@ -2,7 +2,7 @@
 // 集成文件系统沙盒支持
 
 import { PythonResult } from '../../types';
-import { FileSystem } from '../filesystem';
+import type { IFileSystem } from '../filesystem';
 
 type PyodideInterface = {
   runPython: (code: string) => unknown;
@@ -32,9 +32,9 @@ export class PythonExecutor {
   private isLoading: boolean = false;
   private loadPromise: Promise<void> | null = null;
   private loadError: Error | null = null;
-  private fileSystem: FileSystem;
+  private fileSystem: IFileSystem;
 
-  constructor(fileSystem: FileSystem) {
+  constructor(fileSystem: IFileSystem) {
     this.fileSystem = fileSystem;
   }
 
@@ -203,7 +203,7 @@ output
     return result;
   }
 
-  getFileSystem(): FileSystem {
+  getFileSystem(): IFileSystem {
     return this.fileSystem;
   }
 

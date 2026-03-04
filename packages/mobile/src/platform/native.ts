@@ -1,8 +1,10 @@
 import { setPlatformContext } from '@shared/platform';
 import type { IPlatformAPI, IPlatformContext } from '@shared/platform';
 import { setThemeHandler, setLanguageHandler } from '@shared/stores/settings';
+import { setFileSystemInstance } from '@shared/services/filesystem';
 import { nativeStorage } from './storage';
 import { nativeFS } from './filesystem';
+import { mobileFileSystem } from './mobileFileSystem';
 import i18n from './i18n';
 
 const nativeAPI: IPlatformAPI = {
@@ -29,6 +31,9 @@ export function initMobilePlatform(): void {
   };
 
   setPlatformContext(context);
+
+  // Register mobile filesystem as the IFileSystem implementation
+  setFileSystemInstance(mobileFileSystem);
 
   // Wire up theme handler (handled by App.tsx via Paper theme)
   setThemeHandler(() => {

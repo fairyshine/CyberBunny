@@ -1,138 +1,88 @@
-import React, { useState } from 'react';
-import { ScrollView, View, StyleSheet } from 'react-native';
+import React from 'react';
+import { View, ScrollView, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import {
-  Appbar,
-  List,
-  TextInput,
-  SegmentedButtons,
-  Switch,
-  Divider,
-  Text,
-} from 'react-native-paper';
-import { useSessionStore } from '@shared/stores/session';
-import { useSettingsStore } from '@shared/stores/settings';
-import type { Theme, Language } from '@shared/stores/settings';
+import { useNavigation } from '@react-navigation/native';
+import { Appbar, List, Divider } from 'react-native-paper';
+import type { SettingsStackNavigationProp } from '../navigation/types';
 
 export default function SettingsScreen() {
   const { t } = useTranslation();
-  const { llmConfig, setLLMConfig } = useSessionStore();
-  const { theme, setTheme, language, setLanguage } = useSettingsStore();
-
-  const [provider, setProvider] = useState(llmConfig.provider);
-  const [apiKey, setApiKey] = useState(llmConfig.apiKey);
-  const [model, setModel] = useState(llmConfig.model);
-  const [baseUrl, setBaseUrl] = useState(llmConfig.baseUrl || '');
-
-  const handleSave = () => {
-    setLLMConfig({
-      provider,
-      apiKey,
-      model,
-      baseUrl: baseUrl || undefined,
-    });
-  };
+  const navigation = useNavigation<SettingsStackNavigationProp>();
 
   return (
     <View style={styles.container}>
       <Appbar.Header>
         <Appbar.Content title={t('settings.title')} />
       </Appbar.Header>
-      <ScrollView style={styles.scrollView}>
-        {/* LLM Settings */}
+      <ScrollView>
         <List.Section>
-          <List.Subheader>大模型配置</List.Subheader>
-
-          <View style={styles.inputContainer}>
-            <Text variant="labelLarge">提供商</Text>
-            <SegmentedButtons
-              value={provider}
-              onValueChange={(value) => setProvider(value as 'openai' | 'anthropic')}
-              buttons={[
-                { value: 'openai', label: 'OpenAI' },
-                { value: 'anthropic', label: 'Anthropic' },
-              ]}
-              style={styles.segmented}
-            />
-          </View>
-
-          <TextInput
-            label={t('settings.apiKey')}
-            value={apiKey}
-            onChangeText={setApiKey}
-            onBlur={handleSave}
-            secureTextEntry
-            mode="outlined"
-            style={styles.input}
+          <List.Subheader>{t('settings.llm') || 'AI Model'}</List.Subheader>
+          <List.Item
+            title={t('settings.llmConfig') || 'LLM Configuration'}
+            description={t('settings.llmConfigDesc') || 'Provider, API Key, Model'}
+            left={(p) => <List.Icon {...p} icon="brain" />}
+            right={(p) => <List.Icon {...p} icon="chevron-right" />}
+            onPress={() => navigation.navigate('LLMSettings')}
           />
-
-          <TextInput
-            label={t('settings.model')}
-            value={model}
-            onChangeText={setModel}
-            onBlur={handleSave}
-            mode="outlined"
-            style={styles.input}
-          />
-
-          <TextInput
-            label={t('settings.baseUrl')}
-            value={baseUrl}
-            onChangeText={setBaseUrl}
-            onBlur={handleSave}
-            mode="outlined"
-            placeholder="https://api.example.com/v1"
-            style={styles.input}
+          <List.Item
+            title={t('settings.connectionTest') || 'Connection Test'}
+            description={t('settings.connectionTestDesc') || 'Test API connectivity'}
+            left={(p) => <List.Icon {...p} icon="connection" />}
+            right={(p) => <List.Icon {...p} icon="chevron-right" />}
+            onPress={() => navigation.navigate('ConnectionTest')}
           />
         </List.Section>
 
         <Divider />
 
-        {/* UI Settings */}
         <List.Section>
-          <List.Subheader>界面设置</List.Subheader>
-
-          <View style={styles.inputContainer}>
-            <Text variant="labelLarge">{t('settings.language')}</Text>
-            <SegmentedButtons
-              value={language}
-              onValueChange={(value) => setLanguage(value as Language)}
-              buttons={[
-                { value: 'system', label: t('settings.language.system') },
-                { value: 'zh-CN', label: '中文' },
-                { value: 'en-US', label: 'EN' },
-              ]}
-              style={styles.segmented}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text variant="labelLarge">主题</Text>
-            <SegmentedButtons
-              value={theme}
-              onValueChange={(value) => setTheme(value as Theme)}
-              buttons={[
-                { value: 'system', label: '跟随系统' },
-                { value: 'light', label: '浅色' },
-                { value: 'dark', label: '深色' },
-              ]}
-              style={styles.segmented}
-            />
-          </View>
+          <List.Subheader>{t('settings.capabilities') || 'Capabilities'}</List.Subheader>
+          <List.Item
+            title={t('tools.title') || 'Tools'}
+            description={t('tools.desc') || 'Manage tool sources and toggles'}
+            left={(p) => <List.Icon {...p} icon="wrench" />}
+            right={(p) => <List.Icon {...p} icon="chevron-right" />}
+            onPress={() => navigation.navigate('ToolManager')}
+          />
+          <List.Item
+            title={t('skills.title') || 'Skills'}
+            description={t('skills.desc') || 'Multi-step workflow skills'}
+            left={(p) => <List.Icon {...p} icon="lightning-bolt" />}
+            right={(p) => <List.Icon {...p} icon="chevron-right" />}
+            onPress={() => navigation.navigate('SkillManager')}
+          />
         </List.Section>
 
         <Divider />
 
-        {/* About */}
         <List.Section>
-          <List.Subheader>{t('settings.about')}</List.Subheader>
+          <List.Subheader>{t('settings.data') || 'Data'}</List.Subheader>
           <List.Item
-            title="CyberBunny Mobile"
-            description={t('settings.version')}
+            title={t('memory.title') || 'Memory'}
+            description={t('memory.desc') || 'Notes and diary'}
+            left={(p) => <List.Icon {...p} icon="brain" />}
+            right={(p) => <List.Icon {...p} icon="chevron-right" />}
+            onPress={() => navigation.navigate('Memory')}
           />
           <List.Item
-            title=""
-            description={t('settings.aboutDesc')}
+            title={t('console.title') || 'Console'}
+            description={t('console.desc') || 'System logs and diagnostics'}
+            left={(p) => <List.Icon {...p} icon="console" />}
+            right={(p) => <List.Icon {...p} icon="chevron-right" />}
+            onPress={() => navigation.navigate('Console')}
+          />
+        </List.Section>
+
+        <Divider />
+
+        <List.Section>
+          <List.Subheader>{t('settings.general') || 'General'}</List.Subheader>
+          <List.Item
+            title={t('settings.generalSettings') || 'General Settings'}
+            description={t('settings.generalDesc') || 'Language, theme, about'}
+            left={(p) => <List.Icon {...p} icon="cog" />}
+            right={(p) => <List.Icon {...p} icon="chevron-right" />}
+            onPress={() => navigation.navigate('GeneralSettings')}
           />
         </List.Section>
       </ScrollView>
@@ -143,19 +93,5 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  inputContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  input: {
-    marginHorizontal: 16,
-    marginVertical: 8,
-  },
-  segmented: {
-    marginTop: 8,
   },
 });

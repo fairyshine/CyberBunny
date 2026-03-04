@@ -2,6 +2,10 @@
 
 一个跨平台的个人AI Assistant，支持多平台运行（浏览器、桌面、移动端、命令行、终端 UI）。
 
+## 🚀 快速开始
+
+访问 [https://fairyshine.github.io/CyberBunny/](https://fairyshine.github.io/CyberBunny/)
+
 ## ✨ 特性
 
 - 🌐 **多平台支持** - Browser / Electron / React Native / CLI / TUI
@@ -24,51 +28,6 @@ cyberbunny/
 │   ├── cli/             # 命令行工具 (Commander.js)
 │   └── tui/             # 终端 UI (Ink - React for CLI)
 └── worker/              # Cloudflare Worker (CORS 代理)
-```
-
-## 🚀 快速开始
-
-### 安装依赖
-
-```bash
-# 使用 pnpm (推荐)
-pnpm install
-```
-
-### 开发模式
-
-```bash
-# 浏览器端
-pnpm dev
-
-# 桌面端 (Electron)
-pnpm dev:desktop
-
-# 终端 UI
-pnpm dev:tui
-
-# 命令行工具
-cd packages/cli
-pnpm dev -- ask "你好"
-```
-
-### 构建
-
-```bash
-# 构建 Web
-pnpm build
-
-# 构建桌面端
-pnpm build:desktop
-
-# 构建 CLI
-pnpm build:cli
-
-# 构建 TUI
-pnpm build:tui
-
-# 打包桌面应用
-pnpm package:desktop
 ```
 
 ## 🎯 使用方式
@@ -276,37 +235,6 @@ pnpm typecheck        # 类型检查所有包
 pnpm lint             # 代码检查
 pnpm preview          # 预览 Web 构建
 ```
-
-## 🌟 特色功能
-
-### 1. 工具系统
-
-内置工具：
-- **Python 执行器** - 浏览器内运行 Python (Pyodide)
-- **文件管理** - IndexedDB 文件系统
-- **Web 搜索** - Exa / Brave 搜索集成
-- **计算器** - 数学表达式计算
-- **记忆系统** - 长期记忆管理
-
-### 2. 技能系统
-
-基于 [AgentSkills.io](https://agentskills.io) 格式：
-- Markdown 格式定义
-- 工具编排
-- 可扩展架构
-
-### 3. MCP 支持
-
-Model Context Protocol 集成：
-- WebSocket / SSE 连接
-- 动态工具加载
-- 多服务器支持
-
-### 4. 多 LLM 支持
-
-- OpenAI (GPT-4, GPT-3.5)
-- Anthropic (Claude)
-- 自定义 API (vLLM, Ollama 等)
 
 ## 🔒 隐私与安全
 

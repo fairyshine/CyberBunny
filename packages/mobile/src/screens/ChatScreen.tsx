@@ -1,15 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { Appbar, Text } from 'react-native-paper';
-import { useSessionStore, selectCurrentSession } from '@shared/stores/session';
+import { Appbar } from 'react-native-paper';
+import { useSessionStore } from '@shared/stores/session';
+import { useSettingsStore } from '@shared/stores/settings';
 import { useLLM } from '@shared/hooks/useLLM';
+import { logLLM } from '@shared/services/console/logger';
+import { runAgentLoop } from '@shared/services/agent';
+import type { AgentCallbacks } from '@shared/services/agent';
+import type { Message } from '@shared/types';
 import MessageList from '../components/chat/MessageList';
 import ChatInput from '../components/chat/ChatInput';
-import LoadingSpinner from '../components/common/LoadingSpinner';
+import ToolStatusBanner from '../components/chat/ToolStatusBanner';
+import ExportSheet from '../components/chat/ExportSheet';
+import MessageSearchSheet from '../components/chat/MessageSearchSheet';
 import type { ChatScreenRouteProp, ChatScreenNavigationProp } from '../navigation/types';
-import type { Message } from '@shared/types';
 
 export default function ChatScreen() {
   const { t } = useTranslation();
@@ -18,12 +24,15 @@ export default function ChatScreen() {
   const { sessionId } = route.params;
 
   const { sessions, addMessage, updateMessage, llmConfig } = useSessionStore();
+  const { enabledTools } = useSettingsStore();
   const session = sessions.find((s) => s.id === sessionId);
 
-  const [streamingContent, setStreamingContent] = useState('');
-  const [isStreaming, setIsStreaming] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState('');
+  const [showExport, setShowExport] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
 
-  const { sendMessage, isLoading, abort } = useLLM(llmConfig);
+  const { sendMessage: sendLLMMessage, abort: abortLLM } = useLLM(llmConfig);
 
   useEffect(() => {
     if (session) {
@@ -34,14 +43,26 @@ export default function ChatScreen() {
   if (!session) {
     return (
       <View style={styles.errorContainer}>
-        <Text>{t('chat.sessionNotFound')}</Text>
+        <Appbar.Header>
+          <Appbar.BackAction onPress={() => navigation.goBack()} />
+          <Appbar.Content title={t('chat.sessionNotFound')} />
+        </Appbar.Header>
       </View>
     );
   }
 
+  const callbacks: AgentCallbacks = {
+    addMessage,
+    updateMessage,
+    setStatus: setCurrentStatus,
+    generateId: () => crypto.randomUUID(),
+  };
+
   const handleSend = async (content: string) => {
+    if (!content.trim() || isLoading) return;
+
     if (!llmConfig.apiKey) {
-      Alert.alert('配置错误', t('chat.configRequired'));
+      Alert.alert(t('settings.title'), t('chat.configRequired'));
       return;
     }
 
@@ -49,83 +70,76 @@ export default function ChatScreen() {
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
-      content,
+      content: content.trim(),
       timestamp: Date.now(),
     };
     addMessage(sessionId, userMessage);
-
-    // Create assistant message placeholder
-    const assistantMessageId = crypto.randomUUID();
-    const assistantMessage: Message = {
-      id: assistantMessageId,
-      role: 'assistant',
-      content: '',
-      timestamp: Date.now(),
-    };
-    addMessage(sessionId, assistantMessage);
-
-    setIsStreaming(true);
-    setStreamingContent('');
+    setIsLoading(true);
+    setCurrentStatus('');
+    logLLM('info', `User message: ${content.trim().slice(0, 100)}${content.length > 100 ? '...' : ''}`);
 
     try {
-      // Prepare messages for LLM
-      const llmMessages = [...session.messages, userMessage].map((m) => ({
-        role: m.role,
-        content: m.content || '',
-      }));
-
-      const result = await sendMessage(llmMessages, {
-        onChunk: (chunk) => {
-          setStreamingContent(chunk);
-          updateMessage(sessionId, assistantMessageId, { content: chunk });
-        },
-        onComplete: () => {
-          setIsStreaming(false);
-          setStreamingContent('');
-        },
-        onError: (error) => {
-          setIsStreaming(false);
-          setStreamingContent('');
-          updateMessage(sessionId, assistantMessageId, {
-            content: `❌ ${t('chat.error', { error })}`,
-          });
-        },
-      });
-
-      // Update final content
-      updateMessage(sessionId, assistantMessageId, { content: result.content });
+      await runAgentLoop(
+        content.trim(),
+        sessionId,
+        llmConfig,
+        enabledTools,
+        sendLLMMessage,
+        callbacks,
+        t
+      );
     } catch (error) {
-      setIsStreaming(false);
-      setStreamingContent('');
-      console.error('[Chat] Send message error:', error);
+      console.error('[Chat] Agent loop error:', error);
+      addMessage(sessionId, {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: t('chat.error', { error: error instanceof Error ? error.message : String(error) }),
+        timestamp: Date.now(),
+      });
+    } finally {
+      setIsLoading(false);
+      setCurrentStatus('');
     }
   };
 
   const handleStop = () => {
-    abort();
-    setIsStreaming(false);
+    abortLLM();
+    setIsLoading(false);
+    setCurrentStatus('');
+    addMessage(sessionId, {
+      id: crypto.randomUUID(),
+      role: 'assistant',
+      content: t('chat.stopped'),
+      timestamp: Date.now(),
+    });
   };
-
-  // Combine persisted messages with streaming content
-  const displayMessages = [...session.messages];
-  if (isStreaming && streamingContent) {
-    const lastMessage = displayMessages[displayMessages.length - 1];
-    if (lastMessage && lastMessage.role === 'assistant') {
-      displayMessages[displayMessages.length - 1] = {
-        ...lastMessage,
-        content: streamingContent,
-      };
-    }
-  }
 
   return (
     <View style={styles.container}>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title={session.name} />
+        <Appbar.Action icon="magnify" onPress={() => setShowSearch(true)} />
+        <Appbar.Action icon="export-variant" onPress={() => setShowExport(true)} />
       </Appbar.Header>
-      <MessageList messages={displayMessages} />
+
+      <ToolStatusBanner status={currentStatus} />
+
+      <MessageList messages={session.messages} />
+
       <ChatInput onSend={handleSend} isLoading={isLoading} onStop={handleStop} />
+
+      <ExportSheet
+        messages={session.messages}
+        visible={showExport}
+        onDismiss={() => setShowExport(false)}
+      />
+
+      <MessageSearchSheet
+        messages={session.messages}
+        visible={showSearch}
+        onDismiss={() => setShowSearch(false)}
+      />
     </View>
   );
 }
@@ -136,7 +150,5 @@ const styles = StyleSheet.create({
   },
   errorContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });
