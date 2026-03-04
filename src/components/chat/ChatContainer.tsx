@@ -3,8 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { useSessionStore } from '../../stores/session';
 import { useSettingsStore } from '../../stores/settings';
 import { toolRegistry } from '../../services/tools/registry';
+import { skillRegistry } from '../../services/skills/registry';
 import { getOpenAITools, parseToolCallArguments, convertArgumentsToInput, generateOpenAISystemPrompt } from '../../services/tools/openai-format';
+import { getOpenAISkills, generateSkillsSystemPrompt } from '../../services/skills/openai-format';
 import { getAnthropicTools, generateAnthropicSystemPrompt } from '../../services/tools/anthropic-format';
+import { getAnthropicSkills } from '../../services/skills/anthropic-format';
 import { Message } from '../../types';
 import { useLLM } from '../../hooks/useLLM';
 import { logLLM, logTool } from '../../services/console/logger';
@@ -96,19 +99,25 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
     // 根据 provider 选择工具格式
     const isAnthropicProvider = llmConfig.provider === 'anthropic';
     const openaiTools = isAnthropicProvider ? undefined : getOpenAITools(enabledTools);
+    const openaiSkills = isAnthropicProvider ? undefined : getOpenAISkills();
     const anthropicTools = isAnthropicProvider ? getAnthropicTools(enabledTools) : undefined;
+    const anthropicSkills = isAnthropicProvider ? getAnthropicSkills() : undefined;
 
-    const toolCount = isAnthropicProvider ? (anthropicTools?.length || 0) : (openaiTools?.length || 0);
-    logTool('info', `${toolCount} tools enabled`, {
+    // 合并 tools 和 skills
+    const allOpenAITools = openaiTools && openaiSkills ? [...openaiTools, ...openaiSkills] : (openaiTools || openaiSkills);
+    const allAnthropicTools = anthropicTools && anthropicSkills ? [...anthropicTools, ...anthropicSkills] : (anthropicTools || anthropicSkills);
+
+    const toolCount = isAnthropicProvider ? (allAnthropicTools?.length || 0) : (allOpenAITools?.length || 0);
+    logTool('info', `${toolCount} tools/skills enabled`, {
       provider: llmConfig.provider,
       tools: isAnthropicProvider
-        ? anthropicTools?.map(t => t.name).join(', ')
-        : openaiTools?.map(t => t.function.name).join(', ')
+        ? allAnthropicTools?.map(t => t.name).join(', ')
+        : allOpenAITools?.map(t => t.function.name).join(', ')
     });
 
-    const systemPrompt = isAnthropicProvider
+    const systemPrompt = (isAnthropicProvider
       ? generateAnthropicSystemPrompt(enabledTools)
-      : generateOpenAISystemPrompt(enabledTools);
+      : generateOpenAISystemPrompt(enabledTools)) + generateSkillsSystemPrompt();
     const conversation = new LLMConversation(systemPrompt);
 
     conversation.addUserMessage(userInput);
@@ -132,8 +141,8 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
       });
 
       const response = await sendLLMMessage(conversation.getMessages(), {
-        tools: openaiTools && openaiTools.length > 0 ? openaiTools : undefined,
-        anthropicTools: anthropicTools && anthropicTools.length > 0 ? anthropicTools : undefined,
+        tools: allOpenAITools && allOpenAITools.length > 0 ? allOpenAITools : undefined,
+        anthropicTools: allAnthropicTools && allAnthropicTools.length > 0 ? allAnthropicTools : undefined,
         onChunk: (content) => {
           updateMessage(sessionId, thinkingMessageId, { content });
         },
@@ -215,6 +224,30 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
   const executeTool = async (toolName: string, input: string): Promise<string> => {
     const toolId = toolName;
 
+    // 先检查是否是 Skill
+    const skill = skillRegistry.get(toolId);
+    if (skill) {
+      try {
+        logTool('info', `Execute skill: ${toolName} (${toolId})`);
+        const result = await skillRegistry.execute(toolId, input);
+
+        if (result.success) {
+          logTool('success', `Skill executed successfully: ${toolName}`, {
+            steps: result.steps?.length || 0,
+            resultLength: result.output.length
+          });
+          return result.output;
+        } else {
+          logTool('error', `Skill execution failed: ${toolName}`, result.error);
+          return `Skill execution failed: ${result.error}`;
+        }
+      } catch (error) {
+        logTool('error', `Skill execution error: ${toolName}`, error instanceof Error ? error.message : error);
+        return t('tools.exec.toolError', { error: error instanceof Error ? error.message : String(error) });
+      }
+    }
+
+    // 如果不是 Skill，按 Tool 处理
     if (!enabledTools.includes(toolId)) {
       const allTools = toolRegistry.getAll();
       logTool('warning', `Tool not enabled: ${toolName}`, {
