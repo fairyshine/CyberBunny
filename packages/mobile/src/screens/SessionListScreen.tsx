@@ -66,6 +66,7 @@ export default function SessionListScreen() {
             title={item.name}
             description={`${item.messages.length} msgs`}
             onPress={() => handleSelectSession(item.id)}
+            style={item.isStreaming ? styles.streamingItem : undefined}
             right={(props) => (
               <IconButton
                 {...props}
@@ -99,5 +100,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     bottom: 16,
+  },
+  streamingItem: {
+    borderLeftWidth: 3,
+    borderLeftColor: '#000',
   },
 });
