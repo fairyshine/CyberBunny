@@ -210,7 +210,13 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
                             key={session.id}
                             onClick={() => {
                               if (editingId !== session.id) {
-                                useSessionStore.getState().openSession(session.id);
+                                // 如果点击的是当前会话，则关闭它
+                                if (currentSession?.id === session.id) {
+                                  useSessionStore.getState().closeSession(session.id);
+                                } else {
+                                  // 否则打开该会话
+                                  useSessionStore.getState().openSession(session.id);
+                                }
                                 handleItemClick();
                               }
                             }}
