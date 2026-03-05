@@ -6,7 +6,7 @@ A cross-platform personal AI assistant that runs on multiple platforms (browser,
 
 Visit [https://fairyshine.github.io/CyberBunny/](https://fairyshine.github.io/CyberBunny/) and enjoy !
 
-Deepseek API has been verified well.
+Verified Provider: DeepSeek、OpenRouter
 
 ## ✨ Features
 
@@ -17,6 +17,10 @@ Deepseek API has been verified well.
 - 🌍 **i18n** - Chinese / English bilingual support
 - 💾 **Local Storage** - All data stored locally for privacy
 - 🎨 **Modern UI** - Built with React 19 + Tailwind CSS + shadcn/ui
+
+## 🚀 In Progress
+
+- 🔧**Tool exec** - run shell command (only support in desktop)
 
 ## 📦 Monorepo Structure
 
@@ -86,10 +90,8 @@ MIT License
 
 ## 🙏 Acknowledgements
 
-- [shadcn/ui](https://ui.shadcn.com/) - UI components
-- [Pyodide](https://pyodide.org/) - In-browser Python
-- [Ink](https://github.com/vadimdemedes/ink) - React for CLI
-- [Commander.js](https://github.com/tj/commander.js) - CLI framework
+- friends from https://www.feedscription.com
+- All open-source repo
 
 ---
 

@@ -1,11 +1,11 @@
 import { useTranslation } from 'react-i18next';
 import { useSessionStore } from '@shared/stores/session';
 import { useSettingsStore } from '@shared/stores/settings';
-import { providerRegistry, getProviderMeta } from '@shared/services/ai';
-import type { ProviderMeta } from '@shared/services/ai';
+import { getProviderMeta } from '@shared/services/ai';
 import { ToolManager } from './ToolManager';
 import { SkillManager } from './SkillManager';
 import ConnectionTest from './ConnectionTest';
+import ProviderPicker from './ProviderPicker';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Label } from '../ui/label';
@@ -52,68 +52,54 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
           <TabsContent value="llm" className="flex-1 overflow-y-auto mt-0">
             <div className="space-y-5 px-6 py-5">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="provider" className="text-sm font-medium">{t('settings.provider')}</Label>
-                  <Select
-                    value={llmConfig.provider}
-                    onValueChange={(value) => {
-                      const meta = getProviderMeta(value);
-                      if (meta) {
-                        setLLMConfig({
-                          provider: value,
-                          model: meta.models[0] || llmConfig.model,
-                          baseUrl: meta.defaultBaseUrl || llmConfig.baseUrl,
-                        });
-                      }
-                    }}
-                  >
-                    <SelectTrigger id="provider" className="h-10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {providerRegistry.map((p: ProviderMeta) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">{t('settings.provider')}</Label>
+                <ProviderPicker
+                  value={llmConfig.provider}
+                  onChange={(value) => {
+                    const meta = getProviderMeta(value);
+                    if (meta) {
+                      setLLMConfig({
+                        provider: value,
+                        model: meta.models[0] || llmConfig.model,
+                        baseUrl: meta.defaultBaseUrl || llmConfig.baseUrl,
+                      });
+                    }
+                  }}
+                />
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="model" className="text-sm font-medium">{t('settings.model')}</Label>
-                  <Select
-                    value={llmConfig.model}
-                    onValueChange={(value) => setLLMConfig({ model: value })}
-                  >
-                    <SelectTrigger id="model" className="h-10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(() => {
-                        const meta = getProviderMeta(llmConfig.provider);
-                        const models = meta?.models || [];
-                        // If current model is not in the list, add it as first option
-                        const allModels = models.includes(llmConfig.model)
-                          ? models
-                          : [llmConfig.model, ...models];
-                        return allModels.map((m: string) => (
-                          <SelectItem key={m} value={m}>
-                            {m}
-                          </SelectItem>
-                        ));
-                      })()}
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    type="text"
-                    value={llmConfig.model}
-                    onChange={(e) => setLLMConfig({ model: e.target.value })}
-                    placeholder="or type custom model"
-                    className="h-8 text-xs"
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="model" className="text-sm font-medium">{t('settings.model')}</Label>
+                <Select
+                  value={llmConfig.model}
+                  onValueChange={(value) => setLLMConfig({ model: value })}
+                >
+                  <SelectTrigger id="model" className="h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(() => {
+                      const meta = getProviderMeta(llmConfig.provider);
+                      const models = meta?.models || [];
+                      const allModels = models.includes(llmConfig.model)
+                        ? models
+                        : [llmConfig.model, ...models];
+                      return allModels.map((m: string) => (
+                        <SelectItem key={m} value={m}>
+                          {m}
+                        </SelectItem>
+                      ));
+                    })()}
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="text"
+                  value={llmConfig.model}
+                  onChange={(e) => setLLMConfig({ model: e.target.value })}
+                  placeholder="or type custom model"
+                  className="h-8 text-xs"
+                />
               </div>
 
               <div className="space-y-2">

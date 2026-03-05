@@ -69,7 +69,15 @@
       "Bash(node:*)",
       "Bash(rm:*)",
       "Bash(do echo:*)",
-      "Bash(hdiutil info:*)"
+      "Bash(hdiutil info:*)",
+      "WebFetch(domain:simpleicons.org)",
+      "WebFetch(domain:cdn.simpleicons.org)",
+      "WebFetch(domain:svgl.app)",
+      "WebFetch(domain:svgporn.com)",
+      "WebFetch(domain:icon-sets.iconify.design)",
+      "WebFetch(domain:svglogos.dev)",
+      "Bash(do curl:*)",
+      "WebFetch(domain:cdn.jsdelivr.net)"
     ]
   }
 }
