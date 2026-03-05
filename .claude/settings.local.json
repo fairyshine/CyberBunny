@@ -79,7 +79,8 @@
       "Bash(do curl:*)",
       "WebFetch(domain:cdn.jsdelivr.net)",
       "Bash(mkdir:*)",
-      "Bash(du:*)"
+      "Bash(du:*)",
+      "Bash(gh auth:*)"
     ]
   }
 }
