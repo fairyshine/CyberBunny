@@ -107,8 +107,8 @@ function App() {
       // 标签栏模式：切换状态页显示
       setShowStatusPage(prev => !prev);
     } else {
-      // 传统模式：清除当前会话
-      useSessionStore.getState().setCurrentSession('');
+      // 传统模式：切换状态页显示
+      setShowStatusPage(prev => !prev);
     }
     // 关闭文件编辑器
     setSelectedFile(null);
@@ -138,8 +138,8 @@ function App() {
       // 标签栏模式：手动控制或没有打开的标签时显示状态页
       return showStatusPage || openSessionIds.length === 0;
     } else {
-      // 传统模式：没有当前会话时显示状态页
-      return !currentSession;
+      // 传统模式：手动控制或没有当前会话时显示状态页
+      return showStatusPage || !currentSession;
     }
   };
 
