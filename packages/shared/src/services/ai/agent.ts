@@ -96,6 +96,7 @@ export async function runAgentLoop(
         isEnabled: false,
       },
       onChunk: ({ chunk }) => {
+        logLLM('debug', `Chunk received: ${chunk.type}`);
         // Create step message on first text-delta if not yet created
         if (chunk.type === 'text-delta') {
           if (!currentStepMessageId) {
@@ -118,7 +119,7 @@ export async function runAgentLoop(
         }
       },
       onStepFinish: async ({ text, toolCalls, toolResults }) => {
-        logLLM('info', `Agent loop - step ${stepCount} finished`);
+        logLLM('info', `Agent loop - step ${stepCount} finished, text: ${text ? text.slice(0, 50) : 'none'}, toolCalls: ${toolCalls?.length || 0}`);
 
         // Finalize the current step's text message
         if (currentStepMessageId && text) {
@@ -202,14 +203,18 @@ export async function runAgentLoop(
 
     // Consume the stream (callbacks handle UI updates via onChunk)
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    let chunkCount = 0;
     for await (const _chunk of result.textStream) {
       // textStream must be consumed to drive the stream
+      chunkCount++;
     }
+    logLLM('info', `Stream consumed, total chunks: ${chunkCount}`);
 
     logLLM('success', 'Agent loop completed');
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     logLLM('error', `Agent loop error: ${errorMsg}`);
+    console.error('[Agent] Full error:', error);
     throw error;
   } finally {
     callbacks.setStatus('');
