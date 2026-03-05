@@ -272,6 +272,8 @@ export default {
   'tools.exec.diaryUpdated': '[完成] {{date}} 日记已更新。',
   'tools.exec.diariesListed': '📅 日记列表 ({{count}} 篇):\n\n{{list}}',
   'tools.exec.desktopOnly': 'Shell 执行仅在桌面端（macOS / Linux）可用',
+  'settings.execLoginShell': '加载用户配置文件',
+  'settings.execLoginShellDesc': '启动 Shell 时加载 ~/.zshrc 或 ~/.bashrc，使 Homebrew 等工具可用',
 
   // Connection Test
   'connTest.configInfo': '=== 配置信息 ===',

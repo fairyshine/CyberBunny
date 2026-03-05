@@ -272,6 +272,8 @@ export default {
   'tools.exec.diaryUpdated': '[Done] Diary updated for {{date}}.',
   'tools.exec.diariesListed': '📅 Diary entries ({{count}}):\n\n{{list}}',
   'tools.exec.desktopOnly': 'Shell Exec is only available on desktop (macOS / Linux)',
+  'settings.execLoginShell': 'Load User Profile',
+  'settings.execLoginShellDesc': 'Source ~/.zshrc or ~/.bashrc on shell startup, making tools like Homebrew available',
 
   // Connection Test
   'connTest.configInfo': '=== Configuration ===',

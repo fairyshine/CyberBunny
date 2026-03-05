@@ -31,6 +31,10 @@ interface SettingsState {
   initializePython: boolean;
   setInitializePython: (value: boolean) => void;
 
+  // Exec settings
+  execLoginShell: boolean;
+  setExecLoginShell: (value: boolean) => void;
+
   // UI settings
   theme: Theme;
   setTheme: (theme: Theme) => void;
@@ -65,6 +69,12 @@ export const useSettingsStore = create<SettingsState>()(
       setInitializePython: (value) => {
         logSettings('info', `Python preload: ${value ? 'enabled' : 'disabled'}`);
         set({ initializePython: value });
+      },
+
+      execLoginShell: true,
+      setExecLoginShell: (value) => {
+        logSettings('info', `Exec login shell: ${value ? 'enabled' : 'disabled'}`);
+        set({ execLoginShell: value });
       },
 
       theme: 'system',

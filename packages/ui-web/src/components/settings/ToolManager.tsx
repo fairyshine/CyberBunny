@@ -40,6 +40,8 @@ function ToolRow({ toolId, enabled, onToggle }: {
     setBraveApiKey,
     initializePython,
     setInitializePython,
+    execLoginShell,
+    setExecLoginShell,
   } = useSettingsStore();
   const [showMemoryViewer, setShowMemoryViewer] = useState(false);
 
@@ -153,6 +155,24 @@ function ToolRow({ toolId, enabled, onToggle }: {
             <Switch
               checked={initializePython}
               onCheckedChange={setInitializePython}
+              className="flex-shrink-0 ml-3"
+            />
+          </div>
+        </div>
+      )}
+
+      {isExec && enabled && !execDisabled && (
+        <div className="px-3 pb-3 pt-1 bg-muted/30 rounded-md mx-3 mb-2">
+          <div className="flex items-start justify-between p-3 border rounded-lg bg-background">
+            <div className="space-y-1 flex-1">
+              <Label className="text-xs font-medium">{t('settings.execLoginShell')}</Label>
+              <p className="text-xs text-muted-foreground">
+                {t('settings.execLoginShellDesc')}
+              </p>
+            </div>
+            <Switch
+              checked={execLoginShell}
+              onCheckedChange={setExecLoginShell}
               className="flex-shrink-0 ml-3"
             />
           </div>

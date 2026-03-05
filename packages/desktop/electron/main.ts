@@ -97,13 +97,14 @@ function getDefaultShell(): string {
   return process.env.SHELL || '/bin/zsh';
 }
 
-function getOrCreateSession(sessionId: string): { process: ChildProcess; shell: string } {
+function getOrCreateSession(sessionId: string, loginShell: boolean = false): { process: ChildProcess; shell: string } {
   let session = shellSessions.get(sessionId);
   if (session && !session.process.killed) {
     return session;
   }
   const shell = getDefaultShell();
-  const child = spawn(shell, ['-i'], {
+  const args = loginShell ? ['-l', '-i'] : ['-i'];
+  const child = spawn(shell, args, {
     stdio: ['pipe', 'pipe', 'pipe'],
     env: { ...process.env, TERM: 'dumb' },
     cwd: process.env.HOME || '/',
@@ -116,14 +117,14 @@ function getOrCreateSession(sessionId: string): { process: ChildProcess; shell: 
   return session;
 }
 
-ipcMain.handle('exec:execute', async (_event, command: string, sessionId?: string) => {
+ipcMain.handle('exec:execute', async (_event, command: string, sessionId?: string, loginShell?: boolean) => {
   // Only allow on macOS and Linux
   if (process.platform === 'win32') {
     return { error: 'exec tool is only supported on macOS and Linux', sessionId: '', exitCode: -1, output: '' };
   }
 
   const sid = sessionId || `session_${Date.now()}`;
-  const session = getOrCreateSession(sid);
+  const session = getOrCreateSession(sid, loginShell ?? false);
   const { process: child } = session;
 
   return new Promise<{ sessionId: string; exitCode: number; output: string; error?: string }>((resolve) => {

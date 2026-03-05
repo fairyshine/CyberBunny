@@ -4,6 +4,7 @@ import { pythonExecutor } from '../python/executor';
 import { fileSystem } from '../filesystem';
 import { logPython, logFile } from '../console/logger';
 import { getErrorMessage } from '../../utils/errors';
+import { useSettingsStore } from '../../stores/settings';
 import i18n from '../../i18n';
 
 const t = () => i18n.t.bind(i18n);
@@ -283,7 +284,8 @@ export const execTool = tool({
     // Check if running on desktop platform
     if (typeof window !== 'undefined' && (window as any).electronAPI?.exec) {
       try {
-        const result = await (window as any).electronAPI.exec.execute(command, sessionId);
+        const loginShell = useSettingsStore.getState().execLoginShell;
+        const result = await (window as any).electronAPI.exec.execute(command, sessionId, loginShell);
         if (result.error) {
           return `Error:\n${result.error}`;
         }
