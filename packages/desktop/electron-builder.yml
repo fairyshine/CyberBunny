@@ -1,13 +1,13 @@
 appId: com.cyberbunny.desktop
 productName: CyberBunny
 directories:
-  buildResources: build
+  buildResources: assets
   output: release
 files:
   - dist
   - dist-electron
 mac:
-  icon: build/icon.icns
+  icon: assets/icon.icns
   artifactName: ${productName}-${version}-${arch}.${ext}
   target:
     - target: dmg
@@ -19,14 +19,14 @@ mac:
     #     - x64
     #     - arm64
 win:
-  icon: build/icon.ico
+  icon: assets/icon.ico
   artifactName: ${productName}-${version}-setup.${ext}
   target:
     - target: nsis
       arch:
         - x64
 linux:
-  icon: build/icon.png
+  icon: assets/icon.png
   artifactName: ${productName}-${version}.${ext}
   target:
     - target: AppImage

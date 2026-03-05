@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 let mainWindow: BrowserWindow | null = null;
 
 function createWindow() {
-  const iconPath = path.join(__dirname, '../build/icon.png');
+  const iconPath = path.join(__dirname, '../assets/icon.png');
 
   mainWindow = new BrowserWindow({
     width: 1200,
