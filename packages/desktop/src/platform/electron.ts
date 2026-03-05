@@ -23,6 +23,24 @@ declare global {
         setItem: (key: string, value: string) => Promise<void>;
         removeItem: (key: string) => Promise<void>;
       };
+      system: {
+        getInfo: () => Promise<{
+          platform: string;
+          arch: string;
+          hostname: string;
+          cpus: number;
+          cpuModel: string;
+          cpuUsage: number;
+          totalMemory: number;
+          freeMemory: number;
+          usedMemory: number;
+          memUsagePercent: number;
+          loadAverage: number[];
+          uptime: number;
+          nodeVersion: string;
+          electronVersion: string;
+        }>;
+      };
     };
   }
 }

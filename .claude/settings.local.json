@@ -83,7 +83,8 @@
       "Bash(gh auth:*)",
       "Bash(/tmp/test-minimal-agent.js:*)",
       "Bash(/tmp/test-electron-storage.js:*)",
-      "Bash(/tmp/diagnose-zero-chunks.js:*)"
+      "Bash(/tmp/diagnose-zero-chunks.js:*)",
+      "Bash(/tmp/system-info-design.md:*)"
     ]
   }
 }

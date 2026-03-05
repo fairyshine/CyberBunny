@@ -1,0 +1,180 @@
+import { useEffect, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Cpu, HardDrive, Activity, Monitor } from 'lucide-react';
+
+interface SystemInfoData {
+  platform: string;
+  arch: string;
+  hostname: string;
+  cpus: number;
+  cpuModel: string;
+  cpuUsage: number;
+  totalMemory: number;
+  freeMemory: number;
+  usedMemory: number;
+  memUsagePercent: number;
+  loadAverage: number[];
+  uptime: number;
+  nodeVersion: string;
+  electronVersion: string;
+}
+
+export default function SystemInfo() {
+  const [systemInfo, setSystemInfo] = useState<SystemInfoData | null>(null);
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    // Check if running in Electron
+    const checkPlatform = () => {
+      if (typeof window !== 'undefined' && (window as any).electronAPI) {
+        setIsDesktop(true);
+        fetchSystemInfo();
+        // Update every 3 seconds
+        const interval = setInterval(fetchSystemInfo, 3000);
+        return () => clearInterval(interval);
+      }
+    };
+
+    const fetchSystemInfo = async () => {
+      try {
+        const info = await (window as any).electronAPI.system.getInfo();
+        setSystemInfo(info);
+      } catch (error) {
+        console.error('Failed to fetch system info:', error);
+      }
+    };
+
+    checkPlatform();
+  }, []);
+
+  const formatBytes = (bytes: number) => {
+    const gb = bytes / (1024 ** 3);
+    return `${gb.toFixed(2)} GB`;
+  };
+
+  const formatUptime = (seconds: number) => {
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    
+    if (days > 0) return `${days}d ${hours}h`;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+  };
+
+  const getPlatformName = (platform: string) => {
+    switch (platform) {
+      case 'darwin': return 'macOS';
+      case 'win32': return 'Windows';
+      case 'linux': return 'Linux';
+      default: return platform;
+    }
+  };
+
+  if (!isDesktop || !systemInfo) {
+    return null;
+  }
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {/* CPU Info */}
+      <Card className="border-elegant">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Cpu className="w-4 h-4" />
+            CPU
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-1">
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold">{systemInfo.cpuUsage.toFixed(1)}%</span>
+              <span className="text-xs text-muted-foreground">使用率</span>
+            </div>
+            <p className="text-xs text-muted-foreground truncate" title={systemInfo.cpuModel}>
+              {systemInfo.cpus} 核心
+            </p>
+            <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary transition-all duration-300"
+                style={{ width: `${Math.min(systemInfo.cpuUsage, 100)}%` }}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Memory Info */}
+      <Card className="border-elegant">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <HardDrive className="w-4 h-4" />
+            内存
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-1">
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold">{systemInfo.memUsagePercent.toFixed(1)}%</span>
+              <span className="text-xs text-muted-foreground">使用率</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {formatBytes(systemInfo.usedMemory)} / {formatBytes(systemInfo.totalMemory)}
+            </p>
+            <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary transition-all duration-300"
+                style={{ width: `${Math.min(systemInfo.memUsagePercent, 100)}%` }}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Load Average */}
+      <Card className="border-elegant">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Activity className="w-4 h-4" />
+            系统负载
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-1">
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold">{systemInfo.loadAverage[0].toFixed(2)}</span>
+              <span className="text-xs text-muted-foreground">1分钟</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              5分钟: {systemInfo.loadAverage[1].toFixed(2)} · 15分钟: {systemInfo.loadAverage[2].toFixed(2)}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* System Info */}
+      <Card className="border-elegant">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Monitor className="w-4 h-4" />
+            系统
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-1">
+            <div className="flex items-baseline gap-2">
+              <span className="text-lg font-bold">{getPlatformName(systemInfo.platform)}</span>
+              <span className="text-xs text-muted-foreground">{systemInfo.arch}</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              运行时间: {formatUptime(systemInfo.uptime)}
+            </p>
+            <p className="text-xs text-muted-foreground truncate" title={systemInfo.hostname}>
+              {systemInfo.hostname}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

@@ -29,4 +29,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     setItem: (key: string, value: string) => ipcRenderer.invoke('storage:setItem', key, value),
     removeItem: (key: string) => ipcRenderer.invoke('storage:removeItem', key),
   },
+
+  // System info operations
+  system: {
+    getInfo: () => ipcRenderer.invoke('system:getInfo'),
+  },
 });

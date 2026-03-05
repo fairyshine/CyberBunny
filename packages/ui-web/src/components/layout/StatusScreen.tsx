@@ -4,6 +4,7 @@ import { Button } from '../ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { FileCode, Globe, Calculator, FolderOpen } from '../icons';
+import SystemInfo from './SystemInfo';
 
 interface StatusScreenProps {
   onStart: () => void;
@@ -45,9 +46,9 @@ export default function StatusScreen({ onStart, showStartButton = true }: Status
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="min-h-full flex items-center justify-center p-6 sm:p-8 gradient-bg">
-      <div className="max-w-3xl w-full animate-fade-in">
+      <div className="max-w-5xl w-full animate-fade-in">
         {/* Logo & Title */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-foreground text-background mb-6 shadow-elegant-lg">
             <span className="text-4xl">🐰</span>
           </div>
@@ -58,6 +59,9 @@ export default function StatusScreen({ onStart, showStartButton = true }: Status
             {t('status.subtitle')}
           </p>
         </div>
+
+        {/* System Info Cards */}
+        <SystemInfo />
 
         {/* Features Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">

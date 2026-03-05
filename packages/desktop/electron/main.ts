@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, nativeImage } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { spawn, type ChildProcess } from 'child_process';
+import os from 'os';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -219,4 +220,37 @@ ipcMain.handle('storage:setItem', async (_event, key: string, value: string) => 
 
 ipcMain.handle('storage:removeItem', async (_event, key: string) => {
   electronStore.delete(key);
+});
+
+// System info handler
+ipcMain.handle('system:getInfo', async () => {
+  const cpus = os.cpus();
+  const totalMem = os.totalmem();
+  const freeMem = os.freemem();
+  const usedMem = totalMem - freeMem;
+  const memUsagePercent = (usedMem / totalMem) * 100;
+
+  // Get CPU usage (average over all cores)
+  const cpuUsage = cpus.reduce((acc, cpu) => {
+    const total = Object.values(cpu.times).reduce((a, b) => a + b, 0);
+    const idle = cpu.times.idle;
+    return acc + ((total - idle) / total) * 100;
+  }, 0) / cpus.length;
+
+  return {
+    platform: process.platform,
+    arch: process.arch,
+    hostname: os.hostname(),
+    cpus: cpus.length,
+    cpuModel: cpus[0]?.model || 'Unknown',
+    cpuUsage: Math.round(cpuUsage * 100) / 100,
+    totalMemory: totalMem,
+    freeMemory: freeMem,
+    usedMemory: usedMem,
+    memUsagePercent: Math.round(memUsagePercent * 100) / 100,
+    loadAverage: os.loadavg(),
+    uptime: os.uptime(),
+    nodeVersion: process.version,
+    electronVersion: process.versions.electron,
+  };
 });
