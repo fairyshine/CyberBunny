@@ -21,6 +21,8 @@ const ConsolePanel = lazy(() => import('./components/layout/ConsolePanel'));
 function App() {
   const { t } = useTranslation();
   const currentSession = useSessionStore(selectCurrentSession);
+  const openSessionIds = useSessionStore(s => s.openSessionIds);
+  const sessions = useSessionStore(s => s.sessions);
   const createSession = useSessionStore(s => s.createSession);
   const initializePython = useSettingsStore(s => s.initializePython);
   const theme = useSettingsStore(s => s.theme);
@@ -58,9 +60,14 @@ function App() {
 
   // 初始化
   useEffect(() => {
-    // 如果没有会话，显示欢迎页
-    if (!currentSession) {
+    // 如果没有打开的会话标签，显示欢迎页
+    if (openSessionIds.length === 0 && sessions.length === 0) {
       setShowWelcome(true);
+    } else if (openSessionIds.length === 0 && sessions.length > 0) {
+      // 有会话但没有打开的标签，不显示欢迎页
+      setShowWelcome(false);
+    } else {
+      setShowWelcome(false);
     }
 
     // 预加载 Python 环境
@@ -70,7 +77,7 @@ function App() {
 
     // 初始化 Skills
     loadSkills();
-  }, [currentSession, initializePython, loadSkills]);
+  }, [openSessionIds.length, sessions.length, initializePython, loadSkills]);
 
   // 初始化全局快捷键系统
   useEffect(() => {
