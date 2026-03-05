@@ -21,9 +21,10 @@ import {
 interface HeaderProps {
   onToggleConsole?: () => void;
   onToggleSidebar?: () => void;
+  onLogoClick?: () => void;
 }
 
-export default function Header({ onToggleConsole, onToggleSidebar }: HeaderProps) {
+export default function Header({ onToggleConsole, onToggleSidebar, onLogoClick }: HeaderProps) {
   const { t } = useTranslation();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isMemoryOpen, setIsMemoryOpen] = useState(false);
@@ -52,9 +53,13 @@ export default function Header({ onToggleConsole, onToggleSidebar }: HeaderProps
             </Button>
           )}
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-foreground rounded-md flex items-center justify-center text-background text-sm">
+            <button
+              onClick={onLogoClick}
+              className="w-7 h-7 bg-foreground rounded-md flex items-center justify-center text-background text-sm hover:opacity-80 transition-opacity cursor-pointer"
+              title={t('status.subtitle')}
+            >
               🐰
-            </div>
+            </button>
             <h1 className="font-semibold text-foreground tracking-tight">CyberBunny</h1>
           </div>
         </div>

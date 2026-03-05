@@ -100,6 +100,21 @@ function App() {
     createSession(t('header.newSession'));
   };
 
+  const handleLogoClick = () => {
+    // 关闭所有打开的标签，进入状态页
+    if (enableSessionTabs) {
+      // 标签栏模式：关闭所有打开的标签
+      openSessionIds.forEach(id => {
+        useSessionStore.getState().closeSession(id);
+      });
+    } else {
+      // 传统模式：清除当前会话
+      useSessionStore.getState().setCurrentSession('');
+    }
+    // 关闭文件编辑器
+    setSelectedFile(null);
+  };
+
   const handleSelectFile = (path: string) => {
     setSelectedFile(path);
   };
@@ -147,6 +162,7 @@ function App() {
         <Header
           onToggleConsole={() => setShowConsole(v => !v)}
           onToggleSidebar={() => setIsSidebarOpen(v => !v)}
+          onLogoClick={handleLogoClick}
         />
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 flex overflow-hidden">
@@ -171,6 +187,7 @@ function App() {
       <Header
         onToggleConsole={() => setShowConsole(v => !v)}
         onToggleSidebar={() => setIsSidebarOpen(v => !v)}
+        onLogoClick={handleLogoClick}
       />
 
       {/* 主内容区 */}
