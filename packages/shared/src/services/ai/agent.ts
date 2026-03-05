@@ -79,21 +79,11 @@ export async function runAgentLoop(
 
   systemPrompt += generateSkillsSystemPrompt();
 
-  // Adjust maxTokens based on provider limits
-  let maxTokens = llmConfig.maxTokens ?? 4096;
-
-  // DeepSeek has a max_tokens limit of 8192
-  if (llmConfig.provider === 'deepseek' && maxTokens > 8192) {
-    console.warn(`[Agent] DeepSeek max_tokens limit is 8192, adjusting from ${maxTokens} to 8192`);
-    maxTokens = 8192;
-  }
-
   console.log('[Agent] Starting agent loop with config:', {
     provider: llmConfig.provider,
     model: llmConfig.model,
     temperature: llmConfig.temperature,
-    maxTokens,
-    originalMaxTokens: llmConfig.maxTokens,
+    maxTokens: llmConfig.maxTokens,
     toolCount,
     systemPromptLength: systemPrompt.length,
     userInputLength: userInput.length,
@@ -118,7 +108,7 @@ export async function runAgentLoop(
       tools: tools as ToolSet,
       stopWhen: stepCountIs(10),
       temperature: llmConfig.temperature ?? 0.7,
-      maxOutputTokens: maxTokens,
+      maxOutputTokens: llmConfig.maxTokens ?? 4096,
       experimental_telemetry: {
         isEnabled: false,
       },
@@ -280,11 +270,31 @@ export async function runAgentLoop(
     logLLM('error', `Agent loop error: ${errorMsg}`);
     console.error('[Agent] Full error:', error);
 
+    // Parse API error for user-friendly message
+    let userMessage = errorMsg;
+
+    // Check for common API errors
+    if (errorMsg.includes('Invalid max_tokens')) {
+      const match = errorMsg.match(/valid range.*?\[(\d+),\s*(\d+)\]/);
+      if (match) {
+        const [, min, max] = match;
+        userMessage = `模型的 max_tokens 设置超出限制。\n当前设置: ${llmConfig.maxTokens}\n允许范围: ${min} - ${max}\n\n请在设置中调整 "最大 Token" 的值。`;
+      } else {
+        userMessage = `模型的 max_tokens 设置无效。\n当前设置: ${llmConfig.maxTokens}\n\n请在设置中调整 "最大 Token" 的值。`;
+      }
+    } else if (errorMsg.includes('API key')) {
+      userMessage = `API Key 错误: ${errorMsg}\n\n请检查设置中的 API Key 是否正确。`;
+    } else if (errorMsg.includes('model')) {
+      userMessage = `模型错误: ${errorMsg}\n\n请检查设置中的模型名称是否正确。`;
+    } else if (errorMsg.includes('rate limit') || errorMsg.includes('quota')) {
+      userMessage = `API 配额或速率限制: ${errorMsg}\n\n请稍后重试或检查您的 API 配额。`;
+    }
+
     // Add error message to UI
     callbacks.addMessage(sessionId, {
       id: callbacks.generateId(),
       role: 'assistant',
-      content: `Error: ${errorMsg}`,
+      content: `❌ 错误\n\n${userMessage}`,
       timestamp: Date.now(),
     });
 
