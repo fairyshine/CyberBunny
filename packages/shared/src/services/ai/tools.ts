@@ -13,10 +13,17 @@ const t = () => i18n.t.bind(i18n);
  * Wrap a promise with timeout
  */
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
+  // Validate timeout value
+  const validTimeout = (typeof timeoutMs === 'number' && timeoutMs > 0) ? timeoutMs : 300000;
+
+  if (validTimeout !== timeoutMs) {
+    console.warn(`Invalid timeout value: ${timeoutMs}, using default: ${validTimeout}ms`);
+  }
+
   return Promise.race([
     promise,
     new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
+      setTimeout(() => reject(new Error(errorMessage)), validTimeout)
     ),
   ]);
 }
@@ -27,7 +34,7 @@ export const pythonTool = tool({
     code: z.string().describe('Python code to execute'),
   }),
   execute: async ({ code }) => {
-    const timeout = useSettingsStore.getState().toolExecutionTimeout;
+    const timeout = useSettingsStore.getState().toolExecutionTimeout || 300000;
     logPython('info', t()('tools.exec.code', { length: code.length }), code.slice(0, 200));
     try {
       const result = await withTimeout(
@@ -55,7 +62,7 @@ export const webSearchTool = tool({
     query: z.string().describe('Search query'),
   }),
   execute: async ({ query }) => {
-    const timeout = useSettingsStore.getState().toolExecutionTimeout;
+    const timeout = useSettingsStore.getState().toolExecutionTimeout || 300000;
     const getSearchConfig = () => {
       try {
         if (typeof localStorage === 'undefined') return { provider: 'exa' as const, apiKey: '' };
@@ -131,7 +138,7 @@ export const calculatorTool = tool({
     expression: z.string().describe('Mathematical expression to evaluate'),
   }),
   execute: async ({ expression }) => {
-    const timeout = useSettingsStore.getState().toolExecutionTimeout;
+    const timeout = useSettingsStore.getState().toolExecutionTimeout || 300000;
     try {
       const code = `import math\nresult = ${expression}\nprint(f"Result: {result}")\nresult`;
       const pyResult = await withTimeout(
@@ -154,7 +161,7 @@ export const fileManagerTool = tool({
     content: z.string().optional().describe('Content for write operation'),
   }),
   execute: async ({ operation, path, content }) => {
-    const timeout = useSettingsStore.getState().toolExecutionTimeout;
+    const timeout = useSettingsStore.getState().toolExecutionTimeout || 300000;
     try {
       const normalizedPath = path.trim();
       if (normalizedPath.includes('/.memory') || normalizedPath === '/root/.memory') {
@@ -249,7 +256,7 @@ export const memoryTool = tool({
     mode: z.enum(['append', 'overwrite']).optional().describe('Write mode'),
   }),
   execute: async ({ operation, content, date, mode }) => {
-    const timeout = useSettingsStore.getState().toolExecutionTimeout;
+    const timeout = useSettingsStore.getState().toolExecutionTimeout || 300000;
     const MEMORY_DIR = '/root/.memory';
     const MEMORY_FILE = '/root/.memory/MEMORY.md';
 
@@ -336,7 +343,7 @@ export const execTool = tool({
     sessionId: z.string().optional().describe('Session ID for persistent shell (optional, auto-generated if not provided)'),
   }),
   execute: async ({ command, sessionId }) => {
-    const timeout = useSettingsStore.getState().toolExecutionTimeout;
+    const timeout = useSettingsStore.getState().toolExecutionTimeout || 300000;
     // Check if running on desktop platform
     if (typeof window !== 'undefined' && (window as any).electronAPI?.exec) {
       try {
