@@ -79,11 +79,21 @@ export async function runAgentLoop(
 
   systemPrompt += generateSkillsSystemPrompt();
 
+  // Adjust maxTokens based on provider limits
+  let maxTokens = llmConfig.maxTokens ?? 4096;
+
+  // DeepSeek has a max_tokens limit of 8192
+  if (llmConfig.provider === 'deepseek' && maxTokens > 8192) {
+    console.warn(`[Agent] DeepSeek max_tokens limit is 8192, adjusting from ${maxTokens} to 8192`);
+    maxTokens = 8192;
+  }
+
   console.log('[Agent] Starting agent loop with config:', {
     provider: llmConfig.provider,
     model: llmConfig.model,
     temperature: llmConfig.temperature,
-    maxTokens: llmConfig.maxTokens,
+    maxTokens,
+    originalMaxTokens: llmConfig.maxTokens,
     toolCount,
     systemPromptLength: systemPrompt.length,
     userInputLength: userInput.length,
@@ -108,7 +118,7 @@ export async function runAgentLoop(
       tools: tools as ToolSet,
       stopWhen: stepCountIs(10),
       temperature: llmConfig.temperature ?? 0.7,
-      maxOutputTokens: llmConfig.maxTokens ?? 4096,
+      maxOutputTokens: maxTokens,
       experimental_telemetry: {
         isEnabled: false,
       },
