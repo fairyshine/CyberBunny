@@ -32,7 +32,7 @@ export async function runAgentLoop(
   callbacks: AgentCallbacks,
   t: TFunction,
   proxyUrl?: string,
-  _toolTimeout?: number
+  toolTimeout?: number
 ): Promise<void> {
   // Validate configuration
   if (!llmConfig.apiKey) {
@@ -55,12 +55,13 @@ export async function runAgentLoop(
     return;
   }
 
+  const timeout = toolTimeout || 300000; // Default 5 minutes
   const groupId = callbacks.generateId();
   const model = createModel(llmConfig, proxyUrl);
   const tools = getEnabledTools(enabledTools);
 
   const toolCount = Object.keys(tools).length;
-  logTool('info', `${toolCount} tools enabled`, {
+  logTool('info', `${toolCount} tools enabled (timeout: ${timeout}ms)`, {
     provider: llmConfig.provider,
     tools: Object.keys(tools).join(', '),
   });
@@ -91,6 +92,9 @@ export async function runAgentLoop(
       stopWhen: stepCountIs(10),
       temperature: llmConfig.temperature ?? 0.7,
       maxOutputTokens: llmConfig.maxTokens ?? 4096,
+      experimental_telemetry: {
+        isEnabled: false,
+      },
       onChunk: ({ chunk }) => {
         // Create step message on first text-delta if not yet created
         if (chunk.type === 'text-delta') {
