@@ -32,11 +32,22 @@ export async function runAgentLoop(
   t: TFunction,
   proxyUrl?: string
 ): Promise<void> {
+  // Validate configuration
   if (!llmConfig.apiKey) {
     callbacks.addMessage(sessionId, {
       id: callbacks.generateId(),
       role: 'assistant',
       content: t('chat.configRequired'),
+      timestamp: Date.now(),
+    });
+    return;
+  }
+
+  if (!llmConfig.model || !llmConfig.model.trim()) {
+    callbacks.addMessage(sessionId, {
+      id: callbacks.generateId(),
+      role: 'assistant',
+      content: t('chat.modelRequired'),
       timestamp: Date.now(),
     });
     return;

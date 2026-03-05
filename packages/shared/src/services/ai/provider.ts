@@ -81,6 +81,11 @@ export function createProvider(config: LLMConfig, proxyUrl?: string) {
 }
 
 export function createModel(config: LLMConfig, proxyUrl?: string) {
+  // Validate model name
+  if (!config.model || !config.model.trim()) {
+    throw new Error('Model name is required');
+  }
+
   const provider = createProvider(config, proxyUrl);
   // Use .chat() for OpenAI-compatible providers to use /chat/completions instead of /responses
   // OpenAI's new SDK defaults to /responses which most providers don't support yet

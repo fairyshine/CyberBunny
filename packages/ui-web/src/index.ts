@@ -56,9 +56,6 @@ export * from './components/ui/tabs';
 export * from './components/ui/textarea';
 export * from './components/ui/tooltip';
 
-// Lib
-export { cn } from './lib/utils';
-
 // Platform
 export { applyTheme, getSystemTheme, setupSystemThemeListener } from './platform/theme';
 export type { Theme } from './platform/theme';

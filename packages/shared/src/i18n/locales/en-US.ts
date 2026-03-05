@@ -102,6 +102,7 @@ const enUS = {
   'chat.callingTools': 'Calling tools...',
   'chat.error': 'Error: {{error}}',
   'chat.configRequired': 'Please configure your LLM API key first. Click the settings button in the top right corner.',
+  'chat.modelRequired': 'Please select a model in settings. Click the settings button in the top right corner.',
   'chat.sessionNotFound': 'Session not found',
   'chat.exportConversation': 'Export conversation',
   'chat.noSessionHint': 'Create a new session to start chatting, or select a file in the sidebar',

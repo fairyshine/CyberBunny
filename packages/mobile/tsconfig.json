@@ -4,7 +4,9 @@
     "strict": true,
     "baseUrl": ".",
     "paths": {
-      "@shared/*": ["../shared/src/*"]
+      "@shared/*": [
+        "../shared/src/*"
+      ]
     },
     "jsx": "react-native",
     "module": "esnext",
@@ -14,9 +16,9 @@
   },
   "include": [
     "**/*.ts",
-    "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts"
+    "**/*.tsx"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }

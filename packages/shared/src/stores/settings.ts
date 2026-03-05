@@ -5,6 +5,9 @@ import { logSettings } from '../services/console/logger';
 export type Theme = 'light' | 'dark' | 'system';
 export type Language = 'zh-CN' | 'en-US' | 'system';
 
+const SUPPORTED_TOOL_IDS = new Set(['python', 'web_search', 'calculator', 'file_manager', 'memory', 'exec']);
+const DEFAULT_ENABLED_TOOLS = ['python', 'calculator', 'web_search', 'file_manager', 'memory'];
+
 // Platform-injected callbacks
 let onThemeChange: ((theme: Theme) => void) | null = null;
 let onLanguageChange: ((lang: string) => void) | null = null;
@@ -89,9 +92,12 @@ export const useSettingsStore = create<SettingsState>()(
         onLanguageChange?.(resolveLanguage(lang));
       },
 
-      enabledTools: ['python', 'calculator', 'web_search', 'read_file', 'write_file', 'list_files', 'create_folder', 'memory'],
+      enabledTools: [...DEFAULT_ENABLED_TOOLS],
       toggleTool: (toolId) =>
         set((state) => {
+          if (!SUPPORTED_TOOL_IDS.has(toolId)) {
+            return state;
+          }
           const isEnabling = !state.enabledTools.includes(toolId);
           logSettings('info', `Tool ${toolId}: ${isEnabling ? 'enabled' : 'disabled'}`);
           return {
@@ -101,8 +107,7 @@ export const useSettingsStore = create<SettingsState>()(
           };
         }),
       enableAllTools: () => set({
-        enabledTools: ['python', 'calculator', 'web_search', 'read_file', 'write_file',
-          'list_files', 'create_folder', 'delete_file', 'memory']
+        enabledTools: Array.from(SUPPORTED_TOOL_IDS)
       }),
       disableAllTools: () => set({ enabledTools: [] }),
 

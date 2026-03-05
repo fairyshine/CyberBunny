@@ -4,13 +4,14 @@ A cross-platform personal AI assistant that runs on multiple platforms (browser,
 
 ## 🚀 Quick Start
 
-Visit [https://fairyshine.github.io/CyberBunny/](https://fairyshine.github.io/CyberBunny/) and enjoy !
+Visit [https://fairyshine.github.io/CyberBunny/](https://fairyshine.github.io/CyberBunny/) and enjoy!
 
-Verified Provider: DeepSeek、OpenRouter
+Exec `sudo xattr -rd com.apple.quarantine /Applications/CyberBunny.app` after installing on Mac.
 
 ## ✨ Features
 
 - 🌐 **Multi-platform** - Browser / Electron / React Native / CLI / TUI
+- 🖥️ **Shell Control** - Operate your Computer in shell (support in Desktop)
 - 🔧 **Tool System** - Built-in Python execution, shell command execution (Desktop), file management, web search, and more
 - 🎯 **Skill System** - Extensible skills based on the AgentSkills.io format
 - 🔌 **MCP Support** - Model Context Protocol integration

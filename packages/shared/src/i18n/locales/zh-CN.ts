@@ -102,6 +102,7 @@ const zhCN = {
   'chat.callingTools': '正在调用工具...',
   'chat.error': '出错了: {{error}}',
   'chat.configRequired': '请先配置 LLM API 密钥。点击右上角的设置按钮进行配置。',
+  'chat.modelRequired': '请在设置中选择模型。点击右上角的设置按钮进行配置。',
   'chat.sessionNotFound': '会话不存在',
   'chat.exportConversation': '导出对话',
   'chat.noSessionHint': '创建一个新会话开始聊天，或在侧边栏选择一个文件',

@@ -77,7 +77,9 @@
       "WebFetch(domain:icon-sets.iconify.design)",
       "WebFetch(domain:svglogos.dev)",
       "Bash(do curl:*)",
-      "WebFetch(domain:cdn.jsdelivr.net)"
+      "WebFetch(domain:cdn.jsdelivr.net)",
+      "Bash(mkdir:*)",
+      "Bash(du:*)"
     ]
   }
 }

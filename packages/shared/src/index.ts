@@ -37,9 +37,6 @@ export type { ProviderMeta } from './services/ai/providers';
 export { callLLM } from './services/llm/streaming';
 export type { StreamOptions } from './services/llm/streaming';
 
-// Hooks
-export { useLLM } from './hooks/useLLM';
-
 // Utils
 export { getErrorMessage, isAbortError } from './utils/errors';
 
