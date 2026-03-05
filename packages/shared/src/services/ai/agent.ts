@@ -92,6 +92,8 @@ export async function runAgentLoop(
   let stepCount = 0;
   let currentStepMessageId: string | null = null;
   let currentStepContent = '';
+  let lastChunkLogTime = 0;
+  let totalChunks = 0;
 
   try {
     console.log('[Agent] Creating streamText with:', {
@@ -113,8 +115,16 @@ export async function runAgentLoop(
         isEnabled: false,
       },
       onChunk: ({ chunk }) => {
-        console.log('[Agent] onChunk called, type:', chunk.type);
-        logLLM('debug', `Chunk received: ${chunk.type}`);
+        totalChunks++;
+        const now = Date.now();
+
+        // Log chunk info every 30 seconds or on first chunk
+        if (totalChunks === 1 || now - lastChunkLogTime >= 30000) {
+          console.log(`[Agent] Chunk received (${totalChunks} total), type:`, chunk.type);
+          logLLM('debug', `Chunk received: ${chunk.type} (${totalChunks} total)`);
+          lastChunkLogTime = now;
+        }
+
         // Create step message on first text-delta if not yet created
         if (chunk.type === 'text-delta') {
           if (!currentStepMessageId) {
