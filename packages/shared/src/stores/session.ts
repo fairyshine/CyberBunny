@@ -90,14 +90,19 @@ export const useSessionStore = create<SessionState>()(
           const newSessions = state.sessions.map((s) =>
             s.id === id ? { ...s, deletedAt: Date.now() } : s
           );
-          const activeSessions = newSessions.filter(s => !s.deletedAt);
+
+          // 从打开的标签中移除该会话
+          const newOpenIds = state.openSessionIds.filter(sid => sid !== id);
+
+          // 如果删除的是当前会话，切换到下一个打开的会话
           const newCurrentId = state.currentSessionId === id
-            ? (activeSessions[0]?.id || null)
+            ? (newOpenIds[newOpenIds.length - 1] || null)
             : state.currentSessionId;
 
           return {
             sessions: newSessions,
             currentSessionId: newCurrentId,
+            openSessionIds: newOpenIds,
           };
         });
       },
