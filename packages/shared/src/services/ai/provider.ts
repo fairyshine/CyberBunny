@@ -10,15 +10,24 @@ import { getProviderMeta } from './providers';
  * Routes through the appropriate proxy based on environment:
  * - localhost → Vite dev proxy (/api/proxy?target=<url>)
  * - production + proxyUrl → Cloudflare Worker (POST <proxyUrl>/proxy, X-Target-URL header)
+ * - Electron desktop → direct fetch (no CORS restrictions)
  * - otherwise → direct fetch (works for CORS-enabled providers like Ollama)
  */
 function createBrowserFetch(proxyUrl?: string): typeof globalThis.fetch | undefined {
   if (typeof window === 'undefined') return undefined;
 
+  // Check if running in Electron (no CORS restrictions)
+  const isElectron = typeof (window as any).electronAPI !== 'undefined';
+  if (isElectron) {
+    console.log('[Provider] Running in Electron, using direct fetch (no CORS)');
+    return undefined; // Use native fetch, no proxy needed
+  }
+
   const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
   // No proxy needed in dev (Vite handles it) or when no proxyUrl configured
   if (isLocalhost) {
+    console.log('[Provider] Running on localhost, using Vite proxy');
     // Vite dev proxy
     return async (input: RequestInfo | URL, init?: RequestInit) => {
       const originalUrl = typeof input === 'string'
@@ -33,6 +42,7 @@ function createBrowserFetch(proxyUrl?: string): typeof globalThis.fetch | undefi
   }
 
   if (proxyUrl) {
+    console.log('[Provider] Using Cloudflare Worker proxy:', proxyUrl);
     // Cloudflare Worker proxy
     const workerBase = proxyUrl.replace(/\/+$/, '');
     return async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -52,6 +62,7 @@ function createBrowserFetch(proxyUrl?: string): typeof globalThis.fetch | undefi
     };
   }
 
+  console.log('[Provider] Using direct fetch (no proxy)');
   // No proxy — direct fetch (for CORS-enabled providers)
   return undefined;
 }
@@ -67,6 +78,14 @@ export function createProvider(config: LLMConfig, proxyUrl?: string) {
   // baseURL priority: config.baseUrl (user override) > meta.defaultBaseUrl (registry default) > SDK default
   const baseURL = config.baseUrl || meta.defaultBaseUrl;
   const fetchOpt = customFetch ? { fetch: customFetch } : {};
+
+  console.log('[Provider] Creating provider:', {
+    provider: config.provider,
+    sdkType: meta.sdkType,
+    baseURL,
+    hasCustomFetch: !!customFetch,
+    model: config.model,
+  });
 
   switch (meta.sdkType) {
     case 'anthropic':

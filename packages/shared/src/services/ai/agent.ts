@@ -150,7 +150,7 @@ export async function runAgentLoop(
               toolInput: JSON.stringify(tc.input, null, 2),
               toolCallId: tc.toolCallId,
               groupId,
-              metadata: { toolDescription, streaming: true },
+              metadata: { toolDescription },
             });
 
             callbacks.setStatus(t('chat.executing', { toolName: tc.toolName }));
@@ -158,35 +158,17 @@ export async function runAgentLoop(
             const resultContent = typeof tr.output === 'string' ? tr.output : JSON.stringify(tr.output);
             const toolResultMsgId = callbacks.generateId();
 
-            // Create tool result message with streaming flag
+            // Display tool result immediately (no streaming delay)
             callbacks.addMessage(sessionId, {
               id: toolResultMsgId,
               role: 'tool',
-              content: '',
+              content: resultContent,
               timestamp: Date.now(),
               type: 'tool_result',
               toolName: tc.toolName,
-              toolOutput: '',
+              toolOutput: resultContent,
               toolCallId: tc.toolCallId,
               groupId,
-              metadata: { streaming: true },
-            });
-
-            // Stream the result content character by character
-            if (callbacks.streamToolOutput) {
-              const chunkSize = 50; // Characters per chunk
-              for (let pos = 0; pos < resultContent.length; pos += chunkSize) {
-                const chunk = resultContent.slice(pos, pos + chunkSize);
-                callbacks.streamToolOutput(sessionId, toolResultMsgId, chunk);
-                await new Promise(resolve => setTimeout(resolve, 10)); // Small delay for visual effect
-              }
-            }
-
-            // Finalize the tool result message
-            callbacks.updateMessage(sessionId, toolResultMsgId, {
-              content: resultContent,
-              toolOutput: resultContent,
-              metadata: { streaming: false },
             });
 
             logTool('success', `Tool ${tc.toolName} completed`, { resultLength: resultContent.length });
