@@ -170,6 +170,8 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
       <ExportDialog
         messages={session.messages}
         systemPrompt={session.systemPrompt}
+        sessionId={session.id}
+        sessionName={session.name}
         isOpen={showExportDialog}
         onClose={() => setShowExportDialog(false)}
       />

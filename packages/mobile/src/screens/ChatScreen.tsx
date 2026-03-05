@@ -155,6 +155,8 @@ export default function ChatScreen() {
       <ExportSheet
         messages={session.messages}
         systemPrompt={session.systemPrompt}
+        sessionId={session.id}
+        sessionName={session.name}
         visible={showExport}
         onDismiss={() => setShowExport(false)}
       />

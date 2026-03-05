@@ -157,8 +157,10 @@ export class MessageHistoryManager {
   /**
    * 导出消息为 JSON
    */
-  static exportToJSON(messages: Message[], systemPrompt?: string): string {
+  static exportToJSON(messages: Message[], systemPrompt?: string, sessionId?: string, sessionName?: string): string {
     const exportData = {
+      sessionId: sessionId || null,
+      sessionName: sessionName || null,
       systemPrompt: systemPrompt || null,
       messages,
       exportedAt: new Date().toISOString(),
@@ -169,10 +171,22 @@ export class MessageHistoryManager {
   /**
    * 导出消息为 Markdown
    */
-  static exportToMarkdown(messages: Message[], systemPrompt?: string): string {
+  static exportToMarkdown(messages: Message[], systemPrompt?: string, sessionId?: string, sessionName?: string): string {
     const t = i18n.t.bind(i18n);
     const lines: string[] = [];
     lines.push(t('history.title') + '\n');
+
+    // Add session metadata if available
+    if (sessionId || sessionName) {
+      lines.push('## Session Info\n');
+      if (sessionName) {
+        lines.push(`**Name:** ${sessionName}\n`);
+      }
+      if (sessionId) {
+        lines.push(`**ID:** ${sessionId}\n`);
+      }
+      lines.push('');
+    }
 
     // Add system prompt if available
     if (systemPrompt) {
@@ -230,9 +244,21 @@ export class MessageHistoryManager {
   /**
    * 导出消息为纯文本
    */
-  static exportToText(messages: Message[], systemPrompt?: string): string {
+  static exportToText(messages: Message[], systemPrompt?: string, sessionId?: string, sessionName?: string): string {
     const t = i18n.t.bind(i18n);
     const lines: string[] = [];
+
+    // Add session metadata if available
+    if (sessionId || sessionName) {
+      lines.push('=== SESSION INFO ===');
+      if (sessionName) {
+        lines.push(`Name: ${sessionName}`);
+      }
+      if (sessionId) {
+        lines.push(`ID: ${sessionId}`);
+      }
+      lines.push('');
+    }
 
     // Add system prompt if available
     if (systemPrompt) {

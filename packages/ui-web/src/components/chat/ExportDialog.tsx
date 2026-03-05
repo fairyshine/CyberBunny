@@ -11,11 +11,13 @@ import { Download } from '../icons';
 interface ExportDialogProps {
   messages: Message[];
   systemPrompt?: string;
+  sessionId: string;
+  sessionName: string;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export default function ExportDialog({ messages, systemPrompt, isOpen, onClose }: ExportDialogProps) {
+export default function ExportDialog({ messages, systemPrompt, sessionId, sessionName, isOpen, onClose }: ExportDialogProps) {
   const { t } = useTranslation();
   const [format, setFormat] = useState<'json' | 'markdown' | 'text'>('markdown');
 
@@ -26,17 +28,17 @@ export default function ExportDialog({ messages, systemPrompt, isOpen, onClose }
 
     switch (format) {
       case 'json':
-        content = MessageHistoryManager.exportToJSON(messages, systemPrompt);
+        content = MessageHistoryManager.exportToJSON(messages, systemPrompt, sessionId, sessionName);
         filename = `conversation-${Date.now()}.json`;
         mimeType = 'application/json';
         break;
       case 'markdown':
-        content = MessageHistoryManager.exportToMarkdown(messages, systemPrompt);
+        content = MessageHistoryManager.exportToMarkdown(messages, systemPrompt, sessionId, sessionName);
         filename = `conversation-${Date.now()}.md`;
         mimeType = 'text/markdown';
         break;
       case 'text':
-        content = MessageHistoryManager.exportToText(messages, systemPrompt);
+        content = MessageHistoryManager.exportToText(messages, systemPrompt, sessionId, sessionName);
         filename = `conversation-${Date.now()}.txt`;
         mimeType = 'text/plain';
         break;
@@ -56,11 +58,11 @@ export default function ExportDialog({ messages, systemPrompt, isOpen, onClose }
   const getPreview = () => {
     switch (format) {
       case 'json':
-        return MessageHistoryManager.exportToJSON(messages, systemPrompt).slice(0, 500);
+        return MessageHistoryManager.exportToJSON(messages, systemPrompt, sessionId, sessionName).slice(0, 500);
       case 'markdown':
-        return MessageHistoryManager.exportToMarkdown(messages, systemPrompt).slice(0, 500);
+        return MessageHistoryManager.exportToMarkdown(messages, systemPrompt, sessionId, sessionName).slice(0, 500);
       case 'text':
-        return MessageHistoryManager.exportToText(messages, systemPrompt).slice(0, 500);
+        return MessageHistoryManager.exportToText(messages, systemPrompt, sessionId, sessionName).slice(0, 500);
     }
   };
 
