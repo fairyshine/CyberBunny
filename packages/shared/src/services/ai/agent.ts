@@ -137,14 +137,15 @@ export async function runAgentLoop(
           });
         }
       },
-      onStepFinish: async ({ text, toolCalls, toolResults }) => {
+      onStepFinish: async ({ text, toolCalls, toolResults, finishReason }) => {
         console.log('[Agent] onStepFinish called:', {
           hasText: !!text,
           textLength: text?.length || 0,
           toolCallsCount: toolCalls?.length || 0,
           toolResultsCount: toolResults?.length || 0,
+          finishReason,
         });
-        logLLM('info', `Agent loop - step ${stepCount} finished, text: ${text ? text.slice(0, 50) : 'none'}, toolCalls: ${toolCalls?.length || 0}`);
+        logLLM('info', `Agent loop - step ${stepCount} finished, text: ${text ? text.slice(0, 50) : 'none'}, toolCalls: ${toolCalls?.length || 0}, finishReason: ${finishReason}`);
 
         // Finalize the current step's text message
         if (currentStepMessageId && text) {
@@ -210,23 +211,73 @@ export async function runAgentLoop(
 
     // Consume the stream (callbacks handle UI updates via onChunk)
     let chunkCount = 0;
+    let hasError = false;
     console.log('[Agent] Starting to consume textStream...');
-    for await (const chunk of result.textStream) {
-      // textStream must be consumed to drive the stream
-      chunkCount++;
-      if (chunkCount === 1) {
-        console.log('[Agent] First chunk received from textStream:', chunk.slice(0, 50));
+
+    try {
+      for await (const chunk of result.textStream) {
+        // textStream must be consumed to drive the stream
+        chunkCount++;
+        if (chunkCount === 1) {
+          console.log('[Agent] First chunk received from textStream:', chunk.slice(0, 50));
+        }
+      }
+    } catch (streamError) {
+      hasError = true;
+      console.error('[Agent] Error consuming textStream:', streamError);
+      logLLM('error', `Stream consumption error: ${streamError instanceof Error ? streamError.message : String(streamError)}`);
+    }
+
+    console.log('[Agent] Stream consumed, total chunks:', chunkCount, 'hasError:', hasError);
+    logLLM('info', `Stream consumed, total chunks: ${chunkCount}`);
+
+    // Check if we got any response at all
+    if (chunkCount === 0 && !hasError) {
+      console.warn('[Agent] WARNING: No chunks received and no error. Possible causes:');
+      console.warn('  1. API request failed silently');
+      console.warn('  2. Model returned empty response');
+      console.warn('  3. Network/CORS issue');
+      console.warn('  4. Invalid API key or model name');
+
+      // Try to get more info from the result object
+      try {
+        const usage = await result.usage;
+        console.log('[Agent] Token usage:', usage);
+      } catch (e) {
+        console.error('[Agent] Could not get usage info:', e);
+      }
+
+      try {
+        const finishReason = await result.finishReason;
+        console.log('[Agent] Finish reason:', finishReason);
+      } catch (e) {
+        console.error('[Agent] Could not get finish reason:', e);
       }
     }
-    console.log('[Agent] Stream consumed, total chunks:', chunkCount);
-    logLLM('info', `Stream consumed, total chunks: ${chunkCount}`);
 
     logLLM('success', 'Agent loop completed');
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error('[Agent] Error in agent loop:', error);
+
+    // Log more details about the error
+    if (error instanceof Error) {
+      console.error('[Agent] Error name:', error.name);
+      console.error('[Agent] Error message:', error.message);
+      console.error('[Agent] Error stack:', error.stack);
+    }
+
     logLLM('error', `Agent loop error: ${errorMsg}`);
     console.error('[Agent] Full error:', error);
+
+    // Add error message to UI
+    callbacks.addMessage(sessionId, {
+      id: callbacks.generateId(),
+      role: 'assistant',
+      content: `Error: ${errorMsg}`,
+      timestamp: Date.now(),
+    });
+
     throw error;
   } finally {
     callbacks.setStatus('');
