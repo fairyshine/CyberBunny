@@ -5,6 +5,7 @@ import { useSettingsStore } from '@shared/stores/settings';
 import { SessionType } from '@shared/types';
 import { Trash, ChevronLeft, ChevronRight, MessageSquare, Folder, Edit2, Plus, Undo2, TrashIcon, Globe, Lightbulb, HardDrive } from '../icons';
 import FileTree from './FileTree';
+import { ProjectDialog } from './ProjectDialog';
 import { Button } from '../ui/button';
 
 type TabType = 'sessions' | 'files';
@@ -30,15 +31,32 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('sessions');
   const [sessionTypeFilter, setSessionTypeFilter] = useState<SessionTypeFilter>('all');
-  const { setCurrentSession, deleteSession, renameSession, createSession, restoreSession, permanentlyDeleteSession, clearTrash } = useSessionStore();
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [projectDialogOpen, setProjectDialogOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<any>(null);
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+
+  const { setCurrentSession, deleteSession, renameSession, createSession, restoreSession, permanentlyDeleteSession, clearTrash, deleteProject } = useSessionStore();
   const currentSession = useSessionStore(selectCurrentSession);
   const allSessions = useSessionStore(s => s.sessions);
+  const projects = useSessionStore(s => s.projects);
   const enableSessionTabs = useSettingsStore(s => s.enableSessionTabs);
+
   const sessions = useMemo(() => {
     const active = allSessions.filter(s => !s.deletedAt);
-    if (sessionTypeFilter === 'all') return active;
-    return active.filter(s => (s.sessionType || 'user') === sessionTypeFilter);
-  }, [allSessions, sessionTypeFilter]);
+    let filtered = active;
+    if (sessionTypeFilter !== 'all') {
+      filtered = filtered.filter(s => (s.sessionType || 'user') === sessionTypeFilter);
+    }
+    // Filter by selected project
+    if (selectedProjectId === 'none') {
+      filtered = filtered.filter(s => !s.projectId);
+    } else if (selectedProjectId) {
+      filtered = filtered.filter(s => s.projectId === selectedProjectId);
+    }
+    return filtered;
+  }, [allSessions, sessionTypeFilter, selectedProjectId]);
+
   const deletedSessions = useMemo(() => allSessions.filter(s => s.deletedAt).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0)), [allSessions]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -91,8 +109,28 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
   const handleCreateSession = () => {
     // Agent sessions are created externally, not by user
     const type: SessionType = sessionTypeFilter === 'agent' ? 'user' : (sessionTypeFilter === 'all' ? 'user' : sessionTypeFilter);
-    createSession(t('header.newSession'), type);
+    const projectId = selectedProjectId === 'none' ? undefined : (selectedProjectId || undefined);
+    createSession(t('header.newSession'), type, projectId);
     handleItemClick();
+  };
+
+  const toggleProjectExpand = (projectId: string) => {
+    const newExpanded = new Set(expandedProjects);
+    if (newExpanded.has(projectId)) {
+      newExpanded.delete(projectId);
+    } else {
+      newExpanded.add(projectId);
+    }
+    setExpandedProjects(newExpanded);
+  };
+
+  const handleDeleteProject = (projectId: string, projectName: string) => {
+    if (confirm(t('sidebar.confirmDeleteProject', { name: projectName }))) {
+      deleteProject(projectId);
+      if (selectedProjectId === projectId) {
+        setSelectedProjectId(null);
+      }
+    }
   };
 
   const sessionTypeFilters: SessionTypeFilter[] = ['all', 'user', 'agent', 'mind'];
@@ -243,116 +281,210 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
                 </div>
               )}
 
-              {/* Session List - Scrollable */}
+              {/* Project List + Session List - Scrollable */}
               <div className="flex-1 overflow-y-auto">
                 <div className="p-2 space-y-1">
                   {!showTrash ? (
                     <>
-                      {sessions.length === 0 ? (
+                      {/* Projects Section */}
+                      <div className="mb-2">
+                        {/* "No Project" Group */}
+                        <div
+                          onClick={() => setSelectedProjectId(selectedProjectId === 'none' ? null : 'none')}
+                          className={`flex items-center justify-between px-2 py-1.5 rounded-md cursor-pointer transition-colors ${
+                            selectedProjectId === 'none' ? 'bg-muted' : 'hover:bg-muted/50'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">📋</span>
+                            <span className="text-sm font-medium">{t('sidebar.noProject')}</span>
+                            <span className="text-xs text-muted-foreground">
+                              ({allSessions.filter(s => !s.deletedAt && !s.projectId).length})
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Project Groups */}
+                        {projects.map((project) => {
+                          const projectSessions = allSessions.filter(s => !s.deletedAt && s.projectId === project.id);
+                          const isExpanded = expandedProjects.has(project.id);
+                          const isSelected = selectedProjectId === project.id;
+
+                          return (
+                            <div key={project.id} className="mb-1">
+                              <div
+                                className={`flex items-center justify-between px-2 py-1.5 rounded-md cursor-pointer transition-colors group ${
+                                  isSelected ? 'bg-muted' : 'hover:bg-muted/50'
+                                }`}
+                              >
+                                <div
+                                  className="flex items-center gap-2 flex-1 min-w-0"
+                                  onClick={() => {
+                                    toggleProjectExpand(project.id);
+                                    setSelectedProjectId(isSelected ? null : project.id);
+                                  }}
+                                >
+                                  <span className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
+                                    <ChevronRight className="w-3 h-3" />
+                                  </span>
+                                  <span className="text-base">{project.icon}</span>
+                                  <span className="text-sm font-medium truncate">{project.name}</span>
+                                  <span className="text-xs text-muted-foreground">({projectSessions.length})</span>
+                                </div>
+                                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
+                                  <Button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingProject(project);
+                                      setProjectDialogOpen(true);
+                                    }}
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    title={t('sidebar.editProject')}
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteProject(project.id, project.name);
+                                    }}
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 text-destructive"
+                                    title={t('sidebar.deleteProject')}
+                                  >
+                                    <Trash className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              </div>
+
+                              {/* Sessions in this project */}
+                              {isExpanded && projectSessions.map((session) => {
+                                const readOnly = isReadOnly(session);
+                                return (
+                                  <div
+                                    key={session.id}
+                                    onClick={() => {
+                                      if (editingId !== session.id) {
+                                        if (enableSessionTabs) {
+                                          if (currentSession?.id === session.id) {
+                                            useSessionStore.getState().closeSession(session.id);
+                                          } else {
+                                            useSessionStore.getState().openSession(session.id);
+                                            onSessionSelect?.();
+                                          }
+                                        } else {
+                                          if (currentSession?.id === session.id) {
+                                            useSessionStore.setState({ currentSessionId: null });
+                                          } else {
+                                            setCurrentSession(session.id);
+                                            onSessionSelect?.();
+                                          }
+                                        }
+                                        handleItemClick();
+                                      }
+                                    }}
+                                    onDoubleClick={() => {
+                                      if (!readOnly) startRename(session.id, session.name);
+                                    }}
+                                    className={`group relative flex items-center justify-between p-2 pl-10 rounded-md cursor-pointer transition-all ${
+                                      currentSession?.id === session.id
+                                        ? 'bg-foreground/5 border border-foreground/10'
+                                        : 'hover:bg-muted/50 border border-transparent'
+                                    } ${session.isStreaming ? 'streaming-border' : ''}`}
+                                  >
+                                    <div className="flex-1 min-w-0">
+                                      {editingId === session.id ? (
+                                        <input
+                                          ref={editInputRef}
+                                          value={editingName}
+                                          onChange={(e) => setEditingName(e.target.value)}
+                                          onBlur={commitRename}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter') commitRename();
+                                            if (e.key === 'Escape') setEditingId(null);
+                                          }}
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="w-full text-xs font-medium bg-transparent border-b border-primary outline-none py-0"
+                                        />
+                                      ) : (
+                                        <div className="flex items-center gap-1.5">
+                                          {session.sessionType && session.sessionType !== 'user' && (
+                                            (() => {
+                                              const TypeIcon = SESSION_TYPE_ICONS[session.sessionType];
+                                              return <TypeIcon className="w-3 h-3 shrink-0 text-muted-foreground" />;
+                                            })()
+                                          )}
+                                          <p className="font-medium truncate text-xs">{session.name}</p>
+                                          {readOnly && (
+                                            <span className="shrink-0 text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground leading-none">
+                                              {t('sidebar.readOnly')}
+                                            </span>
+                                          )}
+                                        </div>
+                                      )}
+                                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                                        {formatDate(session.updatedAt)}
+                                      </p>
+                                    </div>
+
+                                    {!readOnly && (
+                                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            startRename(session.id, session.name);
+                                          }}
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                          title={t('common.rename')}
+                                        >
+                                          <Edit2 className="w-3 h-3" />
+                                        </Button>
+                                        <Button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            deleteSession(session.id);
+                                          }}
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                          title={t('common.delete')}
+                                        >
+                                          <Trash className="w-3 h-3" />
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })}
+
+                        {/* Add Project Button */}
+                        <Button
+                          onClick={() => {
+                            setEditingProject(null);
+                            setProjectDialogOpen(true);
+                          }}
+                          variant="ghost"
+                          size="sm"
+                          className="w-full justify-start text-xs mt-1"
+                        >
+                          <Plus className="w-3 h-3 mr-2" />
+                          {t('sidebar.createProject')}
+                        </Button>
+                      </div>
+
+                      {/* Ungrouped Sessions (when no project filter) */}
+                      {!selectedProjectId && sessions.length === 0 && (
                         <div className="text-center py-12 text-muted-foreground text-xs">
                           {t('sidebar.noSessions')}
                         </div>
-                      ) : (
-                        sessions.map((session) => {
-                          const readOnly = isReadOnly(session);
-                          return (
-                            <div
-                              key={session.id}
-                              onClick={() => {
-                                if (editingId !== session.id) {
-                                  if (enableSessionTabs) {
-                                    if (currentSession?.id === session.id) {
-                                      useSessionStore.getState().closeSession(session.id);
-                                    } else {
-                                      useSessionStore.getState().openSession(session.id);
-                                      onSessionSelect?.();
-                                    }
-                                  } else {
-                                    if (currentSession?.id === session.id) {
-                                      useSessionStore.setState({ currentSessionId: null });
-                                    } else {
-                                      setCurrentSession(session.id);
-                                      onSessionSelect?.();
-                                    }
-                                  }
-                                  handleItemClick();
-                                }
-                              }}
-                              onDoubleClick={() => {
-                                if (!readOnly) startRename(session.id, session.name);
-                              }}
-                              className={`group relative flex items-center justify-between p-3 rounded-md cursor-pointer transition-all ${
-                                currentSession?.id === session.id
-                                  ? 'bg-foreground/5 border border-foreground/10'
-                                  : 'hover:bg-muted/50 border border-transparent'
-                              } ${session.isStreaming ? 'streaming-border' : ''}`}
-                            >
-                              <div className="flex-1 min-w-0">
-                                {editingId === session.id ? (
-                                  <input
-                                    ref={editInputRef}
-                                    value={editingName}
-                                    onChange={(e) => setEditingName(e.target.value)}
-                                    onBlur={commitRename}
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') commitRename();
-                                      if (e.key === 'Escape') setEditingId(null);
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="w-full text-sm font-medium bg-transparent border-b border-primary outline-none py-0"
-                                  />
-                                ) : (
-                                  <div className="flex items-center gap-1.5">
-                                    {session.sessionType && session.sessionType !== 'user' && (
-                                      (() => {
-                                        const TypeIcon = SESSION_TYPE_ICONS[session.sessionType];
-                                        return <TypeIcon className="w-3 h-3 shrink-0 text-muted-foreground" />;
-                                      })()
-                                    )}
-                                    <p className="font-medium truncate text-sm">{session.name}</p>
-                                    {readOnly && (
-                                      <span className="shrink-0 text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground leading-none">
-                                        {t('sidebar.readOnly')}
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                  {formatDate(session.updatedAt)}
-                                </p>
-                              </div>
-
-                              {!readOnly && (
-                                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <Button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      startRename(session.id, session.name);
-                                    }}
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                    title={t('common.rename')}
-                                  >
-                                    <Edit2 className="w-3.5 h-3.5" />
-                                  </Button>
-                                  <Button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      deleteSession(session.id);
-                                    }}
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                    title={t('common.delete')}
-                                  >
-                                    <Trash className="w-3.5 h-3.5" />
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })
                       )}
                     </>
                   ) : (
@@ -460,6 +592,16 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
             </div>
           )}
         </div>
+
+        {/* Project Dialog */}
+        <ProjectDialog
+          isOpen={projectDialogOpen}
+          onClose={() => {
+            setProjectDialogOpen(false);
+            setEditingProject(null);
+          }}
+          project={editingProject}
+        />
       </aside>
     </>
   );

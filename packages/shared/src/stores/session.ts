@@ -1,17 +1,18 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Session, Message, LLMConfig, SessionType } from '../types';
+import { Session, Message, LLMConfig, SessionType, Project } from '../types';
 import { logSettings } from '../services/console/logger';
 import { messageStorage } from '../services/storage/messageStorage';
 
 interface SessionState {
   sessions: Session[];
+  projects: Project[];
   currentSessionId: string | null;
   openSessionIds: string[]; // 打开的会话标签页
   llmConfig: LLMConfig;
 
-  // Actions
-  createSession: (name?: string, sessionType?: SessionType) => Session;
+  // Session Actions
+  createSession: (name?: string, sessionType?: SessionType, projectId?: string) => Session;
   renameSession: (id: string, name: string) => void;
   deleteSession: (id: string) => void;
   restoreSession: (id: string) => void;
@@ -28,6 +29,12 @@ interface SessionState {
   closeSession: (id: string) => void;
   loadSessionMessages: (sessionId: string) => Promise<void>;
   flushMessages: (sessionId: string) => Promise<void>;
+  moveSessionToProject: (sessionId: string, projectId: string | null) => void;
+
+  // Project Actions
+  createProject: (name: string, description?: string, color?: string, icon?: string) => Project;
+  updateProject: (id: string, updates: Partial<Omit<Project, 'id' | 'createdAt'>>) => void;
+  deleteProject: (id: string) => void;
 }
 
 // Selector to get current session (derived from sessions + currentSessionId)
@@ -50,6 +57,7 @@ export const useSessionStore = create<SessionState>()(
   persist(
     (set, get) => ({
       sessions: [],
+      projects: [],
       currentSessionId: null,
       openSessionIds: [],
       llmConfig: {
@@ -60,7 +68,7 @@ export const useSessionStore = create<SessionState>()(
         maxTokens: 4096,
       },
 
-      createSession: (name = '新会话', sessionType: SessionType = 'user') => {
+      createSession: (name = '新会话', sessionType: SessionType = 'user', projectId?: string) => {
         const session: Session = {
           id: crypto.randomUUID(),
           name,
@@ -68,6 +76,7 @@ export const useSessionStore = create<SessionState>()(
           createdAt: Date.now(),
           updatedAt: Date.now(),
           sessionType,
+          projectId,
         };
 
         set((state) => ({
@@ -286,6 +295,51 @@ export const useSessionStore = create<SessionState>()(
       flushMessages: async (sessionId: string) => {
         await messageStorage.flush(sessionId);
       },
+
+      moveSessionToProject: (sessionId: string, projectId: string | null) => {
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId ? { ...s, projectId: projectId || undefined, updatedAt: Date.now() } : s
+          ),
+        }));
+      },
+
+      // Project Actions
+      createProject: (name: string, description?: string, color?: string, icon?: string) => {
+        const project: Project = {
+          id: crypto.randomUUID(),
+          name,
+          description,
+          color: color || '#3b82f6',
+          icon: icon || '📁',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+
+        set((state) => ({
+          projects: [...state.projects, project],
+        }));
+
+        return project;
+      },
+
+      updateProject: (id: string, updates: Partial<Omit<Project, 'id' | 'createdAt'>>) => {
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === id ? { ...p, ...updates, updatedAt: Date.now() } : p
+          ),
+        }));
+      },
+
+      deleteProject: (id: string) => {
+        set((state) => ({
+          projects: state.projects.filter((p) => p.id !== id),
+          // Remove projectId from sessions in this project
+          sessions: state.sessions.map((s) =>
+            s.projectId === id ? { ...s, projectId: undefined } : s
+          ),
+        }));
+      },
     }),
     {
       name: 'webagent-sessions',
@@ -295,6 +349,7 @@ export const useSessionStore = create<SessionState>()(
           ...s,
           messages: [], // never persist messages to localStorage
         })),
+        projects: state.projects,
         currentSessionId: state.currentSessionId,
         openSessionIds: state.openSessionIds,
         llmConfig: state.llmConfig,

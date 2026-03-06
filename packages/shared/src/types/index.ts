@@ -85,6 +85,17 @@ export interface LLMConfig {
 // 会话类型
 export type SessionType = 'user' | 'agent' | 'mind';
 
+// 项目分组
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  color?: string; // 项目颜色标识
+  icon?: string; // emoji icon
+  createdAt: number;
+  updatedAt: number;
+}
+
 // 会话
 export interface Session {
   id: string;
@@ -96,4 +107,5 @@ export interface Session {
   isStreaming?: boolean; // 是否正在进行对话
   systemPrompt?: string; // 系统提示词
   sessionType?: SessionType; // 会话类型：user=用户对话, agent=外部Agent对话(只读), mind=Agent内心计划
+  projectId?: string; // 所属项目ID
 }
