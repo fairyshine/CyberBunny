@@ -67,6 +67,7 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
   const [draggedPath, setDraggedPath] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const isDraggingRef = useRef(false);
+  const dragStartTimeRef = useRef(0);
 
   // Current grid directory path (grid view navigates into folders)
   const [gridPath, setGridPath] = useState('/root');
@@ -206,12 +207,17 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
     e.dataTransfer.setData('text/plain', path);
     setDraggedPath(path);
     isDraggingRef.current = true;
+    dragStartTimeRef.current = Date.now();
   };
 
   const handleDragEnd = () => {
     setDraggedPath(null);
     setDropTarget(null);
     isDraggingRef.current = false;
+    // Keep drag state for a short time to prevent onClick from firing
+    setTimeout(() => {
+      dragStartTimeRef.current = 0;
+    }, 100);
   };
 
   const handleDragEnter = (e: React.DragEvent, path: string, isDirectory: boolean) => {
@@ -315,7 +321,7 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
           onDrop={(e) => handleDrop(e, entry.path, entry.type === 'directory')}
           onClick={() => {
             // Don't trigger click actions during/after drag
-            if (draggedPath) return;
+            if (draggedPath || (Date.now() - dragStartTimeRef.current < 200)) return;
             if (entry.type === 'directory') { toggleExpand(entry); }
             else { onSelectFile?.(entry.path); onItemClick?.(); }
           }}
@@ -401,6 +407,8 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
         onDragOver={(e) => handleDragOver(e, entry.path, entry.type === 'directory')}
         onDrop={(e) => handleDrop(e, entry.path, entry.type === 'directory')}
         onClick={() => {
+          // Don't trigger click actions during/after drag
+          if (draggedPath || (Date.now() - dragStartTimeRef.current < 200)) return;
           if (entry.type === 'directory') { setGridPath(entry.path); }
           else { onSelectFile?.(entry.path); onItemClick?.(); }
         }}
