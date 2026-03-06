@@ -46,6 +46,10 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
   const [editingName, setEditingName] = useState('');
   const [showTrash, setShowTrash] = useState(false);
   const editInputRef = useRef<HTMLInputElement>(null);
+  const [draggedSessionId, setDraggedSessionId] = useState<string | null>(null);
+  const [dropTargetProjectId, setDropTargetProjectId] = useState<string | null>(null);
+
+  const { moveSessionToProject } = useSessionStore();
 
   useEffect(() => {
     if (editingId && editInputRef.current) {
@@ -267,7 +271,26 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
                         return (
                           <div key={project.id} className="space-y-1">
                             {/* Project Header */}
-                            <div className="flex items-center justify-between px-2 py-1 group">
+                            <div
+                              className={`flex items-center justify-between px-2 py-1 group rounded-md transition-colors ${
+                                dropTargetProjectId === project.id ? 'bg-primary/10 ring-2 ring-primary/40' : ''
+                              }`}
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                if (draggedSessionId) {
+                                  setDropTargetProjectId(project.id);
+                                }
+                              }}
+                              onDragLeave={() => setDropTargetProjectId(null)}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                if (draggedSessionId) {
+                                  moveSessionToProject(draggedSessionId, project.id);
+                                  setDraggedSessionId(null);
+                                  setDropTargetProjectId(null);
+                                }
+                              }}
+                            >
                               <div className="flex items-center gap-2 flex-1 min-w-0">
                                 <span className="text-base">{project.icon}</span>
                                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">
@@ -328,6 +351,15 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
                                 return (
                                   <div
                                     key={session.id}
+                                    draggable={!readOnly && editingId !== session.id}
+                                    onDragStart={(e) => {
+                                      e.dataTransfer.effectAllowed = 'move';
+                                      setDraggedSessionId(session.id);
+                                    }}
+                                    onDragEnd={() => {
+                                      setDraggedSessionId(null);
+                                      setDropTargetProjectId(null);
+                                    }}
                                     onClick={() => {
                                       if (editingId !== session.id) {
                                         if (enableSessionTabs) {
@@ -355,7 +387,9 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
                                       currentSession?.id === session.id
                                         ? 'bg-foreground/5 border border-foreground/10'
                                         : 'hover:bg-muted/50 border border-transparent'
-                                    } ${session.isStreaming ? 'streaming-border' : ''}`}
+                                    } ${session.isStreaming ? 'streaming-border' : ''} ${
+                                      draggedSessionId === session.id ? 'opacity-50' : ''
+                                    }`}
                                   >
                                     <div className="flex-1 min-w-0">
                                       {editingId === session.id ? (
@@ -435,7 +469,26 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
                           <div className="space-y-1">
                             {/* No Project Header (only show if there are sessions) */}
                             {filtered.length > 0 && (
-                              <div className="flex items-center gap-2 px-2 py-1">
+                              <div
+                                className={`flex items-center gap-2 px-2 py-1 rounded-md transition-colors ${
+                                  dropTargetProjectId === 'none' ? 'bg-primary/10 ring-2 ring-primary/40' : ''
+                                }`}
+                                onDragOver={(e) => {
+                                  e.preventDefault();
+                                  if (draggedSessionId) {
+                                    setDropTargetProjectId('none');
+                                  }
+                                }}
+                                onDragLeave={() => setDropTargetProjectId(null)}
+                                onDrop={(e) => {
+                                  e.preventDefault();
+                                  if (draggedSessionId) {
+                                    moveSessionToProject(draggedSessionId, null);
+                                    setDraggedSessionId(null);
+                                    setDropTargetProjectId(null);
+                                  }
+                                }}
+                              >
                                 <span className="text-base">📋</span>
                                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                                   {t('sidebar.noProject')}
@@ -450,6 +503,15 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
                               return (
                                 <div
                                   key={session.id}
+                                  draggable={!readOnly && editingId !== session.id}
+                                  onDragStart={(e) => {
+                                    e.dataTransfer.effectAllowed = 'move';
+                                    setDraggedSessionId(session.id);
+                                  }}
+                                  onDragEnd={() => {
+                                    setDraggedSessionId(null);
+                                    setDropTargetProjectId(null);
+                                  }}
                                   onClick={() => {
                                     if (editingId !== session.id) {
                                       if (enableSessionTabs) {
@@ -477,7 +539,9 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
                                     currentSession?.id === session.id
                                       ? 'bg-foreground/5 border border-foreground/10'
                                       : 'hover:bg-muted/50 border border-transparent'
-                                  } ${session.isStreaming ? 'streaming-border' : ''}`}
+                                  } ${session.isStreaming ? 'streaming-border' : ''} ${
+                                    draggedSessionId === session.id ? 'opacity-50' : ''
+                                  }`}
                                 >
                                   <div className="flex-1 min-w-0">
                                     {editingId === session.id ? (
