@@ -238,9 +238,9 @@ const ProcessBubble = memo(function ProcessBubble({ message }: { message: Messag
                   <div className="text-xs font-semibold text-muted-foreground mb-2">Parameters:</div>
                   <ToolInputDisplay input={message.toolInput} isStreaming={isStreaming} />
                 </>
-              ) : (
+              ) : message.content ? (
                 <ReactMarkdown content={message.content} />
-              )}
+              ) : null}
             </div>
           </div>
         )}
