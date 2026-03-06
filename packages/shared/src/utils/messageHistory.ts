@@ -12,6 +12,7 @@ export class MessageHistoryManager {
    * 1 token ≈ 4 个字符（英文）或 1.5 个字符（中文）
    */
   static estimateTokens(text: string): number {
+    if (!text) return 0;
     // 简单估算：中文字符 * 1.5 + 英文字符 * 0.25
     const chineseChars = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
     const otherChars = text.length - chineseChars;
@@ -23,7 +24,7 @@ export class MessageHistoryManager {
    */
   static calculateTotalTokens(messages: Message[]): number {
     return messages.reduce((total, msg) => {
-      return total + this.estimateTokens(msg.content);
+      return total + this.estimateTokens(msg.content || '');
     }, 0);
   }
 
@@ -42,10 +43,11 @@ export class MessageHistoryManager {
     const searchQuery = caseSensitive ? query : query.toLowerCase();
 
     return messages.filter(msg => {
-      const content = caseSensitive ? msg.content : msg.content.toLowerCase();
+      const content = msg.content || '';
+      const contentToSearch = caseSensitive ? content : content.toLowerCase();
 
       // 搜索主要内容
-      if (content.includes(searchQuery)) return true;
+      if (contentToSearch.includes(searchQuery)) return true;
 
       // 搜索工具输出
       if (searchInToolOutput && msg.toolOutput) {
@@ -96,7 +98,7 @@ export class MessageHistoryManager {
       }
 
       // 统计 tokens
-      stats.tokens += this.estimateTokens(msg.content);
+      stats.tokens += this.estimateTokens(msg.content || '');
     }
 
     return stats;
@@ -206,7 +208,7 @@ export class MessageHistoryManager {
       if (firstMsg.role === 'system') {
         lines.push('## System Prompt\n');
         lines.push('```');
-        lines.push(firstMsg.content);
+        lines.push(firstMsg.content || '');
         lines.push('```\n');
       } else {
         lines.push(t('history.turn', { index: i + 1 }) + '\n');
@@ -214,11 +216,11 @@ export class MessageHistoryManager {
         for (const msg of turn) {
           if (msg.role === 'user') {
             lines.push(t('history.user') + '\n');
-            lines.push(msg.content + '\n');
+            lines.push((msg.content || '') + '\n');
           } else if (msg.type === 'thought') {
             lines.push(t('history.thinking') + '\n');
             lines.push('```');
-            lines.push(msg.content);
+            lines.push(msg.content || '');
             lines.push('```\n');
           } else if (msg.type === 'tool_call') {
             lines.push(t('history.toolCall', { toolName: msg.toolName }) + '\n');
@@ -228,11 +230,11 @@ export class MessageHistoryManager {
           } else if (msg.type === 'tool_result') {
             lines.push(t('history.toolResult', { toolName: msg.toolName }) + '\n');
             lines.push('```');
-            lines.push(msg.content);
+            lines.push(msg.content || '');
             lines.push('```\n');
           } else if (msg.type === 'response' || msg.role === 'assistant') {
             lines.push(t('history.assistant') + '\n');
-            lines.push(msg.content + '\n');
+            lines.push((msg.content || '') + '\n');
           }
         }
       }
@@ -284,7 +286,7 @@ export class MessageHistoryManager {
           lines.push(t('history.tool', { toolName: msg.toolName }));
         }
 
-        lines.push(t('history.content', { content: msg.content }));
+        lines.push(t('history.content', { content: msg.content || '' }));
         lines.push('');
       }
       lines.push('---\n');
