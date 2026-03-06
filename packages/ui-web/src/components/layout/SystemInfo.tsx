@@ -44,7 +44,8 @@ export default function SystemInfo() {
       }
     };
 
-    checkPlatform();
+    const cleanup = checkPlatform();
+    return cleanup;
   }, []);
 
   const formatBytes = (bytes: number) => {
@@ -75,13 +76,19 @@ export default function SystemInfo() {
     return null;
   }
 
+  const getProgressColor = (percent: number) => {
+    if (percent < 50) return 'bg-green-500';
+    if (percent < 80) return 'bg-yellow-500';
+    return 'bg-red-500';
+  };
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
       {/* CPU Info */}
-      <Card className="border-elegant">
+      <Card className="border-elegant hover:shadow-lg transition-shadow">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Cpu className="w-4 h-4" />
+            <Cpu className="w-4 h-4 text-blue-500" />
             CPU
           </CardTitle>
         </CardHeader>
@@ -95,8 +102,8 @@ export default function SystemInfo() {
               {systemInfo.cpus} 核心
             </p>
             <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-primary transition-all duration-300"
+              <div
+                className={`h-full ${getProgressColor(systemInfo.cpuUsage)} transition-all duration-300`}
                 style={{ width: `${Math.min(systemInfo.cpuUsage, 100)}%` }}
               />
             </div>
@@ -105,10 +112,10 @@ export default function SystemInfo() {
       </Card>
 
       {/* Memory Info */}
-      <Card className="border-elegant">
+      <Card className="border-elegant hover:shadow-lg transition-shadow">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <HardDrive className="w-4 h-4" />
+            <HardDrive className="w-4 h-4 text-purple-500" />
             内存
           </CardTitle>
         </CardHeader>
@@ -122,8 +129,8 @@ export default function SystemInfo() {
               {formatBytes(systemInfo.usedMemory)} / {formatBytes(systemInfo.totalMemory)}
             </p>
             <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-primary transition-all duration-300"
+              <div
+                className={`h-full ${getProgressColor(systemInfo.memUsagePercent)} transition-all duration-300`}
                 style={{ width: `${Math.min(systemInfo.memUsagePercent, 100)}%` }}
               />
             </div>
@@ -132,10 +139,10 @@ export default function SystemInfo() {
       </Card>
 
       {/* Load Average */}
-      <Card className="border-elegant">
+      <Card className="border-elegant hover:shadow-lg transition-shadow">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Activity className="w-4 h-4" />
+            <Activity className="w-4 h-4 text-orange-500" />
             系统负载
           </CardTitle>
         </CardHeader>
@@ -153,10 +160,10 @@ export default function SystemInfo() {
       </Card>
 
       {/* System Info */}
-      <Card className="border-elegant">
+      <Card className="border-elegant hover:shadow-lg transition-shadow">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Monitor className="w-4 h-4" />
+            <Monitor className="w-4 h-4 text-green-500" />
             系统
           </CardTitle>
         </CardHeader>
