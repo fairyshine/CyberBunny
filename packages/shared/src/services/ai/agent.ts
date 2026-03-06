@@ -122,18 +122,19 @@ export async function runAgentLoop(
       onChunk: ({ chunk }) => {
         totalChunks++;
         const now = Date.now();
+        const c = chunk as any;
 
         // Log chunk info every 30 seconds or on first chunk
         if (totalChunks === 1 || now - lastChunkLogTime >= 30000) {
-          console.log(`[Agent] Chunk received (${totalChunks} total), type:`, chunk.type);
-          logLLM('debug', `Chunk received: ${chunk.type} (${totalChunks} total)`);
+          console.log(`[Agent] Chunk received (${totalChunks} total), type:`, c.type);
+          logLLM('debug', `Chunk received: ${c.type} (${totalChunks} total)`);
           lastChunkLogTime = now;
         }
 
         // Stream tool-input-start: create tool_call message
-        if (chunk.type === 'tool-input-start') {
-          const toolCallId = chunk.toolCallId;
-          const toolName = chunk.toolName || 'unknown';
+        if (c.type === 'tool-input-start') {
+          const toolCallId = c.toolCallId || c.id;
+          const toolName = c.toolName || 'unknown';
           toolCallNames.set(toolCallId, toolName);
 
           if (!toolCallMessages.has(toolCallId)) {
@@ -161,10 +162,11 @@ export async function runAgentLoop(
         }
 
         // Stream tool-input-delta: append raw args text
-        if (chunk.type === 'tool-input-delta') {
-          const toolCallId = chunk.toolCallId;
+        if (c.type === 'tool-input-delta') {
+          const toolCallId = c.toolCallId || c.id;
+          const delta = c.inputTextDelta || c.delta || '';
           const prev = toolCallInputs.get(toolCallId) || '';
-          const next = prev + ((chunk as any).inputTextDelta || (chunk as any).delta || '');
+          const next = prev + delta;
           toolCallInputs.set(toolCallId, next);
 
           const toolCallMsgId = toolCallMessages.get(toolCallId);
@@ -176,12 +178,12 @@ export async function runAgentLoop(
         }
 
         // Record tool-call name for providers that skip deltas
-        if (chunk.type === 'tool-call') {
-          toolCallNames.set(chunk.toolCallId, chunk.toolName || 'unknown');
+        if (c.type === 'tool-call') {
+          toolCallNames.set(c.toolCallId, c.toolName || 'unknown');
         }
 
         // Stream text-delta
-        if (chunk.type === 'text-delta') {
+        if (c.type === 'text-delta') {
           if (!currentStepMessageId) {
             stepCount++;
             currentStepMessageId = callbacks.generateId();
@@ -195,7 +197,7 @@ export async function runAgentLoop(
               groupId,
             });
           }
-          currentStepContent += (chunk.text || '');
+          currentStepContent += (c.text || '');
           callbacks.updateMessage(sessionId, currentStepMessageId, {
             content: currentStepContent,
           });
