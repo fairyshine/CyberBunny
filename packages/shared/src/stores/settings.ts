@@ -220,6 +220,16 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'webagent-settings',
+      migrate: (persisted: any) => {
+        // Clean up legacy tool IDs from enabledTools
+        if (persisted && Array.isArray(persisted.enabledTools)) {
+          persisted.enabledTools = persisted.enabledTools.filter(
+            (id: string) => SUPPORTED_TOOL_IDS.has(id)
+          );
+        }
+        return persisted;
+      },
+      version: 1,
     }
   )
 );

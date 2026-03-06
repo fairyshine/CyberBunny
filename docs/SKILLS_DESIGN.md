@@ -22,8 +22,8 @@
 ### 示例对比
 
 **Tool 示例**：
-- `python_execute`: 执行 Python 代码
-- `read_file`: 读取文件
+- `python`: 执行 Python 代码
+- `file_manager`: 文件管理（读取、写入、列表、创建目录、删除）
 - `web_search`: 网页搜索
 
 **Skill 示例**：
@@ -419,7 +419,7 @@ class DataAnalysisSkill extends BaseSkill {
       name: '数据分析',
       description: '读取数据文件，进行分析并生成可视化图表',
       version: '1.0.0',
-      requiredTools: ['read_file', 'python'],
+      requiredTools: ['file_manager', 'python'],
       parameters: [
         {
           name: 'file_path',
@@ -443,10 +443,10 @@ class DataAnalysisSkill extends BaseSkill {
 
     try {
       // 步骤 1: 读取文件
-      const fileResult = await this.callTool('read_file', input, context);
+      const fileResult = await this.callTool('file_manager', input, context);
       steps.push({
         name: '读取文件',
-        tool: 'read_file',
+        tool: 'file_manager',
         input,
         output: fileResult.content,
         timestamp: Date.now(),
@@ -507,13 +507,13 @@ data = """${data}"""
 │ ┌──────────────────────────────────────────────────┐   │
 │ │ 🔬 数据分析                              [✓] [⚙️]  │   │
 │ │ 读取数据文件，进行分析并生成可视化图表              │   │
-│ │ 需要: read_file, python                            │   │
+│ │ 需要: file_manager, python                          │   │
 │ └──────────────────────────────────────────────────┘   │
 │                                                          │
 │ ┌──────────────────────────────────────────────────┐   │
 │ │ 🔍 网页研究                              [✓] [⚙️]  │   │
 │ │ 搜索网页内容，提取信息并生成研究报告                │   │
-│ │ 需要: web_search, read_file, write_file            │   │
+│ │ 需要: web_search, file_manager                      │   │
 │ └──────────────────────────────────────────────────┘   │
 │                                                          │
 │ [+ 添加 Skill]                                          │

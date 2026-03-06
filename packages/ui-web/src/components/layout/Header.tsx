@@ -40,7 +40,7 @@ export default function Header({ onToggleConsole, onToggleSidebar, onLogoClick }
 
   return (
     <>
-      <header className="h-14 bg-background border-b border-border flex items-center justify-between px-4 shadow-elegant">
+      <header className="h-14 bg-background border-b border-border flex items-center justify-between px-4 shadow-none">
         <div className="flex items-center gap-3">
           {onToggleSidebar && (
             <Button
