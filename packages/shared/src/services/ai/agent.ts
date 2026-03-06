@@ -98,6 +98,7 @@ export async function runAgentLoop(
   // Track tool calls for streaming display
   const toolCallMessages = new Map<string, string>(); // toolCallId -> messageId
   const toolCallInputs = new Map<string, string>(); // toolCallId -> accumulated input
+  const toolResultMessages = new Map<string, string>(); // toolCallId -> result messageId
 
   try {
     console.log('[Agent] Creating streamText with:', {
@@ -185,33 +186,36 @@ export async function runAgentLoop(
             hasOutput: 'output' in chunk,
           });
 
-          const output = (chunk as any).output;
-          const resultContent = typeof output === 'string' ? output : (output != null ? JSON.stringify(output) : '');
-          const toolResultMsgId = callbacks.generateId();
+          // Skip if already created for this toolCallId
+          if (!toolResultMessages.has(chunk.toolCallId)) {
+            const output = (chunk as any).output;
+            const resultContent = typeof output === 'string' ? output : (output != null ? JSON.stringify(output) : '');
+            const toolResultMsgId = callbacks.generateId();
+            toolResultMessages.set(chunk.toolCallId, toolResultMsgId);
 
-          // Create tool result message immediately
-          callbacks.addMessage(sessionId, {
-            id: toolResultMsgId,
-            role: 'tool',
-            content: resultContent,
-            timestamp: Date.now(),
-            type: 'tool_result',
-            toolName: chunk.toolName || '',
-            toolOutput: resultContent,
-            toolCallId: chunk.toolCallId,
-            groupId,
-            metadata: { streaming: false },
-          });
-
-          // Mark tool call message as complete
-          const toolCallMsgId = toolCallMessages.get(chunk.toolCallId);
-          if (toolCallMsgId) {
-            callbacks.updateMessage(sessionId, toolCallMsgId, {
+            callbacks.addMessage(sessionId, {
+              id: toolResultMsgId,
+              role: 'tool',
+              content: resultContent,
+              timestamp: Date.now(),
+              type: 'tool_result',
+              toolName: chunk.toolName || '',
+              toolOutput: resultContent,
+              toolCallId: chunk.toolCallId,
+              groupId,
               metadata: { streaming: false },
             });
-          }
 
-          logTool('success', `Tool ${chunk.toolName || 'unknown'} completed`, { resultLength: resultContent.length });
+            // Mark tool call message as complete
+            const toolCallMsgId = toolCallMessages.get(chunk.toolCallId);
+            if (toolCallMsgId) {
+              callbacks.updateMessage(sessionId, toolCallMsgId, {
+                metadata: { streaming: false },
+              });
+            }
+
+            logTool('success', `Tool ${chunk.toolName || 'unknown'} completed`, { resultLength: resultContent.length });
+          }
         }
 
         // Create step message on first text-delta if not yet created
@@ -283,7 +287,7 @@ export async function runAgentLoop(
                 metadata: { toolDescription, streaming: false },
               });
 
-              if (tr) {
+              if (tr && !toolResultMessages.has(tc.toolCallId)) {
                 const resultContent = typeof tr.output === 'string' ? tr.output : JSON.stringify(tr.output);
                 const toolResultMsgId = callbacks.generateId();
 
@@ -320,6 +324,7 @@ export async function runAgentLoop(
         currentStepContent = '';
         toolCallMessages.clear();
         toolCallInputs.clear();
+        toolResultMessages.clear();
         console.log('[Agent] Step finished, reset for next step');
       },
     });
