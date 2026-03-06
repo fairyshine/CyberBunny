@@ -268,8 +268,12 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
                                       onSessionSelect?.();
                                     }
                                   } else {
-                                    setCurrentSession(session.id);
-                                    onSessionSelect?.();
+                                    if (currentSession?.id === session.id) {
+                                      useSessionStore.setState({ currentSessionId: null });
+                                    } else {
+                                      setCurrentSession(session.id);
+                                      onSessionSelect?.();
+                                    }
                                   }
                                   handleItemClick();
                                 }

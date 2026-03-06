@@ -144,7 +144,11 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
               {currentStatus}
             </Badge>
           )}
+        </div>
+      </div>
 
+      <div className="flex-1 overflow-y-auto relative">
+        <div className="sticky top-2 right-2 z-10 flex justify-end pr-2 pointer-events-none">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -152,7 +156,7 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
                   onClick={() => setShowExportDialog(true)}
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8"
+                  className="h-8 w-8 pointer-events-auto opacity-60 hover:opacity-100 transition-opacity"
                 >
                   <Download className="w-4 h-4" />
                 </Button>
@@ -161,9 +165,6 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
             </Tooltip>
           </TooltipProvider>
         </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto">
         <MessageList messages={session.messages} />
         <div ref={messagesEndRef} />
       </div>

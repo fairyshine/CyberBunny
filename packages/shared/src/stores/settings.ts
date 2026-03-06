@@ -126,7 +126,7 @@ export const useSettingsStore = create<SettingsState>()(
         onLanguageChange?.(resolveLanguage(lang));
       },
 
-      enableSessionTabs: true,
+      enableSessionTabs: false,
       setEnableSessionTabs: (value) => {
         logSettings('info', `Session tabs: ${value ? 'enabled' : 'disabled'}`);
         set({ enableSessionTabs: value });

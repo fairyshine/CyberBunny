@@ -17,7 +17,7 @@ const zhCN = {
   'header.settings': '设置',
 
   // Status Screen (shared feature/badge keys used by both StatusScreen and MessageList)
-  'status.subtitle': '浏览器端智能代理系统',
+  'status.subtitle': '跨平台智能代理系统',
   'status.startButton': '开始使用',
   'status.configHint': '在设置中配置 API Key 后即可使用完整功能',
   'status.quickStart': '快速开始',

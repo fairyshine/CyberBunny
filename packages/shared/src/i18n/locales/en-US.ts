@@ -17,7 +17,7 @@ const enUS = {
   'header.settings': 'Settings',
 
   // Status Screen (shared feature/badge keys used by both StatusScreen and MessageList)
-  'status.subtitle': 'Browser-based Intelligent Agent System',
+  'status.subtitle': 'Cross-platform Intelligent Agent System',
   'status.startButton': 'Get Started',
   'status.configHint': 'Configure your API Key in Settings to unlock full features',
   'status.quickStart': 'Quick Start',
