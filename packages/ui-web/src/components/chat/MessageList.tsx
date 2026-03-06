@@ -85,7 +85,7 @@ const MessageItem = memo(function MessageItem({ message }: { message: Message })
   if (message.role === 'system') {
     return (
       <div className="text-center text-xs text-muted-foreground py-2 font-medium">
-        {message.content}
+        {message.content || ''}
       </div>
     );
   }
@@ -113,7 +113,7 @@ const UserBubble = memo(function UserBubble({ message }: { message: Message }) {
       </div>
       <div className="flex-1 max-w-[85%] md:max-w-[75%] text-right">
         <div className="inline-block text-left rounded-2xl px-4 py-3 bg-foreground text-background shadow-elegant border-elegant selection:bg-background/30 selection:text-background">
-          <ReactMarkdown content={message.content} />
+          <ReactMarkdown content={message.content || ''} />
         </div>
         <Timestamp time={message.timestamp} align="right" />
       </div>
