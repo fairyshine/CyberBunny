@@ -169,6 +169,7 @@ function App() {
               onSelectFile={handleSelectFile}
               isOpen={isSidebarOpen}
               onClose={() => setIsSidebarOpen(false)}
+              onSessionSelect={() => setShowStatusPage(false)}
             />
             <StatusScreen onStart={handleStart} showStartButton={shouldShowStartButton()} />
           </div>
@@ -198,6 +199,7 @@ function App() {
             onSelectFile={handleSelectFile}
             isOpen={isSidebarOpen}
             onClose={() => setIsSidebarOpen(false)}
+            onSessionSelect={() => setShowStatusPage(false)}
           />
 
           {/* 主内容区 - 聊天或文件编辑器 */}

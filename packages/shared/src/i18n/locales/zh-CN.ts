@@ -242,6 +242,11 @@ const zhCN = {
   'sidebar.clearTrash': '清空回收站',
   'sidebar.confirmClearTrash': '确定要永久删除回收站中的所有会话吗？',
   'sidebar.emptyTrash': '回收站为空',
+  'sidebar.sessionType.user': '用户',
+  'sidebar.sessionType.agent': '智能体',
+  'sidebar.sessionType.mind': '思维',
+  'sidebar.sessionType.all': '全部',
+  'sidebar.readOnly': '只读',
 
   // Files (Mobile)
   'files.delete': '删除',
@@ -398,6 +403,7 @@ const zhCN = {
   'dashboard.mcpStatus': 'MCP 连接',
   'dashboard.noMcp': '无 MCP 连接',
   'dashboard.recentLogs': '最近日志',
+  'dashboard.bunnyMascot': '赛博兔兔',
   'dashboard.customize': '自定义仪表盘',
   'dashboard.resetLayout': '重置布局',
 } as const;

@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSessionStore } from '@cyberbunny/shared';
-import { MessageSquare } from '../../icons';
 
 export default function SessionStatsCard() {
   const { t } = useTranslation();
@@ -20,12 +19,7 @@ export default function SessionStatsCard() {
   }, [sessions]);
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <MessageSquare className="w-4 h-4 text-muted-foreground" />
-        <span className="text-sm font-medium">{t('dashboard.sessionStats')}</span>
-      </div>
-      <div className="grid grid-cols-3 gap-2">
+    <div className="grid grid-cols-3 gap-2">
         <div>
           <div className="text-2xl font-bold">{count}</div>
           <div className="text-xs text-muted-foreground">{t('dashboard.sessions')}</div>
@@ -39,6 +33,5 @@ export default function SessionStatsCard() {
           <div className="text-xs text-muted-foreground">Tokens</div>
         </div>
       </div>
-    </div>
   );
 }

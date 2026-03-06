@@ -242,6 +242,11 @@ const enUS = {
   'sidebar.clearTrash': 'Clear Trash',
   'sidebar.confirmClearTrash': 'Are you sure you want to permanently delete all sessions in trash?',
   'sidebar.emptyTrash': 'Trash is empty',
+  'sidebar.sessionType.user': 'User',
+  'sidebar.sessionType.agent': 'Agent',
+  'sidebar.sessionType.mind': 'Mind',
+  'sidebar.sessionType.all': 'All',
+  'sidebar.readOnly': 'Read-only',
 
   // Files (Mobile)
   'files.delete': 'Delete',
@@ -398,6 +403,7 @@ const enUS = {
   'dashboard.mcpStatus': 'MCP Connections',
   'dashboard.noMcp': 'No MCP connections',
   'dashboard.recentLogs': 'Recent Logs',
+  'dashboard.bunnyMascot': 'CyberBunny',
   'dashboard.customize': 'Customize Dashboard',
   'dashboard.resetLayout': 'Reset Layout',
 } as const;

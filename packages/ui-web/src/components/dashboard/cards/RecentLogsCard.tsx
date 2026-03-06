@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { consoleLogger } from '@cyberbunny/shared';
 import type { LogEntry } from '@cyberbunny/shared';
-import { Terminal } from '../../icons';
 import { Badge } from '../../ui/badge';
 
 export default function RecentLogsCard() {
@@ -32,21 +31,17 @@ export default function RecentLogsCard() {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Terminal className="w-4 h-4 text-muted-foreground" />
-        <span className="text-sm font-medium">{t('dashboard.recentLogs')}</span>
-        <div className="ml-auto flex gap-1.5">
-          {errorCount > 0 && (
-            <Badge variant="destructive" className="text-xs px-1.5 py-0">
-              {errorCount}
-            </Badge>
-          )}
-          {warnCount > 0 && (
-            <Badge variant="outline" className="text-xs px-1.5 py-0 text-yellow-600">
-              {warnCount}
-            </Badge>
-          )}
-        </div>
+      <div className="flex items-center gap-1.5 ml-auto">
+        {errorCount > 0 && (
+          <Badge variant="destructive" className="text-xs px-1.5 py-0">
+            {errorCount} errors
+          </Badge>
+        )}
+        {warnCount > 0 && (
+          <Badge variant="outline" className="text-xs px-1.5 py-0 text-yellow-600">
+            {warnCount} warnings
+          </Badge>
+        )}
       </div>
       {logs.length === 0 ? (
         <span className="text-xs text-muted-foreground">{t('console.noLogs')}</span>

@@ -14,6 +14,10 @@ export type { Theme, Language } from './stores/settings';
 export { useToolStore, getBuiltinToolIds } from './stores/tools';
 export { useSkillStore } from './stores/skills';
 
+// Services - Message Storage (IndexedDB / AsyncStorage)
+export { messageStorage } from './services/storage/messageStorage';
+export type { IMessageStorageBackend } from './services/storage/messageStorage';
+
 // Services - Console & FileSystem & Python (unchanged)
 export { logSystem, logLLM, logTool, logFile, logSettings, logMCP, logPython, consoleLogger } from './services/console/logger';
 export type { LogEntry, LogLevel, LogCategory } from './services/console/logger';

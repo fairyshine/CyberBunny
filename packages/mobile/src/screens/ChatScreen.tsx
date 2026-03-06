@@ -22,7 +22,7 @@ export default function ChatScreen() {
   const navigation = useNavigation<ChatScreenNavigationProp>();
   const { sessionId } = route.params;
 
-  const { sessions, addMessage, updateMessage, llmConfig } = useSessionStore();
+  const { sessions, addMessage, updateMessage, llmConfig, loadSessionMessages } = useSessionStore();
   const { enabledTools, proxyUrl, toolExecutionTimeout } = useSettingsStore();
   const session = sessions.find((s) => s.id === sessionId);
 
@@ -31,6 +31,11 @@ export default function ChatScreen() {
   const [showExport, setShowExport] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Load messages from IndexedDB when session becomes active
+  useEffect(() => {
+    loadSessionMessages(sessionId);
+  }, [sessionId, loadSessionMessages]);
 
   useEffect(() => {
     if (session) {
@@ -118,6 +123,8 @@ export default function ChatScreen() {
       setIsLoading(false);
       setCurrentStatus('');
       useSessionStore.getState().setSessionStreaming(sessionId, false);
+      // Force-flush messages to IndexedDB after agent loop completes
+      useSessionStore.getState().flushMessages(sessionId);
     }
   };
 

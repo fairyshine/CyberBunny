@@ -22,6 +22,7 @@ export {
   Trash2 as TrashIcon,
   Languages,
   Check as CheckIcon,
+  HardDrive,
 } from 'lucide-react';
 
 export function Plus({ className }: { className?: string }) {

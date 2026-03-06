@@ -94,6 +94,7 @@ export async function runAgentLoop(
   let currentStepContent = '';
   let lastChunkLogTime = 0;
   let totalChunks = 0;
+  let lastResponseMessageId: string | null = null; // Track the last response message for token info
 
   // Track tool calls for streaming display
   const toolCallMessages = new Map<string, string>(); // toolCallId -> messageId
@@ -212,6 +213,8 @@ export async function runAgentLoop(
             content: text,
             type: 'response',
           });
+          // Save this as the last response message for token tracking
+          lastResponseMessageId = currentStepMessageId;
         }
 
         if (toolCalls && toolCalls.length > 0) {
@@ -301,6 +304,30 @@ export async function runAgentLoop(
     console.log('[Agent] Stream consumed, total chunks:', chunkCount, 'hasError:', hasError);
     logLLM('info', `Stream consumed, total chunks: ${chunkCount}`);
 
+    // Get token usage and save to the last assistant message
+    try {
+      const usage = await result.usage;
+      console.log('[Agent] Token usage:', usage);
+
+      if (usage && (usage.inputTokens || usage.outputTokens)) {
+        const totalTokens = (usage.inputTokens || 0) + (usage.outputTokens || 0);
+        logLLM('info', `Tokens used: ${totalTokens} (input: ${usage.inputTokens}, output: ${usage.outputTokens})`);
+
+        // Save token info to the last assistant response message
+        if (lastResponseMessageId) {
+          callbacks.updateMessage(sessionId, lastResponseMessageId, {
+            metadata: {
+              tokens: totalTokens,
+              inputTokens: usage.inputTokens,
+              outputTokens: usage.outputTokens,
+            },
+          });
+        }
+      }
+    } catch (e) {
+      console.error('[Agent] Could not get usage info:', e);
+    }
+
     // Check if we got any response at all
     if (chunkCount === 0 && !hasError) {
       console.warn('[Agent] WARNING: No chunks received and no error. Possible causes:');
@@ -308,14 +335,6 @@ export async function runAgentLoop(
       console.warn('  2. Model returned empty response');
       console.warn('  3. Network/CORS issue');
       console.warn('  4. Invalid API key or model name');
-
-      // Try to get more info from the result object
-      try {
-        const usage = await result.usage;
-        console.log('[Agent] Token usage:', usage);
-      } catch (e) {
-        console.error('[Agent] Could not get usage info:', e);
-      }
 
       try {
         const finishReason = await result.finishReason;

@@ -24,12 +24,17 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<string>('');
   const [showExportDialog, setShowExportDialog] = useState(false);
-  const { sessions, addMessage, updateMessage, llmConfig } = useSessionStore();
+  const { sessions, addMessage, updateMessage, llmConfig, loadSessionMessages } = useSessionStore();
   const { enabledTools, proxyUrl, toolExecutionTimeout } = useSettingsStore();
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const session = sessions.find((s) => s.id === sessionId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load messages from IndexedDB when session becomes active
+  useEffect(() => {
+    loadSessionMessages(sessionId);
+  }, [sessionId, loadSessionMessages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -115,6 +120,8 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
       setIsLoading(false);
       setCurrentStatus('');
       useSessionStore.getState().setSessionStreaming(sessionId, false);
+      // Force-flush messages to IndexedDB after agent loop completes
+      useSessionStore.getState().flushMessages(sessionId);
     }
   };
 
@@ -161,11 +168,17 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
         <div ref={messagesEndRef} />
       </div>
 
-      <ChatInput
-        onSend={handleSendMessage}
-        isLoading={isLoading}
-        onStop={handleStop}
-      />
+      {session.sessionType === 'agent' ? (
+        <div className="border-t px-4 py-3 text-center text-xs text-muted-foreground bg-muted/30">
+          {t('sidebar.readOnly')}
+        </div>
+      ) : (
+        <ChatInput
+          onSend={handleSendMessage}
+          isLoading={isLoading}
+          onStop={handleStop}
+        />
+      )}
 
       <ExportDialog
         messages={session.messages}

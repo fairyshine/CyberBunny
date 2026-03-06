@@ -22,6 +22,7 @@
     "expo-file-system": "catalog:",
     "expo-localization": "catalog:",
     "expo-sharing": "catalog:",
+    "expo-sqlite": "catalog:",
     "expo-status-bar": "catalog:",
     "i18next": "catalog:",
     "react": "catalog:",

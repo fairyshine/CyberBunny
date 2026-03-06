@@ -2,28 +2,43 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSessionStore, selectCurrentSession } from '@shared/stores/session';
 import { useSettingsStore } from '@shared/stores/settings';
-import { Trash, ChevronLeft, ChevronRight, MessageSquare, Folder, Edit2, Plus, Undo2, TrashIcon } from '../icons';
+import { SessionType } from '@shared/types';
+import { Trash, ChevronLeft, ChevronRight, MessageSquare, Folder, Edit2, Plus, Undo2, TrashIcon, Globe, Lightbulb, HardDrive } from '../icons';
 import FileTree from './FileTree';
 import { Button } from '../ui/button';
 
 type TabType = 'sessions' | 'files';
+type SessionTypeFilter = 'all' | SessionType;
 
 interface SidebarProps {
   selectedFilePath?: string;
   onSelectFile?: (path: string) => void;
   isOpen?: boolean;
   onClose?: () => void;
+  onSessionSelect?: () => void;
 }
 
-export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClose }: SidebarProps) {
+const SESSION_TYPE_ICONS: Record<SessionTypeFilter, React.FC<{ className?: string }>> = {
+  all: HardDrive,
+  user: MessageSquare,
+  agent: Globe,
+  mind: Lightbulb,
+};
+
+export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClose, onSessionSelect }: SidebarProps) {
   const { t } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('sessions');
+  const [sessionTypeFilter, setSessionTypeFilter] = useState<SessionTypeFilter>('all');
   const { setCurrentSession, deleteSession, renameSession, createSession, restoreSession, permanentlyDeleteSession, clearTrash } = useSessionStore();
   const currentSession = useSessionStore(selectCurrentSession);
   const allSessions = useSessionStore(s => s.sessions);
   const enableSessionTabs = useSettingsStore(s => s.enableSessionTabs);
-  const sessions = useMemo(() => allSessions.filter(s => !s.deletedAt), [allSessions]);
+  const sessions = useMemo(() => {
+    const active = allSessions.filter(s => !s.deletedAt);
+    if (sessionTypeFilter === 'all') return active;
+    return active.filter(s => (s.sessionType || 'user') === sessionTypeFilter);
+  }, [allSessions, sessionTypeFilter]);
   const deletedSessions = useMemo(() => allSessions.filter(s => s.deletedAt).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0)), [allSessions]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -70,6 +85,17 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
       onClose();
     }
   };
+
+  const isReadOnly = (session: { sessionType?: SessionType }) => session.sessionType === 'agent';
+
+  const handleCreateSession = () => {
+    // Agent sessions are created externally, not by user
+    const type: SessionType = sessionTypeFilter === 'agent' ? 'user' : (sessionTypeFilter === 'all' ? 'user' : sessionTypeFilter);
+    createSession(t('header.newSession'), type);
+    handleItemClick();
+  };
+
+  const sessionTypeFilters: SessionTypeFilter[] = ['all', 'user', 'agent', 'mind'];
 
   if (isCollapsed) {
     return (
@@ -140,10 +166,7 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
           <div className="flex items-center gap-1">
             {activeTab === 'sessions' && (
               <Button
-                onClick={() => {
-                  createSession(t('header.newSession'));
-                  handleItemClick();
-                }}
+                onClick={handleCreateSession}
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
@@ -197,6 +220,29 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
         <div className="flex-1 overflow-hidden">
           {activeTab === 'sessions' ? (
             <div className="h-full flex flex-col">
+              {/* Session Type Filter */}
+              {!showTrash && (
+                <div className="flex items-center gap-1 mx-2 mb-1 shrink-0">
+                  {sessionTypeFilters.map((filter) => {
+                    const Icon = SESSION_TYPE_ICONS[filter];
+                    return (
+                      <button
+                        key={filter}
+                        onClick={() => setSessionTypeFilter(filter)}
+                        className={`flex items-center gap-1 text-xs px-2 py-1 rounded-sm transition-colors ${
+                          sessionTypeFilter === filter
+                            ? 'bg-foreground/10 text-foreground'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                        }`}
+                      >
+                        <Icon className="w-3 h-3" />
+                        {t(`sidebar.sessionType.${filter}`)}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
               {/* Session List - Scrollable */}
               <div className="flex-1 overflow-y-auto">
                 <div className="p-2 space-y-1">
@@ -207,83 +253,102 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
                           {t('sidebar.noSessions')}
                         </div>
                       ) : (
-                        sessions.map((session) => (
-                          <div
-                            key={session.id}
-                            onClick={() => {
-                              if (editingId !== session.id) {
-                                if (enableSessionTabs) {
-                                  // 标签栏模式：如果点击的是当前会话，则关闭它
-                                  if (currentSession?.id === session.id) {
-                                    useSessionStore.getState().closeSession(session.id);
+                        sessions.map((session) => {
+                          const readOnly = isReadOnly(session);
+                          return (
+                            <div
+                              key={session.id}
+                              onClick={() => {
+                                if (editingId !== session.id) {
+                                  if (enableSessionTabs) {
+                                    if (currentSession?.id === session.id) {
+                                      useSessionStore.getState().closeSession(session.id);
+                                    } else {
+                                      useSessionStore.getState().openSession(session.id);
+                                      onSessionSelect?.();
+                                    }
                                   } else {
-                                    // 否则打开该会话
-                                    useSessionStore.getState().openSession(session.id);
+                                    setCurrentSession(session.id);
+                                    onSessionSelect?.();
                                   }
-                                } else {
-                                  // 传统模式：直接切换会话
-                                  setCurrentSession(session.id);
+                                  handleItemClick();
                                 }
-                                handleItemClick();
-                              }
-                            }}
-                            onDoubleClick={() => startRename(session.id, session.name)}
-                            className={`group relative flex items-center justify-between p-3 rounded-md cursor-pointer transition-all ${
-                              currentSession?.id === session.id
-                                ? 'bg-foreground/5 border border-foreground/10'
-                                : 'hover:bg-muted/50 border border-transparent'
-                            } ${session.isStreaming ? 'streaming-border' : ''}`}
-                          >
-                            <div className="flex-1 min-w-0">
-                              {editingId === session.id ? (
-                                <input
-                                  ref={editInputRef}
-                                  value={editingName}
-                                  onChange={(e) => setEditingName(e.target.value)}
-                                  onBlur={commitRename}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') commitRename();
-                                    if (e.key === 'Escape') setEditingId(null);
-                                  }}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="w-full text-sm font-medium bg-transparent border-b border-primary outline-none py-0"
-                                />
-                              ) : (
-                                <p className="font-medium truncate text-sm">{session.name}</p>
-                              )}
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                {formatDate(session.updatedAt)}
-                              </p>
-                            </div>
+                              }}
+                              onDoubleClick={() => {
+                                if (!readOnly) startRename(session.id, session.name);
+                              }}
+                              className={`group relative flex items-center justify-between p-3 rounded-md cursor-pointer transition-all ${
+                                currentSession?.id === session.id
+                                  ? 'bg-foreground/5 border border-foreground/10'
+                                  : 'hover:bg-muted/50 border border-transparent'
+                              } ${session.isStreaming ? 'streaming-border' : ''}`}
+                            >
+                              <div className="flex-1 min-w-0">
+                                {editingId === session.id ? (
+                                  <input
+                                    ref={editInputRef}
+                                    value={editingName}
+                                    onChange={(e) => setEditingName(e.target.value)}
+                                    onBlur={commitRename}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') commitRename();
+                                      if (e.key === 'Escape') setEditingId(null);
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="w-full text-sm font-medium bg-transparent border-b border-primary outline-none py-0"
+                                  />
+                                ) : (
+                                  <div className="flex items-center gap-1.5">
+                                    {session.sessionType && session.sessionType !== 'user' && (
+                                      (() => {
+                                        const TypeIcon = SESSION_TYPE_ICONS[session.sessionType];
+                                        return <TypeIcon className="w-3 h-3 shrink-0 text-muted-foreground" />;
+                                      })()
+                                    )}
+                                    <p className="font-medium truncate text-sm">{session.name}</p>
+                                    {readOnly && (
+                                      <span className="shrink-0 text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground leading-none">
+                                        {t('sidebar.readOnly')}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  {formatDate(session.updatedAt)}
+                                </p>
+                              </div>
 
-                            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  startRename(session.id, session.name);
-                                }}
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                title={t('common.rename')}
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteSession(session.id);
-                                }}
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                title={t('common.delete')}
-                              >
-                                <Trash className="w-3.5 h-3.5" />
-                              </Button>
+                              {!readOnly && (
+                                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      startRename(session.id, session.name);
+                                    }}
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                    title={t('common.rename')}
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                  <Button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      deleteSession(session.id);
+                                    }}
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                    title={t('common.delete')}
+                                  >
+                                    <Trash className="w-3.5 h-3.5" />
+                                  </Button>
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        ))
+                          );
+                        })
                       )}
                     </>
                   ) : (

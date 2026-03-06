@@ -4,6 +4,7 @@ import { Terminal } from '../icons';
 import type { DashboardCardDef, DashboardCardId } from './types';
 import WelcomeCard from './cards/WelcomeCard';
 import SystemInfoCard from './cards/SystemInfoCard';
+import BunnyMascotCard from './cards/BunnyMascotCard';
 import SessionStatsCard from './cards/SessionStatsCard';
 import LLMConfigCard from './cards/LLMConfigCard';
 import ToolStatusCard from './cards/ToolStatusCard';
@@ -17,6 +18,7 @@ export const cardRegistry: Record<DashboardCardId, DashboardCardDef> = {
     titleKey: 'dashboard.welcome',
     icon: <span className="text-lg">🐰</span>,
     colSpan: 4,
+    rowSpan: 2,
     component: WelcomeCard,
   },
   'system-info': {
@@ -24,15 +26,25 @@ export const cardRegistry: Record<DashboardCardId, DashboardCardDef> = {
     titleKey: 'dashboard.systemInfo',
     icon: <Monitor className="w-4 h-4" />,
     colSpan: 4,
+    rowSpan: 2,
     component: SystemInfoCard,
     isAvailable: () =>
       typeof window !== 'undefined' && !!(window as any).electronAPI,
+  },
+  'bunny-mascot': {
+    id: 'bunny-mascot',
+    titleKey: 'dashboard.bunnyMascot',
+    icon: <span className="text-sm">🐰</span>,
+    colSpan: 2,
+    rowSpan: 2,
+    component: BunnyMascotCard,
   },
   'session-stats': {
     id: 'session-stats',
     titleKey: 'dashboard.sessionStats',
     icon: <MessageSquare className="w-4 h-4" />,
     colSpan: 1,
+    rowSpan: 1,
     component: SessionStatsCard,
   },
   'llm-config': {
@@ -40,6 +52,7 @@ export const cardRegistry: Record<DashboardCardId, DashboardCardDef> = {
     titleKey: 'dashboard.llmConfig',
     icon: <Brain className="w-4 h-4" />,
     colSpan: 1,
+    rowSpan: 1,
     component: LLMConfigCard,
   },
   'tool-status': {
@@ -47,6 +60,7 @@ export const cardRegistry: Record<DashboardCardId, DashboardCardDef> = {
     titleKey: 'dashboard.toolStatus',
     icon: <Wrench className="w-4 h-4" />,
     colSpan: 1,
+    rowSpan: 1,
     component: ToolStatusCard,
   },
   'mcp-status': {
@@ -54,6 +68,7 @@ export const cardRegistry: Record<DashboardCardId, DashboardCardDef> = {
     titleKey: 'dashboard.mcpStatus',
     icon: <Zap className="w-4 h-4" />,
     colSpan: 1,
+    rowSpan: 1,
     component: MCPStatusCard,
   },
   'recent-logs': {
@@ -61,6 +76,7 @@ export const cardRegistry: Record<DashboardCardId, DashboardCardDef> = {
     titleKey: 'dashboard.recentLogs',
     icon: <Terminal className="w-4 h-4" />,
     colSpan: 2,
+    rowSpan: 1,
     component: RecentLogsCard,
   },
   'quick-start': {
@@ -68,6 +84,7 @@ export const cardRegistry: Record<DashboardCardId, DashboardCardDef> = {
     titleKey: 'status.quickStart',
     icon: <Lightbulb className="w-4 h-4" />,
     colSpan: 2,
+    rowSpan: 1,
     component: QuickStartCard,
   },
 };

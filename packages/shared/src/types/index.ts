@@ -62,6 +62,9 @@ export interface LLMConfig {
   maxTokens?: number;
 }
 
+// 会话类型
+export type SessionType = 'user' | 'agent' | 'mind';
+
 // 会话
 export interface Session {
   id: string;
@@ -72,4 +75,5 @@ export interface Session {
   deletedAt?: number;
   isStreaming?: boolean; // 是否正在进行对话
   systemPrompt?: string; // 系统提示词
+  sessionType?: SessionType; // 会话类型：user=用户对话, agent=外部Agent对话(只读), mind=Agent内心计划
 }

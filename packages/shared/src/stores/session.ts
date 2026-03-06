@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Session, Message, LLMConfig } from '../types';
+import { Session, Message, LLMConfig, SessionType } from '../types';
 import { logSettings } from '../services/console/logger';
+import { messageStorage } from '../services/storage/messageStorage';
 
 interface SessionState {
   sessions: Session[];
@@ -10,7 +11,7 @@ interface SessionState {
   llmConfig: LLMConfig;
 
   // Actions
-  createSession: (name?: string) => Session;
+  createSession: (name?: string, sessionType?: SessionType) => Session;
   renameSession: (id: string, name: string) => void;
   deleteSession: (id: string) => void;
   restoreSession: (id: string) => void;
@@ -25,6 +26,8 @@ interface SessionState {
   setSessionSystemPrompt: (sessionId: string, systemPrompt: string) => void;
   openSession: (id: string) => void;
   closeSession: (id: string) => void;
+  loadSessionMessages: (sessionId: string) => Promise<void>;
+  flushMessages: (sessionId: string) => Promise<void>;
 }
 
 // Selector to get current session (derived from sessions + currentSessionId)
@@ -57,13 +60,14 @@ export const useSessionStore = create<SessionState>()(
         maxTokens: 4096,
       },
 
-      createSession: (name = '新会话') => {
+      createSession: (name = '新会话', sessionType: SessionType = 'user') => {
         const session: Session = {
           id: crypto.randomUUID(),
           name,
           messages: [],
           createdAt: Date.now(),
           updatedAt: Date.now(),
+          sessionType,
         };
 
         set((state) => ({
@@ -116,6 +120,8 @@ export const useSessionStore = create<SessionState>()(
       },
 
       permanentlyDeleteSession: (id: string) => {
+        // Also remove messages from IndexedDB
+        messageStorage.delete(id);
         set((state) => ({
           sessions: state.sessions.filter((s) => s.id !== id),
           currentSessionId: state.currentSessionId === id ? null : state.currentSessionId,
@@ -123,6 +129,11 @@ export const useSessionStore = create<SessionState>()(
       },
 
       clearTrash: () => {
+        // Delete messages for all trashed sessions
+        const trashed = get().sessions.filter((s) => s.deletedAt);
+        for (const s of trashed) {
+          messageStorage.delete(s.id);
+        }
         set((state) => ({
           sessions: state.sessions.filter((s) => !s.deletedAt),
         }));
@@ -136,8 +147,8 @@ export const useSessionStore = create<SessionState>()(
       },
 
       addMessage: (sessionId: string, message: Message) => {
-        set((state) => ({
-          sessions: state.sessions.map((session) =>
+        set((state) => {
+          const newSessions = state.sessions.map((session) =>
             session.id === sessionId && !session.deletedAt
               ? {
                   ...session,
@@ -145,13 +156,21 @@ export const useSessionStore = create<SessionState>()(
                   updatedAt: Date.now(),
                 }
               : session
-          ),
-        }));
+          );
+
+          // Async persist to IndexedDB (debounced)
+          const updated = newSessions.find((s) => s.id === sessionId);
+          if (updated) {
+            messageStorage.save(sessionId, updated.messages);
+          }
+
+          return { sessions: newSessions };
+        });
       },
 
       updateMessage: (sessionId: string, messageId: string, updates: Partial<Message>) => {
-        set((state) => ({
-          sessions: state.sessions.map((session) =>
+        set((state) => {
+          const newSessions = state.sessions.map((session) =>
             session.id === sessionId && !session.deletedAt
               ? {
                   ...session,
@@ -169,8 +188,16 @@ export const useSessionStore = create<SessionState>()(
                   ),
                 }
               : session
-          ),
-        }));
+          );
+
+          // Async persist to IndexedDB (debounced)
+          const updated = newSessions.find((s) => s.id === sessionId);
+          if (updated) {
+            messageStorage.save(sessionId, updated.messages);
+          }
+
+          return { sessions: newSessions };
+        });
       },
 
       setLLMConfig: (config: Partial<LLMConfig>) => {
@@ -182,6 +209,7 @@ export const useSessionStore = create<SessionState>()(
       },
 
       clearAllSessions: () => {
+        messageStorage.clear();
         set({ sessions: [], currentSessionId: null });
       },
 
@@ -216,6 +244,8 @@ export const useSessionStore = create<SessionState>()(
       },
 
       closeSession: (id: string) => {
+        // Flush messages before closing
+        messageStorage.flush(id);
         set((state) => {
           const newOpenIds = state.openSessionIds.filter(sid => sid !== id);
           // 如果关闭的是当前会话，切换到下一个打开的会话
@@ -228,9 +258,110 @@ export const useSessionStore = create<SessionState>()(
           };
         });
       },
+
+      /**
+       * Load messages from IndexedDB into the in-memory session.
+       * Called when switching to a session whose messages haven't been loaded yet.
+       */
+      loadSessionMessages: async (sessionId: string) => {
+        const session = get().sessions.find((s) => s.id === sessionId);
+        if (!session) return;
+        // Skip if messages are already loaded
+        if (session.messages.length > 0) return;
+
+        const messages = await messageStorage.load(sessionId);
+        if (messages.length === 0) return;
+
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId ? { ...s, messages } : s
+          ),
+        }));
+      },
+
+      /**
+       * Force-flush pending message writes for a session.
+       * Call on step finish or before navigation.
+       */
+      flushMessages: async (sessionId: string) => {
+        await messageStorage.flush(sessionId);
+      },
     }),
     {
       name: 'webagent-sessions',
+      // Exclude messages from localStorage persistence — they live in IndexedDB
+      partialize: (state) => ({
+        sessions: state.sessions.map((s) => ({
+          ...s,
+          messages: [], // never persist messages to localStorage
+        })),
+        currentSessionId: state.currentSessionId,
+        openSessionIds: state.openSessionIds,
+        llmConfig: state.llmConfig,
+      }),
+      onRehydrateStorage: () => {
+        return (state) => {
+          if (!state) return;
+          // Migrate: if localStorage still has messages (old format), move them to IndexedDB
+          migrateMessagesToIndexedDB();
+        };
+      },
     }
   )
 );
+
+/**
+ * One-time migration: move messages from localStorage (old format) to IndexedDB.
+ * After migration, re-save the localStorage entry without messages.
+ */
+async function migrateMessagesToIndexedDB(): Promise<void> {
+  const MIGRATION_KEY = 'webagent-messages-migrated';
+  try {
+    if (typeof localStorage === 'undefined') return;
+    if (localStorage.getItem(MIGRATION_KEY)) return;
+
+    const raw = localStorage.getItem('webagent-sessions');
+    if (!raw) return;
+
+    const parsed = JSON.parse(raw);
+    const sessions = parsed?.state?.sessions as Array<{ id: string; messages: Message[] }> | undefined;
+    if (!sessions) return;
+
+    let migrated = 0;
+    for (const session of sessions) {
+      if (session.messages && session.messages.length > 0) {
+        messageStorage.save(session.id, session.messages);
+        migrated++;
+      }
+    }
+
+    if (migrated > 0) {
+      // Flush all migrated messages to IndexedDB
+      await messageStorage.flushAll();
+
+      // Load migrated messages into Zustand state so UI shows them immediately
+      const state = useSessionStore.getState();
+      const updatedSessions = state.sessions.map((s) => {
+        const old = sessions.find((os) => os.id === s.id);
+        if (old && old.messages.length > 0 && s.messages.length === 0) {
+          return { ...s, messages: old.messages };
+        }
+        return s;
+      });
+      useSessionStore.setState({ sessions: updatedSessions });
+
+      console.log(`[Migration] Migrated messages for ${migrated} sessions to IndexedDB`);
+    }
+
+    localStorage.setItem(MIGRATION_KEY, '1');
+  } catch (err) {
+    console.error('[Migration] Failed to migrate messages:', err);
+  }
+}
+
+// Flush all dirty messages on page unload
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    messageStorage.flushAll();
+  });
+}

@@ -3,6 +3,7 @@ import type { DashboardCardId } from './types';
 export const DEFAULT_CARD_ORDER: DashboardCardId[] = [
   'welcome',
   'system-info',
+  'bunny-mascot',
   'session-stats',
   'llm-config',
   'tool-status',
@@ -14,6 +15,7 @@ export const DEFAULT_CARD_ORDER: DashboardCardId[] = [
 export const DEFAULT_VISIBLE_CARDS: DashboardCardId[] = [
   'welcome',
   'system-info',
+  'bunny-mascot',
   'session-stats',
   'llm-config',
   'tool-status',

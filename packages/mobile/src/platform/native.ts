@@ -3,9 +3,11 @@ import { setPlatformContext } from '@shared/platform';
 import type { IPlatformAPI, IPlatformContext, OSType } from '@shared/platform';
 import { setThemeHandler, setLanguageHandler } from '@shared/stores/settings';
 import { setFileSystemInstance } from '@shared/services/filesystem';
+import { messageStorage } from '@shared/services/storage/messageStorage';
 import { nativeStorage } from './storage';
 import { nativeFS } from './filesystem';
 import { mobileFileSystem } from './mobileFileSystem';
+import { SQLiteMessageBackend } from './messageBackend';
 import i18n from './i18n';
 
 const nativeAPI: IPlatformAPI = {
@@ -38,6 +40,9 @@ export function initMobilePlatform(): void {
 
   // Register mobile filesystem as the IFileSystem implementation
   setFileSystemInstance(mobileFileSystem);
+
+  // Register SQLite-based message backend for React Native
+  messageStorage.setBackend(new SQLiteMessageBackend());
 
   // Wire up theme handler (handled by App.tsx via Paper theme)
   setThemeHandler(() => {

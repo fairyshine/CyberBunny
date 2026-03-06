@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next';
 import { useToolStore } from '@cyberbunny/shared';
-import { Zap } from 'lucide-react';
 
 export default function MCPStatusCard() {
   const { t } = useTranslation();
@@ -16,10 +15,6 @@ export default function MCPStatusCard() {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Zap className="w-4 h-4 text-muted-foreground" />
-        <span className="text-sm font-medium">{t('dashboard.mcpStatus')}</span>
-      </div>
       {mcpConnections.length === 0 ? (
         <span className="text-xs text-muted-foreground">{t('dashboard.noMcp')}</span>
       ) : (

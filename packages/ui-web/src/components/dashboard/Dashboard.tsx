@@ -48,16 +48,19 @@ function SortableCard({ id }: { id: DashboardCardId }) {
         ? 'col-span-1 sm:col-span-2'
         : 'col-span-1';
 
+  const rowSpanClass =
+    (def.rowSpan ?? 1) === 2 ? 'row-span-2' : 'row-span-1';
+
   const Component = def.component;
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`${colSpanClass} ${isDragging ? 'z-50 opacity-75' : ''}`}
+      className={`${colSpanClass} ${rowSpanClass} ${isDragging ? 'z-50 opacity-75' : ''}`}
     >
-      <Card className="h-full border-elegant hover:shadow-lg transition-shadow">
-        <CardHeader className="pb-2 flex flex-row items-center gap-2 space-y-0">
+      <Card className="h-full border-elegant hover:shadow-lg transition-shadow flex flex-col">
+        <CardHeader className="pb-2 flex flex-row items-center gap-2 space-y-0 shrink-0">
           <button
             className="cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-muted text-muted-foreground"
             aria-label="Drag to reorder"
@@ -71,7 +74,7 @@ function SortableCard({ id }: { id: DashboardCardId }) {
             {t(def.titleKey as any)}
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-1 min-h-0">
           <Component />
         </CardContent>
       </Card>
@@ -132,7 +135,7 @@ export default function Dashboard() {
       onDragEnd={handleDragEnd}
     >
       <SortableContext items={visibleCards} strategy={rectSortingStrategy}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-[11rem]">
           {visibleCards.map((id) => (
             <SortableCard key={id} id={id} />
           ))}
