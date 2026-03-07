@@ -168,6 +168,20 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
     if (renaming && renameInputRef.current) { renameInputRef.current.focus(); renameInputRef.current.select(); }
   }, [renaming]);
 
+  // Keyboard shortcuts for select mode
+  useEffect(() => {
+    if (!selectMode) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept when typing in inputs
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === 'Escape') { exitSelectMode(); }
+      else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedPaths.size > 0) { e.preventDefault(); handleBatchDelete(); }
+      else if (e.key === 'a' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); selectAllVisible(); }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectMode, selectedPaths.size]);
+
   // --- Grid view: load flat entries for current path ---
   const [gridEntries, setGridEntries] = useState<TreeNode[]>([]);
   useEffect(() => {
