@@ -5,7 +5,7 @@
 import { streamText, stepCountIs, type ToolSet } from 'ai';
 import { createModel } from './provider';
 import { getEnabledTools } from './tools';
-import { generateSkillsSystemPrompt, getSkillTools } from './skills';
+import { generateSkillsSystemPrompt, getActivateSkillTool } from './skills';
 import { logLLM, logTool } from '../console/logger';
 import { statsStorage } from '../storage/statsStorage';
 import type { StatsRecord } from '../storage/statsTypes';
@@ -63,8 +63,8 @@ export async function runAgentLoop(
   const groupId = callbacks.generateId();
   const model = createModel(llmConfig, proxyUrl);
   const builtinToolSet = getEnabledTools(enabledTools);
-  const skillToolSet = getSkillTools();
-  const tools = { ...builtinToolSet, ...skillToolSet };
+  const skillActivationTool = getActivateSkillTool();
+  const tools = { ...builtinToolSet, ...skillActivationTool };
 
   const toolCount = Object.keys(tools).length;
   logTool('info', `${toolCount} tools enabled (timeout: ${timeout}ms)`, {

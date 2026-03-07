@@ -120,3 +120,79 @@ export async function readSkillMd(skillName: string): Promise<string | null> {
   const skillMdPath = `${SKILLS_DIR}/${skillName}/SKILL.md`;
   return await fileSystem.readFileText(skillMdPath);
 }
+
+/** A bundled resource file within a skill directory */
+export interface SkillResource {
+  /** Relative path from skill directory (e.g. "scripts/extract.py") */
+  relativePath: string;
+  /** Absolute path in the virtual filesystem */
+  absolutePath: string;
+  type: 'file' | 'directory';
+  size: number;
+}
+
+/**
+ * List bundled resources in a skill directory (Tier 3 discovery).
+ * Returns all files/dirs except SKILL.md itself.
+ * Caps at maxEntries to avoid flooding context for large skill directories.
+ */
+/**
+ * Read a bundled resource file from a skill directory (Tier 3).
+ * Only allows reading files within the skill's own directory (path traversal safe).
+ */
+export async function readSkillResource(
+  skillPath: string,
+  relativePath: string,
+): Promise<{ content: string; size: number } | null> {
+  await fileSystem.initialize();
+
+  // Prevent path traversal: normalize and verify it stays within skillPath
+  const absolutePath = `${skillPath}/${relativePath}`;
+  const normalized = absolutePath.replace(/\/+/g, '/');
+  if (!normalized.startsWith(skillPath + '/')) {
+    return null;
+  }
+
+  // Don't allow reading SKILL.md through this path (use activation for that)
+  if (normalized === `${skillPath}/SKILL.md`) {
+    return null;
+  }
+
+  const content = await fileSystem.readFileText(normalized);
+  if (content === null) return null;
+
+  return { content, size: content.length };
+}
+
+export async function listSkillResources(
+  skillPath: string,
+  maxEntries = 50,
+): Promise<{ resources: SkillResource[]; truncated: boolean }> {
+  await fileSystem.initialize();
+
+  if (!(await fileSystem.exists(skillPath))) {
+    return { resources: [], truncated: false };
+  }
+
+  const entries = await fileSystem.readdir(skillPath, true);
+
+  const resources: SkillResource[] = [];
+  for (const entry of entries) {
+    // Skip SKILL.md itself
+    if (entry.path === `${skillPath}/SKILL.md`) continue;
+
+    const relativePath = entry.path.substring(skillPath.length + 1);
+    resources.push({
+      relativePath,
+      absolutePath: entry.path,
+      type: entry.type,
+      size: entry.size,
+    });
+
+    if (resources.length >= maxEntries) {
+      return { resources, truncated: true };
+    }
+  }
+
+  return { resources, truncated: false };
+}

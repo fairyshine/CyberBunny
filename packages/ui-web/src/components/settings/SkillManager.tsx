@@ -5,7 +5,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSkillStore } from '@shared/stores/skills';
 import type { LoadedSkill } from '@shared/services/skills';
-import { slugifySkillName } from '@shared/services/skills';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -208,7 +207,6 @@ function SkillCard({
   onDelete: () => void;
 }) {
   const { t } = useTranslation();
-  const toolName = `skills_${slugifySkillName(skill.name)}`;
 
   return (
     <Card className="p-4 group">
@@ -225,7 +223,7 @@ function SkillCard({
           </p>
           <div className="flex items-center gap-2">
             <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">
-              {toolName}
+              activate_skill({skill.name})
             </code>
             {skill.metadata?.version && (
               <span className="text-xs text-muted-foreground">v{skill.metadata.version}</span>

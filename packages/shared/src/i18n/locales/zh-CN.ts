@@ -148,6 +148,11 @@ const zhCN = {
   'chat.plainText': '纯文本',
   'chat.results': '结果',
   'chat.toolCalls': '工具调用',
+  'chat.skill.activating': '激活技能',
+  'chat.skill.activated': '已激活技能',
+  'chat.skill.readingResource': '读取技能资源',
+  'chat.skill.resourceLoaded': '技能资源',
+  'chat.skill.resources': '附带资源',
   'chat.totalMessages': '总消息数',
 
   // Tools
@@ -508,7 +513,7 @@ const zhCN = {
   'skills.saveError': '保存技能失败',
   'skills.deleteError': '删除技能失败',
   'skills.totalCount': '共 {{count}} 个技能可用',
-  'skills.toolName': '工具名: skills_{{name}}',
+  'skills.toolName': 'activate_skill({{name}})',
 
   // Welcome (Mobile)
   'welcome.subtitle': '浏览器端智能代理系统',

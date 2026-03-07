@@ -148,6 +148,11 @@ const enUS = {
   'chat.plainText': 'Plain Text',
   'chat.results': 'Results',
   'chat.toolCalls': 'Tool Calls',
+  'chat.skill.activating': 'Activating Skill',
+  'chat.skill.activated': 'Skill Activated',
+  'chat.skill.readingResource': 'Reading Skill Resource',
+  'chat.skill.resourceLoaded': 'Skill Resource',
+  'chat.skill.resources': 'Resources',
   'chat.totalMessages': 'Total Messages',
 
   // Tools
@@ -508,7 +513,7 @@ const enUS = {
   'skills.saveError': 'Failed to save skill',
   'skills.deleteError': 'Failed to delete skill',
   'skills.totalCount': '{{count}} skills available',
-  'skills.toolName': 'Tool: skills_{{name}}',
+  'skills.toolName': 'activate_skill({{name}})',
 
   // Welcome (Mobile)
   'welcome.subtitle': 'Browser-based Intelligent Agent System',

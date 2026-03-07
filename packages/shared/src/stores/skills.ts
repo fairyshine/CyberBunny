@@ -1,6 +1,10 @@
 /**
  * Skills Store — manages built-in + user skills loaded from the virtual filesystem.
  * User skills are stored as folders under /root/.skills/<skill-name>/SKILL.md
+ *
+ * Follows agentskills.io progressive disclosure:
+ * - enabledSkillIds: which skills appear in the catalog (Tier 1)
+ * - activatedSkills: which skills have been loaded into context this session (Tier 2)
  */
 
 import { create } from 'zustand';
@@ -40,14 +44,25 @@ This skill uses Python with pandas, numpy, and matplotlib to analyze data files.
 interface SkillState {
   skills: LoadedSkill[];
   enabledSkillIds: string[];
+  /** Skills activated (loaded into context) in the current session */
+  activatedSkills: Set<string>;
   loading: boolean;
   error: string | null;
 
   /** Load built-in + user skills from filesystem */
   loadSkills: () => Promise<void>;
 
-  /** Toggle a skill on/off */
+  /** Toggle a skill on/off in the catalog */
   toggleSkill: (skillId: string) => void;
+
+  /** Mark a skill as activated in the current session (dedup guard) */
+  markActivated: (skillName: string) => void;
+
+  /** Check if a skill has already been activated this session */
+  isActivated: (skillName: string) => boolean;
+
+  /** Reset activation tracking (call on new session) */
+  resetActivations: () => void;
 
   /** Create a new user skill from template */
   createSkill: (name: string, description: string) => Promise<LoadedSkill>;
@@ -73,6 +88,7 @@ export const useSkillStore = create<SkillState>()(
         return BUILTIN_SKILLS.map(s => s.id);
       }
     })(),
+    activatedSkills: new Set<string>(),
     loading: false,
     error: null,
 
@@ -83,7 +99,7 @@ export const useSkillStore = create<SkillState>()(
         const builtinIds = new Set(BUILTIN_SKILLS.map(s => s.id));
         const filteredUser = userSkills.filter(s => !builtinIds.has(s.id));
         const allSkills = [...BUILTIN_SKILLS, ...filteredUser];
-        // Auto-enable newly loaded skills that aren't tracked yet
+        // Clean up enabledSkillIds to only include known skills
         const { enabledSkillIds } = get();
         const knownIds = new Set([...allSkills.map(s => s.id)]);
         const cleaned = enabledSkillIds.filter(id => knownIds.has(id));
@@ -105,10 +121,24 @@ export const useSkillStore = create<SkillState>()(
       } catch { /* ignore */ }
     },
 
+    markActivated: (skillName: string) => {
+      const { activatedSkills } = get();
+      const next = new Set(activatedSkills);
+      next.add(skillName);
+      set({ activatedSkills: next });
+    },
+
+    isActivated: (skillName: string) => {
+      return get().activatedSkills.has(skillName);
+    },
+
+    resetActivations: () => {
+      set({ activatedSkills: new Set<string>() });
+    },
+
     createSkill: async (name: string, description: string) => {
       const content = generateSkillTemplate(name, description);
       const skill = await saveSkill(name, content);
-      // Reload all skills
       await get().loadSkills();
       return skill;
     },
@@ -132,7 +162,6 @@ export const useSkillStore = create<SkillState>()(
       const skill = get().skills.find(s => s.name === name);
       if (!skill) return null;
       if (skill.source === 'builtin') {
-        // Generate content from built-in definition
         return `---\nname: "${skill.name}"\ndescription: ${skill.description}\nmetadata:\n  author: system\n  version: "1.0"\n---\n\n${skill.body}`;
       }
       return readSkillMd(name);

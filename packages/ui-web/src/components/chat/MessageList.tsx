@@ -1,4 +1,4 @@
-import { useState, memo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Virtuoso } from 'react-virtuoso';
 import { Message } from '@shared/types';
@@ -6,7 +6,9 @@ import ReactMarkdown from '../ReactMarkdown';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Zap } from '../icons';
+import { Sparkles, FileCode } from 'lucide-react';
 import { useSettingsStore } from '@shared/stores/settings';
+import { getToolIcon } from '../ToolIcon';
 
 interface MessageListProps {
   messages: Message[];
@@ -91,6 +93,16 @@ const MessageItem = memo(function MessageItem({ message }: { message: Message })
     );
   }
 
+  // Intercept activate_skill tool calls and results
+  if (message.toolName === 'activate_skill') {
+    if (msgType === 'tool_call') {
+      return <SkillActivationBubble message={message} />;
+    }
+    if (msgType === 'tool_result') {
+      return <SkillResultBubble message={message} />;
+    }
+  }
+
   if (msgType === 'thought' || msgType === 'tool_call') {
     return <ProcessBubble message={message} />;
   }
@@ -157,12 +169,13 @@ const ProcessBubble = memo(function ProcessBubble({ message }: { message: Messag
   const [expanded, setExpanded] = useState(true);
   const isStreaming = message.metadata?.streaming === true;
   const isToolCall = message.type === 'tool_call';
+  const ToolIconComponent = isToolCall && message.toolName ? getToolIcon(message.toolName) : Zap;
 
   if (!message.content && !message.toolInput) {
     return (
       <div className="flex gap-3 md:gap-4 animate-fade-in">
         <div className="flex-shrink-0 w-8 h-8 md:w-9 md:h-9 rounded-full bg-muted flex items-center justify-center text-sm shadow-elegant">
-          <Zap className="w-4 h-4" />
+          <ToolIconComponent className="w-4 h-4" />
         </div>
         <div className="flex-1 max-w-[95%] md:max-w-[85%]">
           <div className="inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-muted border-elegant">
@@ -181,7 +194,7 @@ const ProcessBubble = memo(function ProcessBubble({ message }: { message: Messag
   return (
     <div className="flex gap-3 md:gap-4 animate-fade-in">
       <div className="flex-shrink-0 w-8 h-8 md:w-9 md:h-9 rounded-full bg-muted flex items-center justify-center text-sm shadow-elegant">
-        <Zap className="w-4 h-4" />
+        <ToolIconComponent className="w-4 h-4" />
       </div>
       <div className="flex-1 max-w-[95%] md:max-w-[85%]">
         <button
@@ -214,7 +227,7 @@ const ProcessBubble = memo(function ProcessBubble({ message }: { message: Messag
                 <div className="flex items-start gap-3">
                   <div className="flex-shrink-0">
                     <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Zap className="w-4 h-4 text-primary" />
+                      <ToolIconComponent className="w-4 h-4 text-primary" />
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
@@ -306,6 +319,215 @@ const ToolResultBubble = memo(function ToolResultBubble({ message }: { message: 
               <pre className="mt-3 text-xs bg-background/50 rounded-md p-3 overflow-x-auto font-mono text-foreground/80 whitespace-pre-wrap break-all max-h-64 overflow-y-auto border-elegant">
                 {content}
               </pre>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+/** Parse activate_skill toolInput JSON to extract name and resource_path */
+function parseSkillInput(toolInput?: string): { skillName: string; resourcePath?: string } {
+  if (!toolInput) return { skillName: '' };
+  try {
+    const parsed = JSON.parse(toolInput);
+    return {
+      skillName: parsed.name || '',
+      resourcePath: parsed.resource_path || undefined,
+    };
+  } catch {
+    return { skillName: '' };
+  }
+}
+
+/** Parse resource file list from skill_content XML in tool result */
+function parseSkillResources(content: string): string[] {
+  const files: string[] = [];
+  const regex = /<file\s+path="([^"]+)"/g;
+  let match;
+  while ((match = regex.exec(content)) !== null) {
+    files.push(match[1]);
+  }
+  return files;
+}
+
+/**
+ * Skill Activation Bubble — renders activate_skill tool_call messages.
+ * Compact card with violet accent instead of generic tool call chrome.
+ */
+const SkillActivationBubble = memo(function SkillActivationBubble({ message }: { message: Message }) {
+  const { t } = useTranslation();
+  const isStreaming = message.metadata?.streaming === true;
+  const { skillName, resourcePath } = useMemo(
+    () => parseSkillInput(message.toolInput),
+    [message.toolInput],
+  );
+
+  const isResource = !!resourcePath;
+  const Icon = isResource ? FileCode : Sparkles;
+  const label = isResource ? t('chat.skill.readingResource') : t('chat.skill.activating');
+
+  return (
+    <div className="flex gap-3 md:gap-4 animate-fade-in">
+      <div className="flex-shrink-0 w-8 h-8 md:w-9 md:h-9 rounded-full bg-violet-500/10 flex items-center justify-center shadow-elegant">
+        <Icon className="w-4 h-4 text-violet-500" />
+      </div>
+      <div className="flex-1 max-w-[95%] md:max-w-[85%]">
+        <div className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-violet-500/5 border border-violet-500/20">
+          <span className="text-xs font-medium text-violet-600 dark:text-violet-400">
+            {label}
+          </span>
+          {skillName && (
+            <Badge variant="outline" className="text-[10px] px-2 py-0 font-mono border-violet-500/30 text-violet-600 dark:text-violet-400">
+              {skillName}
+            </Badge>
+          )}
+          {isResource && resourcePath && (
+            <code className="text-[10px] font-mono text-muted-foreground truncate max-w-[200px]">
+              {resourcePath}
+            </code>
+          )}
+          {isStreaming && (
+            <div className="flex gap-1 ml-1">
+              <span className="w-1 h-1 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-1 h-1 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-1 h-1 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+          )}
+        </div>
+        <Timestamp time={message.timestamp} />
+      </div>
+    </div>
+  );
+});
+
+/**
+ * Skill Result Bubble — renders activate_skill tool_result messages.
+ * Activation: shows confirmed badge + resource file listing.
+ * Resource read: shows file content in collapsible block.
+ */
+const SkillResultBubble = memo(function SkillResultBubble({ message }: { message: Message }) {
+  const { t } = useTranslation();
+  const [expanded, setExpanded] = useState(false);
+  const content = message.content || '';
+  const isError = content.startsWith('Error:');
+
+  const isResourceResult = content.includes('<skill_resource');
+
+  const nameMatch = content.match(/name="([^"]+)"/);
+  const skillName = nameMatch?.[1] || '';
+
+  const pathMatch = isResourceResult ? content.match(/path="([^"]+)"/) : null;
+  const resourcePath = pathMatch?.[1] || '';
+
+  const resources = useMemo(
+    () => isResourceResult ? [] : parseSkillResources(content),
+    [content, isResourceResult],
+  );
+
+  if (isError) {
+    return (
+      <div className="flex gap-3 md:gap-4 animate-fade-in">
+        <div className="w-8 md:w-9 flex-shrink-0" />
+        <div className="flex-1 max-w-[95%] md:max-w-[85%]">
+          <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3">
+            <span className="text-xs text-destructive">{content}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Resource file content ---
+  if (isResourceResult) {
+    const bodyMatch = content.match(/<skill_resource[^>]*>\n?([\s\S]*?)\n?<\/skill_resource>/);
+    const fileContent = bodyMatch?.[1] || content;
+
+    return (
+      <div className="flex gap-3 md:gap-4 animate-fade-in">
+        <div className="w-8 md:w-9 flex-shrink-0" />
+        <div className="flex-1 max-w-[95%] md:max-w-[85%]">
+          <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 overflow-hidden">
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-violet-500/10 transition-colors"
+            >
+              <svg
+                className={`w-3 h-3 transition-transform text-violet-500 ${expanded ? 'rotate-90' : ''}`}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+              <FileCode className="w-3.5 h-3.5 text-violet-500" />
+              <Badge variant="outline" className="text-[10px] px-2 py-0 font-medium border-violet-500/30 text-violet-600 dark:text-violet-400">
+                {t('chat.skill.resourceLoaded')}
+              </Badge>
+              <code className="text-[10px] font-mono text-muted-foreground truncate">
+                {resourcePath}
+              </code>
+            </button>
+            {expanded && (
+              <div className="px-4 pb-3 border-t border-violet-500/10 animate-slide-in">
+                <pre className="mt-3 text-xs bg-background/50 rounded-md p-3 overflow-x-auto font-mono text-foreground/80 whitespace-pre-wrap break-all max-h-64 overflow-y-auto border-elegant">
+                  {fileContent}
+                </pre>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Skill activation result ---
+  return (
+    <div className="flex gap-3 md:gap-4 animate-fade-in">
+      <div className="w-8 md:w-9 flex-shrink-0" />
+      <div className="flex-1 max-w-[95%] md:max-w-[85%]">
+        <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 overflow-hidden">
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-violet-500/10 transition-colors"
+          >
+            <svg
+              className={`w-3 h-3 transition-transform text-violet-500 ${expanded ? 'rotate-90' : ''}`}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            <Sparkles className="w-3.5 h-3.5 text-violet-500" />
+            <Badge variant="outline" className="text-[10px] px-2 py-0 font-medium border-violet-500/30 text-violet-600 dark:text-violet-400">
+              {t('chat.skill.activated')}
+            </Badge>
+            {skillName && (
+              <span className="text-xs font-medium text-foreground/70">{skillName}</span>
+            )}
+            {resources.length > 0 && (
+              <span className="text-[10px] text-muted-foreground ml-auto">
+                {resources.length} {t('chat.skill.resources')}
+              </span>
+            )}
+          </button>
+          {expanded && (
+            <div className="border-t border-violet-500/10 animate-slide-in">
+              {resources.length > 0 && (
+                <div className="px-4 py-3">
+                  <div className="text-[10px] font-semibold text-muted-foreground mb-2 uppercase tracking-wider">
+                    {t('chat.skill.resources')}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {resources.map((file) => (
+                      <code
+                        key={file}
+                        className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-background/60 text-foreground/60 border border-foreground/10"
+                      >
+                        {file}
+                      </code>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

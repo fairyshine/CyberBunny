@@ -1,7 +1,7 @@
 /**
  * Skills Service — main entry point
- * Combines built-in skills with user-created skills from the virtual filesystem.
- * Each skill becomes a callable tool following the opencode pattern (skills_{{name}}).
+ * Follows agentskills.io progressive disclosure specification.
+ * Skills are loaded from the virtual filesystem and exposed via a catalog + activate_skill tool.
  */
 
 export { parseSkillMd, generateSkillTemplate, slugifySkillName } from './parser';
@@ -12,7 +12,9 @@ export {
   saveSkill,
   deleteSkill,
   readSkillMd,
+  readSkillResource,
+  listSkillResources,
   ensureSkillsDir,
   SKILLS_DIR,
 } from './loader';
-export type { LoadedSkill } from './loader';
+export type { LoadedSkill, SkillResource } from './loader';
