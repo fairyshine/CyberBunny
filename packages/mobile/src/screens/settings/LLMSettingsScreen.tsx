@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { TextInput, Text, Button, Divider, List, Menu } from 'react-native-paper';
-import { useSessionStore } from '@shared/stores/session';
+import { useAgentConfig } from '../../hooks/useAgentConfig';
 import { providerRegistry, getProviderMeta } from '@shared/services/ai';
 
 export default function LLMSettingsScreen() {
   const { t } = useTranslation();
-  const { llmConfig, setLLMConfig } = useSessionStore();
+  const { llmConfig, setLLMConfig } = useAgentConfig();
 
   const [provider, setProvider] = useState(llmConfig.provider);
   const [apiKey, setApiKey] = useState(llmConfig.apiKey);

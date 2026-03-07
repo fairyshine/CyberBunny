@@ -6,6 +6,7 @@ export {
   AlertTriangle,
   Terminal as TerminalSquare,
   Brain,
+  Rabbit,
   Wrench,
   CheckCircle,
   FileCode,

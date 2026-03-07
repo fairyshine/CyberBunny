@@ -5,6 +5,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import { Appbar } from 'react-native-paper';
 import { useSessionStore } from '@shared/stores/session';
 import { useSettingsStore } from '@shared/stores/settings';
+import { useAgentConfig } from '../hooks/useAgentConfig';
 import { logLLM } from '@shared/services/console/logger';
 import { runAgentLoop } from '@shared/services/ai/agent';
 import type { AgentCallbacks } from '@shared/services/ai/agent';
@@ -22,8 +23,9 @@ export default function ChatScreen() {
   const navigation = useNavigation<ChatScreenNavigationProp>();
   const { sessionId } = route.params;
 
-  const { sessions, addMessage, updateMessage, llmConfig, loadSessionMessages } = useSessionStore();
-  const { enabledTools, proxyUrl, toolExecutionTimeout } = useSettingsStore();
+  const { sessions, addMessage, updateMessage, loadSessionMessages } = useSessionStore();
+  const { llmConfig, enabledTools, enabledSkills } = useAgentConfig();
+  const { proxyUrl, toolExecutionTimeout } = useSettingsStore();
   const session = sessions.find((s) => s.id === sessionId);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -99,17 +101,22 @@ export default function ChatScreen() {
     logLLM('info', `User message: ${content.trim().slice(0, 100)}${content.length > 100 ? '...' : ''}`);
 
     try {
+      // Use session-level tools/skills if configured, otherwise fall back to agent config
+      const effectiveTools = session.sessionTools ?? enabledTools;
+      const effectiveSkills = session.sessionSkills ?? enabledSkills;
+
       const systemPrompt = await runAgentLoop(
         content.trim(),
         sessionId,
         llmConfig,
-        enabledTools,
+        effectiveTools,
         callbacks,
         t,
         proxyUrl,
         toolExecutionTimeout,
         undefined,
         session.projectId,
+        effectiveSkills,
       );
       // Save system prompt to session
       useSessionStore.getState().setSessionSystemPrompt(sessionId, systemPrompt);

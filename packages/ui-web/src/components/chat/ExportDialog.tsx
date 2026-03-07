@@ -5,7 +5,7 @@ import { Message } from '@shared/types';
 import { MessageHistoryManager } from '@shared/utils/messageHistory';
 import type { ExportOptions } from '@shared/utils/messageHistory';
 import { getEnabledTools } from '@shared/services/ai/tools';
-import { useSettingsStore } from '@shared/stores/settings';
+import { useAgentConfig } from '../../hooks/useAgentConfig';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
@@ -23,7 +23,7 @@ interface ExportDialogProps {
 export default function ExportDialog({ messages, systemPrompt, sessionId, sessionName, isOpen, onClose }: ExportDialogProps) {
   const { t } = useTranslation();
   const [format, setFormat] = useState<'json' | 'markdown' | 'text'>('markdown');
-  const enabledToolIds = useSettingsStore((s) => s.enabledTools);
+  const { enabledTools: enabledToolIds } = useAgentConfig();
 
   const exportOpts = useMemo((): ExportOptions => ({
     systemPrompt,

@@ -4,7 +4,7 @@ import { Send, Loader, X, Wrench, Lock } from '../icons';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
-import { useSettingsStore } from '@shared/stores/settings';
+import { useAgentConfig } from '../../hooks/useAgentConfig';
 import { useSkillStore } from '@shared/stores/skills';
 import { useSessionStore, selectCurrentSession } from '@shared/stores/session';
 import { builtinTools } from '@shared/services/ai/tools';
@@ -37,8 +37,8 @@ export default function ChatInput({ onSend, onStop, isLoading, disabled, placeho
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const { enabledTools, toggleTool } = useSettingsStore();
-  const { skills, enabledSkillIds, toggleSkill, loadSkills } = useSkillStore();
+  const { enabledTools, toggleTool, enabledSkills, toggleSkill: toggleAgentSkill } = useAgentConfig();
+  const { skills, loadSkills } = useSkillStore();
   const session = useSessionStore(selectCurrentSession);
   const setSessionTools = useSessionStore((s) => s.setSessionTools);
   const setSessionSkills = useSessionStore((s) => s.setSessionSkills);
@@ -55,8 +55,8 @@ export default function ChatInput({ onSend, onStop, isLoading, disabled, placeho
 
   const effectiveSkills = useMemo(() => {
     if (session?.sessionSkills != null) return session.sessionSkills;
-    return enabledSkillIds;
-  }, [session?.sessionSkills, enabledSkillIds]);
+    return enabledSkills;
+  }, [session?.sessionSkills, enabledSkills]);
 
   // Whether we're viewing session-level overrides
   const hasSessionOverride = session?.sessionTools != null || session?.sessionSkills != null;
@@ -122,7 +122,7 @@ export default function ChatInput({ onSend, onStop, isLoading, disabled, placeho
       setSessionTools(session.id, next);
       // Also snapshot skills if not yet
       if (session.sessionSkills == null) {
-        setSessionSkills(session.id, [...enabledSkillIds]);
+        setSessionSkills(session.id, [...enabledSkills]);
       }
     }
   };
@@ -130,9 +130,9 @@ export default function ChatInput({ onSend, onStop, isLoading, disabled, placeho
   const handleToggleSkill = (skillId: string) => {
     if (isSessionStarted) return;
     if (scopeMode === 'global') {
-      toggleSkill(skillId);
+      toggleAgentSkill(skillId);
     } else if (session) {
-      const current = session.sessionSkills ?? [...enabledSkillIds];
+      const current = session.sessionSkills ?? [...enabledSkills];
       const next = current.includes(skillId)
         ? current.filter((id) => id !== skillId)
         : [...current, skillId];
@@ -148,9 +148,9 @@ export default function ChatInput({ onSend, onStop, isLoading, disabled, placeho
     if (isSessionStarted) return;
     setScopeMode(mode);
     if (mode === 'session' && session && !hasSessionOverride) {
-      // Snapshot current global config to session
+      // Snapshot current agent config to session
       setSessionTools(session.id, [...enabledTools]);
-      setSessionSkills(session.id, [...enabledSkillIds]);
+      setSessionSkills(session.id, [...enabledSkills]);
     } else if (mode === 'global' && session && hasSessionOverride) {
       // Clear session overrides, revert to global
       setSessionTools(session.id, undefined);
@@ -160,7 +160,7 @@ export default function ChatInput({ onSend, onStop, isLoading, disabled, placeho
 
   // Display tools/skills based on current scope
   const displayTools = scopeMode === 'session' ? effectiveTools : enabledTools;
-  const displaySkills = scopeMode === 'session' ? effectiveSkills : enabledSkillIds;
+  const displaySkills = scopeMode === 'session' ? effectiveSkills : enabledSkills;
 
   const enabledToolCount = allToolIds.filter((id) => displayTools.includes(id)).length;
   const enabledSkillCount = skills.filter((s) => displaySkills.includes(s.id)).length;

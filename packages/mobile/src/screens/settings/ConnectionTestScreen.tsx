@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Button, Text, Card, useTheme } from 'react-native-paper';
-import { useSessionStore } from '@shared/stores/session';
+import { useAgentConfig } from '../../hooks/useAgentConfig';
 import { testConnection } from '@shared/services/ai/provider';
 
 export default function ConnectionTestScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
-  const { llmConfig } = useSessionStore();
+  const { llmConfig } = useAgentConfig();
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState('');
 

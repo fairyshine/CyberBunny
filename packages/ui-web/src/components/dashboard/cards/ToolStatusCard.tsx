@@ -1,10 +1,10 @@
 import { useTranslation } from 'react-i18next';
-import { useSettingsStore } from '@cyberbunny/shared';
+import { useAgentConfig } from '../../../hooks/useAgentConfig';
 import { Badge } from '../../ui/badge';
 
 export default function ToolStatusCard() {
   const { t } = useTranslation();
-  const enabledTools = useSettingsStore((s) => s.enabledTools);
+  const { enabledTools } = useAgentConfig();
 
   return (
     <div className="space-y-3">

@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, ChevronLeft, MessageSquare, Plus, FolderOpen, FolderTree, Brain } from '../icons';
+import { ChevronDown, ChevronLeft, MessageSquare, Plus, FolderOpen, FolderTree, Rabbit } from '../icons';
 import { Button } from '../ui/button';
 import { useState } from 'react';
 import type { FC } from 'react';
@@ -16,7 +16,7 @@ interface SidebarHeaderProps {
 }
 
 const TAB_CONFIG: { key: TabType; icon: FC<{ className?: string }>; labelKey: string }[] = [
-  { key: 'agents', icon: Brain, labelKey: 'sidebar.agents' },
+  { key: 'agents', icon: Rabbit, labelKey: 'sidebar.agents' },
   { key: 'sessions', icon: MessageSquare, labelKey: 'sidebar.sessions' },
   { key: 'files', icon: FolderTree, labelKey: 'sidebar.files' },
 ];

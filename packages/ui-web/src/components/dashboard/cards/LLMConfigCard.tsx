@@ -1,10 +1,10 @@
 import { useTranslation } from 'react-i18next';
-import { useSessionStore } from '@cyberbunny/shared';
+import { useAgentConfig } from '../../../hooks/useAgentConfig';
 import { Badge } from '../../ui/badge';
 
 export default function LLMConfigCard() {
   const { t } = useTranslation();
-  const llmConfig = useSessionStore((s) => s.llmConfig);
+  const { llmConfig } = useAgentConfig();
 
   return (
     <div className="space-y-2">

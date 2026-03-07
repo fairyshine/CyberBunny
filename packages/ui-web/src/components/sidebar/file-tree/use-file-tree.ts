@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fileSystem, FileSystemEntry } from '@shared/services/filesystem';
-import { useAgentStore, DEFAULT_AGENT_ID } from '@shared/stores/agent';
+import { useAgentStore } from '@shared/stores/agent';
 import { TreeNode, ViewMode } from './types';
 
 export function useFileTree() {

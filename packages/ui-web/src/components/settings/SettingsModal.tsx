@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSessionStore } from '@shared/stores/session';
 import { useSettingsStore } from '@shared/stores/settings';
+import { useAgentConfig } from '../../hooks/useAgentConfig';
 import { getProviderMeta } from '@shared/services/ai';
 import type { LLMConfig, LLMPreset } from '@shared/types';
 import { ToolManager } from './ToolManager';
@@ -36,7 +36,7 @@ const emptyConfig: LLMConfig = {
 
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { t } = useTranslation();
-  const { setLLMConfig } = useSessionStore();
+  const { llmConfig, setLLMConfig } = useAgentConfig();
   const {
     language,
     setLanguage,
@@ -66,12 +66,11 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const formRef = useRef<LLMConfig>({ ...emptyConfig });
 
   // Find which preset is currently applied (matches llmConfig)
-  const activePresetId = useSessionStore((s) => {
-    const cfg = s.llmConfig;
+  const activePresetId = (() => {
     return llmPresets.find(
-      (p) => p.provider === cfg.provider && p.model === cfg.model && p.apiKey === cfg.apiKey
+      (p) => p.provider === llmConfig.provider && p.model === llmConfig.model && p.apiKey === llmConfig.apiKey
     )?.id ?? null;
-  });
+  })();
 
   const openNewForm = () => {
     const meta = getProviderMeta('openai');

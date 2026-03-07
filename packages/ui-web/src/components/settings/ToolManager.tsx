@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '@shared/stores/settings';
+import { useAgentConfig } from '../../hooks/useAgentConfig';
 import { builtinTools } from '@shared/services/ai/tools';
 import { detectPlatform } from '@shared/platform/detect';
 import { Button } from '../ui/button';
@@ -185,7 +186,7 @@ function ToolRow({ toolId, enabled, onToggle }: {
 
 export function ToolManager() {
   const { t } = useTranslation();
-  const { enabledTools, toggleTool } = useSettingsStore();
+  const { enabledTools, toggleTool } = useAgentConfig();
   const allToolIds = Object.keys(builtinTools);
 
   return (

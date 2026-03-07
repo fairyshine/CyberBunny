@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSessionStore } from '@shared/stores/session';
+import { useAgentConfig } from '../../hooks/useAgentConfig';
 import { useSettingsStore } from '@shared/stores/settings';
 import { testConnection as testLLMConnection } from '@shared/services/ai/provider';
 import { Button } from '../ui/button';
@@ -11,7 +11,7 @@ export default function ConnectionTest() {
   const { t } = useTranslation();
   const [result, setResult] = useState<string>('');
   const [testing, setTesting] = useState(false);
-  const { llmConfig } = useSessionStore();
+  const { llmConfig } = useAgentConfig();
   const { proxyUrl } = useSettingsStore();
   const containerRef = useRef<HTMLDivElement>(null);
 

@@ -23,9 +23,6 @@ export function SessionList({ onItemClick, onSessionSelect, onEditProject, sessi
   const currentAgentId = useAgentStore((s) => s.currentAgentId);
   const agentSessions = useAgentStore((s) => s.agentSessions);
   const createAgentSession = useAgentStore((s) => s.createAgentSession);
-  const deleteAgentSession = useAgentStore((s) => s.deleteAgentSession);
-  const setAgentCurrentSession = useAgentStore((s) => s.setAgentCurrentSession);
-  const agentCurrentSessionId = useAgentStore((s) => s.agentCurrentSessionId);
 
   // Fallback to default session store for default agent
   const { deleteSession, createSession, deleteProject, moveSessionToProject, clearTrash } = useSessionStore();

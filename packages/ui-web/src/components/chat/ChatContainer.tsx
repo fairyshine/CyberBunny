@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSessionStore } from '@shared/stores/session';
 import { useSettingsStore } from '@shared/stores/settings';
+import { useAgentConfig } from '../../hooks/useAgentConfig';
 import { Message } from '@shared/types';
 import { logLLM } from '@shared/services/console/logger';
 import { runAgentLoop } from '@shared/services/ai/agent';
@@ -26,8 +27,9 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<string>('');
   const [showExportDialog, setShowExportDialog] = useState(false);
-  const { sessions, addMessage, updateMessage, llmConfig, loadSessionMessages } = useSessionStore();
-  const { enabledTools, proxyUrl, toolExecutionTimeout } = useSettingsStore();
+  const { sessions, addMessage, updateMessage, loadSessionMessages } = useSessionStore();
+  const { llmConfig, enabledTools, enabledSkills } = useAgentConfig();
+  const { proxyUrl, toolExecutionTimeout } = useSettingsStore();
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const session = sessions.find((s) => s.id === sessionId);
@@ -166,9 +168,9 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
     abortControllerRef.current = abortController;
 
     try {
-      // Use session-level tools/skills if configured, otherwise fall back to global
+      // Use session-level tools/skills if configured, otherwise fall back to agent config
       const effectiveTools = session?.sessionTools ?? enabledTools;
-      const effectiveSkills = session?.sessionSkills ?? undefined;
+      const effectiveSkills = session?.sessionSkills ?? enabledSkills;
 
       const systemPrompt = await runAgentLoop(
         content.trim(),

@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from '../ui/button';
-import { ChevronRight, MessageSquare, FolderTree, Brain } from '../icons';
+import { ChevronRight, MessageSquare, FolderTree, Rabbit } from '../icons';
 
 type TabType = 'agents' | 'sessions' | 'files';
 
@@ -32,7 +32,7 @@ export function CollapsedSidebar({ activeTab, onExpand }: CollapsedSidebarProps)
           title={t('sidebar.agents')}
           className="h-9 w-9"
         >
-          <Brain className="w-4 h-4" />
+          <Rabbit className="w-4 h-4" />
         </Button>
         <Button
           onClick={() => onExpand('sessions')}
