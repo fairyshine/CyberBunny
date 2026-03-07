@@ -6,8 +6,9 @@ import ReactMarkdown from '../ReactMarkdown';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Zap } from '../icons';
-import { Sparkles, FileCode } from 'lucide-react';
+import { Sparkles, FileCode, Folder, File } from 'lucide-react';
 import { useSettingsStore } from '@shared/stores/settings';
+import { useSkillStore } from '@shared/stores/skills';
 import { getToolIcon } from '../ToolIcon';
 
 interface MessageListProps {
@@ -318,6 +319,16 @@ const ToolResultBubble = memo(function ToolResultBubble({ message }: { message: 
               <pre className="mt-3 text-xs bg-background/50 rounded-md p-3 overflow-x-auto font-mono text-foreground/80 whitespace-pre-wrap break-all max-h-64 overflow-y-auto border-elegant">
                 {content}
               </pre>
+              {(message.metadata?.files as Array<{ data: string; mediaType: string }> | undefined)
+                ?.filter(f => f.mediaType?.startsWith('image/'))
+                .map((file, i) => (
+                  <img
+                    key={i}
+                    src={`data:${file.mediaType};base64,${file.data}`}
+                    alt={`${message.toolName} result ${i + 1}`}
+                    className="mt-3 max-w-full max-h-80 rounded-md border-elegant shadow-elegant object-contain"
+                  />
+                ))}
             </div>
           )}
         </div>
@@ -341,15 +352,39 @@ function parseSkillInput(toolInput?: string): { skillName: string; resourcePath?
   }
 }
 
-/** Parse resource file list from skill_content XML in tool result */
-function parseSkillResources(content: string): string[] {
-  const files: string[] = [];
-  const regex = /<file\s+path="([^"]+)"/g;
+interface SkillResource {
+  type: 'directory' | 'file';
+  path: string;
+  name: string;
+  size?: number;
+}
+
+/** Parse resource directories and files from skill_content XML in tool result */
+function parseSkillResources(content: string): SkillResource[] {
+  const resources: SkillResource[] = [];
+  const dirRegex = /<directory\s+path="([^"]+)"\s*\/>/g;
+  const fileRegex = /<file\s+path="([^"]+)"(?:\s+size="(\d+)")?\s*\/>/g;
   let match;
-  while ((match = regex.exec(content)) !== null) {
-    files.push(match[1]);
+  while ((match = dirRegex.exec(content)) !== null) {
+    const p = match[1];
+    resources.push({ type: 'directory', path: p, name: p.split('/').filter(Boolean).pop() || p });
   }
-  return files;
+  while ((match = fileRegex.exec(content)) !== null) {
+    const p = match[1];
+    resources.push({
+      type: 'file',
+      path: p,
+      name: p.split('/').pop() || p,
+      size: match[2] ? Number(match[2]) : undefined,
+    });
+  }
+  return resources;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 /**
@@ -358,11 +393,13 @@ function parseSkillResources(content: string): string[] {
  */
 const SkillActivationBubble = memo(function SkillActivationBubble({ message }: { message: Message }) {
   const { t } = useTranslation();
+  const [expanded, setExpanded] = useState(false);
   const isStreaming = message.metadata?.streaming === true;
   const { skillName, resourcePath } = useMemo(
     () => parseSkillInput(message.toolInput),
     [message.toolInput],
   );
+  const skillDescription = useSkillStore(s => s.skills.find(sk => sk.name === skillName)?.description || '');
 
   const isResource = !!resourcePath;
   const Icon = isResource ? FileCode : Sparkles;
@@ -374,25 +411,41 @@ const SkillActivationBubble = memo(function SkillActivationBubble({ message }: {
         <Icon className="w-4 h-4 text-foreground/50" />
       </div>
       <div className="flex-1 max-w-[95%] md:max-w-[85%]">
-        <div className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-muted/50 border border-border">
-          <span className="text-xs font-medium text-muted-foreground">
-            {label}
-          </span>
-          {skillName && (
-            <Badge variant="outline" className="text-[10px] px-2 py-0 font-mono border-border text-foreground/60">
-              {skillName}
-            </Badge>
-          )}
-          {isResource && resourcePath && (
-            <code className="text-[10px] font-mono text-muted-foreground truncate max-w-[200px]">
-              {resourcePath}
-            </code>
-          )}
-          {isStreaming && (
-            <div className="flex gap-1 ml-1">
-              <span className="w-1 h-1 bg-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <span className="w-1 h-1 bg-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <span className="w-1 h-1 bg-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+        <div className="rounded-2xl bg-muted/50 border border-border overflow-hidden">
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 hover:bg-muted/70 transition-colors"
+          >
+            <svg
+              className={`w-3 h-3 transition-transform text-foreground/50 ${expanded ? 'rotate-90' : ''}`}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            <span className="text-xs font-medium text-muted-foreground">
+              {label}
+            </span>
+            {skillName && (
+              <Badge variant="outline" className="text-[10px] px-2 py-0 font-mono border-border text-foreground/60">
+                {skillName}
+              </Badge>
+            )}
+            {isResource && resourcePath && (
+              <code className="text-[10px] font-mono text-muted-foreground truncate max-w-[200px]">
+                {resourcePath}
+              </code>
+            )}
+            {isStreaming && (
+              <div className="flex gap-1 ml-1">
+                <span className="w-1 h-1 bg-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1 h-1 bg-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1 h-1 bg-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            )}
+          </button>
+          {expanded && skillDescription && (
+            <div className="px-4 py-3 border-t border-border/30 animate-slide-in">
+              <p className="text-xs text-muted-foreground leading-relaxed">{skillDescription}</p>
             </div>
           )}
         </div>
@@ -412,7 +465,8 @@ const SkillResultBubble = memo(function SkillResultBubble({ message }: { message
   const content = message.content || '';
   const isError = content.startsWith('Error:');
 
-  const isResourceResult = content.includes('<skill_resource');
+  // Match single resource read (<skill_resource ...>) but NOT the resource listing (<skill_resources>)
+  const isResourceResult = /<skill_resource[\s>]/.test(content) && !content.includes('<skill_resources>');
 
   const nameMatch = content.match(/name="([^"]+)"/);
   const skillName = nameMatch?.[1] || '';
@@ -445,6 +499,11 @@ const SkillResultBubble = memo(function SkillResultBubble({ message }: { message
     const fileContent = bodyMatch?.[1] || content;
     const isMarkdownResource = /\.md$/i.test(resourcePath);
 
+    // AI SDK v6: image files are stored as file-data in metadata.files
+    const files = (message.metadata?.files || []) as Array<{ data: string; mediaType: string }>;
+    const imageFiles = files.filter(f => f.mediaType?.startsWith('image/'));
+    const isImageResource = imageFiles.length > 0 || content.includes('type="image"');
+
     return (
       <div className="flex gap-3 md:gap-4 animate-fade-in">
         <div className="w-8 md:w-9 flex-shrink-0" />
@@ -470,7 +529,16 @@ const SkillResultBubble = memo(function SkillResultBubble({ message }: { message
             </button>
             {expanded && (
               <div className="px-4 pb-3 border-t border-border/30 animate-slide-in">
-                {isMarkdownResource ? (
+                {isImageResource ? (
+                  imageFiles.map((file, i) => (
+                    <img
+                      key={i}
+                      src={`data:${file.mediaType};base64,${file.data}`}
+                      alt={resourcePath}
+                      className="mt-3 max-w-full max-h-80 rounded-md border-elegant shadow-elegant object-contain"
+                    />
+                  ))
+                ) : isMarkdownResource ? (
                   <div className="mt-3 text-sm max-h-64 overflow-y-auto">
                     <ReactMarkdown content={fileContent} />
                   </div>
@@ -533,14 +601,23 @@ const SkillResultBubble = memo(function SkillResultBubble({ message }: { message
                   <div className="text-[10px] font-semibold text-muted-foreground mb-2 uppercase tracking-wider">
                     {t('chat.skill.resources')}
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {resources.map((file) => (
-                      <code
-                        key={file}
-                        className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-background/60 text-foreground/60 border border-foreground/10"
-                      >
-                        {file}
-                      </code>
+                  <div className="space-y-1">
+                    {resources.map((res) => (
+                      <div key={res.path} className="flex items-center gap-2 py-0.5">
+                        {res.type === 'directory' ? (
+                          <Folder className="w-3.5 h-3.5 text-foreground/40 flex-shrink-0" />
+                        ) : (
+                          <File className="w-3.5 h-3.5 text-foreground/40 flex-shrink-0" />
+                        )}
+                        <span className="text-[11px] font-mono text-foreground/70 break-all">
+                          {res.path}
+                        </span>
+                        {res.type === 'file' && res.size != null && (
+                          <span className="text-[10px] text-muted-foreground/60 ml-auto flex-shrink-0">
+                            {formatFileSize(res.size)}
+                          </span>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>

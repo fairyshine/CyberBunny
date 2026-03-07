@@ -255,7 +255,25 @@ export async function runAgentLoop(
 
             // --- tool_result message ---
             if (tr) {
-              const resultContent = typeof tr.output === 'string' ? tr.output : JSON.stringify(tr.output);
+              const output = tr.output as any;
+              let resultContent: string;
+              const files: Array<{ data: string; mediaType: string; filename?: string }> = [];
+
+              // AI SDK v6 ToolResultOutput: extract file-data parts from 'content' type
+              if (output && typeof output === 'object' && output.type === 'content' && Array.isArray(output.value)) {
+                const textParts: string[] = [];
+                for (const part of output.value) {
+                  if (part.type === 'text') {
+                    textParts.push(part.text);
+                  } else if (part.type === 'file-data') {
+                    files.push({ data: part.data, mediaType: part.mediaType, filename: part.filename });
+                  }
+                }
+                resultContent = textParts.join('\n');
+              } else {
+                resultContent = typeof output === 'string' ? output : JSON.stringify(output);
+              }
+
               const toolResultMsgId = callbacks.generateId();
 
               callbacks.addMessage(sessionId, {
@@ -268,10 +286,11 @@ export async function runAgentLoop(
                 toolOutput: resultContent,
                 toolCallId: tc.toolCallId,
                 groupId,
+                ...(files.length > 0 ? { metadata: { files } } : {}),
               });
 
               interactionMessageCount++; // tool_result
-              logTool('success', `Tool ${toolName} completed`, { resultLength: resultContent.length });
+              logTool('success', `Tool ${toolName} completed`, { resultLength: resultContent.length, fileCount: files.length });
             }
           }
 

@@ -111,6 +111,17 @@ export function getActivateSkillTool(): Record<string, Tool> {
           return `Error: Resource "${resource_path}" not found in skill "${name}". Call activate_skill with just the name to see available resources.`;
         }
 
+        // Image resource: return as multi-part content with file-data (AI SDK v6 ToolResultOutput)
+        if (result.type === 'image') {
+          return {
+            type: 'content' as const,
+            value: [
+              { type: 'text' as const, text: `<skill_resource name="${name}" path="${resource_path}" type="image" />` },
+              { type: 'file-data' as const, data: result.content, mediaType: result.mimeType! },
+            ],
+          } as any;
+        }
+
         return `<skill_resource name="${name}" path="${resource_path}">
 ${result.content}
 </skill_resource>`;

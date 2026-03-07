@@ -140,10 +140,24 @@ export interface SkillResource {
  * Read a bundled resource file from a skill directory (Tier 3).
  * Only allows reading files within the skill's own directory (path traversal safe).
  */
+const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico']);
+
+function getFileExtension(path: string): string {
+  return (path.split('.').pop() || '').toLowerCase();
+}
+
+function getMimeType(ext: string): string {
+  const map: Record<string, string> = {
+    png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
+    svg: 'image/svg+xml', webp: 'image/webp', bmp: 'image/bmp', ico: 'image/x-icon',
+  };
+  return map[ext] || 'application/octet-stream';
+}
+
 export async function readSkillResource(
   skillPath: string,
   relativePath: string,
-): Promise<{ content: string; size: number } | null> {
+): Promise<{ content: string; size: number; type?: 'image'; mimeType?: string } | null> {
   await fileSystem.initialize();
 
   // Prevent path traversal: normalize and verify it stays within skillPath
@@ -156,6 +170,21 @@ export async function readSkillResource(
   // Don't allow reading SKILL.md through this path (use activation for that)
   if (normalized === `${skillPath}/SKILL.md`) {
     return null;
+  }
+
+  const ext = getFileExtension(relativePath);
+
+  // Image files: read as raw base64 (AI SDK v6 file-data format)
+  if (IMAGE_EXTENSIONS.has(ext)) {
+    const blob = await fileSystem.readFile(normalized);
+    if (!blob) return null;
+    const buffer = await blob.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    const base64 = btoa(binary);
+    const mimeType = getMimeType(ext);
+    return { content: base64, size: blob.size, type: 'image', mimeType };
   }
 
   const content = await fileSystem.readFileText(normalized);
