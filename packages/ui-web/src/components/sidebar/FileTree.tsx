@@ -85,6 +85,36 @@ type FileSystemEntry_Web = { isFile: boolean; isDirectory: boolean; name: string
 type FileSystemFileEntry_Web = FileSystemEntry_Web & { file: (cb: (f: File) => void, err?: (e: any) => void) => void };
 type FileSystemDirectoryEntry_Web = FileSystemEntry_Web & { createReader: () => { readEntries: (cb: (entries: FileSystemEntry_Web[]) => void, err?: (e: any) => void) => void } };
 
+/** Stable inline input — manages its own local state so parent re-renders don't destroy the DOM node */
+function InlineInput({ initialValue, placeholder, className, onSubmit, onCancel, onClick }: {
+  initialValue: string;
+  placeholder?: string;
+  className?: string;
+  onSubmit: (value: string) => void;
+  onCancel: () => void;
+  onClick?: (e: React.MouseEvent) => void;
+}) {
+  const [value, setValue] = useState(initialValue);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const doneRef = useRef(false);
+  useEffect(() => { inputRef.current?.focus(); if (initialValue) inputRef.current?.select(); }, []);
+  const submit = () => { if (doneRef.current) return; doneRef.current = true; onSubmit(value); };
+  const cancel = () => { if (doneRef.current) return; doneRef.current = true; onCancel(); };
+  return (
+    <input
+      ref={inputRef}
+      type="text"
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onKeyDown={(e) => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') cancel(); }}
+      onBlur={submit}
+      placeholder={placeholder}
+      className={className}
+      onClick={onClick}
+    />
+  );
+}
+
 export default function FileTree({ onSelectFile, selectedPath, onItemClick }: FileTreeProps) {
   const { t } = useTranslation();
   const [tree, setTree] = useState<TreeNode[]>([]);
@@ -97,11 +127,10 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
   });
 
   const [creating, setCreating] = useState<{ path: string; type: 'folder' | 'file' } | null>(null);
-  const [createName, setCreateName] = useState('');
-  const createInputRef = useRef<HTMLInputElement>(null);
+  const creatingRef = useRef(creating);
+  creatingRef.current = creating;
 
   const [renaming, setRenaming] = useState<{ path: string; name: string } | null>(null);
-  const renameInputRef = useRef<HTMLInputElement>(null);
 
   const [draggedPath, setDraggedPath] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
@@ -158,17 +187,9 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
     setIsLoading(false);
   }, [loadDirectory, expandedPaths]);
 
-  useEffect(() => { if (!isDraggingRef.current) loadTree(); }, [loadTree]);
+  useEffect(() => { if (!isDraggingRef.current && !creatingRef.current) loadTree(); }, [loadTree]);
 
-  useEffect(() => {
-    if (creating && createInputRef.current) createInputRef.current.focus();
-  }, [creating]);
-
-  useEffect(() => {
-    if (renaming && renameInputRef.current) { renameInputRef.current.focus(); renameInputRef.current.select(); }
-  }, [renaming]);
-
-  // Keyboard shortcuts for select mode
+  // --- Tree operations ---
   useEffect(() => {
     if (!selectMode) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -206,39 +227,42 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
   };
 
   const startCreate = (parentPath: string, type: 'folder' | 'file') => {
+    if (!expandedPaths.has(parentPath)) {
+      const newExpanded = new Set(expandedPaths);
+      newExpanded.add(parentPath);
+      setExpandedPaths(newExpanded);
+    }
     setCreating({ path: parentPath, type });
-    setCreateName('');
   };
 
-  const submitCreate = async () => {
-    if (!creating || !createName.trim()) { setCreating(null); return; }
+  const handleCreateSubmit = async (name: string) => {
+    const cur = creatingRef.current;
+    setCreating(null);
+    if (!cur || !name.trim()) return;
     try {
-      const newPath = `${creating.path}/${createName.trim()}`;
-      if (creating.type === 'folder') { await fileSystem.mkdir(newPath); }
+      const newPath = `${cur.path}/${name.trim()}`;
+      if (cur.type === 'folder') { await fileSystem.mkdir(newPath); }
       else { await fileSystem.writeFile(newPath, ''); }
-      const newExpanded = new Set(expandedPaths);
-      newExpanded.add(creating.path);
-      setExpandedPaths(newExpanded);
-      await loadTree();
+      setExpandedPaths(prev => { const next = new Set(prev); next.add(cur.path); return next; });
     } catch (error) {
       alert(t('fileManager.createFailed', { error: error instanceof Error ? error.message : String(error) }));
     }
-    setCreating(null);
-    setCreateName('');
+    await loadTree();
   };
 
   const startRename = (entry: FileSystemEntry) => { setRenaming({ path: entry.path, name: entry.name }); };
 
-  const submitRename = async () => {
-    if (!renaming || !renaming.name.trim()) { setRenaming(null); return; }
+  const handleRenameSubmit = async (name: string) => {
+    const cur = renaming;
+    setRenaming(null);
+    if (!cur || !name.trim()) return;
     try {
-      const parentPath = renaming.path.substring(0, renaming.path.lastIndexOf('/')) || '/root';
-      const newPath = `${parentPath}/${renaming.name.trim()}`;
-      if (newPath !== renaming.path) { await fileSystem.rename(renaming.path, newPath); await loadTree(); }
+      const parentPath = cur.path.substring(0, cur.path.lastIndexOf('/')) || '/root';
+      const newPath = `${parentPath}/${name.trim()}`;
+      if (newPath !== cur.path) { await fileSystem.rename(cur.path, newPath); await loadTree(); }
     } catch (error) {
       alert(t('fileManager.renameFailed', { error: error instanceof Error ? error.message : String(error) }));
     }
-    setRenaming(null);
   };
 
   const handleDelete = async (entry: FileSystemEntry) => {
@@ -272,15 +296,55 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
     return result;
   }, [expandedPaths]);
 
-  const toggleSelectPath = (path: string) => {
+  // Collect all descendant paths under a directory node
+  const collectDescendants = useCallback((nodes: TreeNode[], targetPath: string): string[] => {
+    for (const node of nodes) {
+      if (node.path === targetPath) {
+        // Found the target — flatten all children recursively
+        const result: string[] = [];
+        const collect = (n: TreeNode) => {
+          if (n.children) {
+            for (const child of n.children) {
+              result.push(child.path);
+              collect(child);
+            }
+          }
+        };
+        collect(node);
+        return result;
+      }
+      if (node.children) {
+        const found = collectDescendants(node.children, targetPath);
+        if (found.length > 0) return found;
+      }
+    }
+    return [];
+  }, []);
+
+  const toggleSelectPath = (path: string, isDirectory?: boolean) => {
     setSelectedPaths(prev => {
       const next = new Set(prev);
-      if (next.has(path)) next.delete(path); else next.add(path);
+      const wasSelected = next.has(path);
+      if (wasSelected) {
+        next.delete(path);
+        // If directory, also deselect all descendants
+        if (isDirectory) {
+          const descendants = collectDescendants(tree, path);
+          for (const d of descendants) next.delete(d);
+        }
+      } else {
+        next.add(path);
+        // If directory, also select all descendants
+        if (isDirectory) {
+          const descendants = collectDescendants(tree, path);
+          for (const d of descendants) next.add(d);
+        }
+      }
       return next;
     });
   };
 
-  const handleSelectClick = (e: React.MouseEvent, path: string, flatList: string[]) => {
+  const handleSelectClick = (e: React.MouseEvent, path: string, flatList: string[], isDirectory?: boolean) => {
     if (e.shiftKey && lastClickedPathRef.current) {
       // Range select
       const lastIdx = flatList.indexOf(lastClickedPathRef.current);
@@ -294,7 +358,7 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
         });
       }
     } else {
-      toggleSelectPath(path);
+      toggleSelectPath(path, isDirectory);
     }
     lastClickedPathRef.current = path;
   };
@@ -475,7 +539,7 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
           onClick={(e) => {
             if (draggedPath || (Date.now() - dragStartTimeRef.current < 200)) return;
             if (selectMode) {
-              handleSelectClick(e, entry.path, flattenVisible(filteredTree));
+              handleSelectClick(e, entry.path, flattenVisible(filteredTree), entry.type === 'directory');
               return;
             }
             if (entry.type === 'directory') { toggleExpand(entry); }
@@ -492,7 +556,7 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
           {/* Checkbox in select mode */}
           {selectMode ? (
             <span
-              onClick={(e) => { e.stopPropagation(); handleSelectClick(e, entry.path, flattenVisible(filteredTree)); }}
+              onClick={(e) => { e.stopPropagation(); handleSelectClick(e, entry.path, flattenVisible(filteredTree), entry.type === 'directory'); }}
               className={`w-4 h-4 flex items-center justify-center shrink-0 rounded border transition-colors ${
                 isChecked ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground/40 hover:border-primary'
               }`}
@@ -512,14 +576,11 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
           )}
 
           {isRenamingHere ? (
-            <input
-              ref={renameInputRef}
-              type="text"
-              value={renaming.name}
-              onChange={(e) => setRenaming({ ...renaming, name: e.target.value })}
-              onKeyDown={(e) => { if (e.key === 'Enter') submitRename(); if (e.key === 'Escape') setRenaming(null); }}
-              onBlur={submitRename}
+            <InlineInput
+              initialValue={renaming.name}
               className="flex-1 px-1 py-0.5 text-sm bg-background border border-primary rounded min-w-0"
+              onSubmit={handleRenameSubmit}
+              onCancel={() => setRenaming(null)}
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
@@ -536,15 +597,12 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
         {isCreatingHere && (
           <div className="flex items-center gap-1.5 px-2 py-1 bg-primary/5 mx-1 rounded-sm" style={{ paddingLeft: `${4 + (depth + 1) * 16}px` }}>
             {creating.type === 'folder' ? <Folder className="w-4 h-4 text-yellow-500 shrink-0" /> : <FileIcon className="w-4 h-4 text-primary shrink-0" />}
-            <input
-              ref={createInputRef}
-              type="text"
-              value={createName}
-              onChange={(e) => setCreateName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') submitCreate(); if (e.key === 'Escape') setCreating(null); }}
+            <InlineInput
+              initialValue=""
               placeholder={creating.type === 'folder' ? t('fileManager.folderName') : t('fileManager.fileName')}
               className="flex-1 px-1 py-0.5 text-sm bg-background border border-primary rounded min-w-0"
-              onBlur={() => setTimeout(() => setCreating(null), 200)}
+              onSubmit={handleCreateSubmit}
+              onCancel={() => setCreating(null)}
             />
           </div>
         )}
@@ -576,7 +634,7 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
         onClick={(e) => {
           if (draggedPath || (Date.now() - dragStartTimeRef.current < 200)) return;
           if (selectMode) {
-            handleSelectClick(e, entry.path, filteredGrid.map(e => e.path));
+            handleSelectClick(e, entry.path, filteredGrid.map(e => e.path), entry.type === 'directory');
             return;
           }
           if (entry.type === 'directory') { setGridPath(entry.path); }
@@ -618,14 +676,11 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
 
         {/* Name */}
         {isRenamingHere ? (
-          <input
-            ref={renameInputRef}
-            type="text"
-            value={renaming.name}
-            onChange={(e) => setRenaming({ ...renaming, name: e.target.value })}
-            onKeyDown={(e) => { if (e.key === 'Enter') submitRename(); if (e.key === 'Escape') setRenaming(null); }}
-            onBlur={submitRename}
+          <InlineInput
+            initialValue={renaming.name}
             className="w-full px-1 py-0.5 text-[11px] bg-background border border-primary rounded text-center"
+            onSubmit={handleRenameSubmit}
+            onCancel={() => setRenaming(null)}
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
@@ -885,15 +940,12 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
       {creating?.path === (viewMode === 'grid' ? gridPath : '/root') && (
         <div className="flex items-center gap-1.5 px-3 py-1 bg-primary/5 shrink-0">
           {creating.type === 'folder' ? <Folder className="w-4 h-4 text-yellow-500 shrink-0" /> : <FileIcon className="w-4 h-4 text-blue-500 shrink-0" />}
-          <Input
-            ref={createInputRef}
-            type="text"
-            value={createName}
-            onChange={(e) => setCreateName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') submitCreate(); if (e.key === 'Escape') setCreating(null); }}
+          <InlineInput
+            initialValue=""
             placeholder={creating.type === 'folder' ? t('fileManager.folderName') : t('fileManager.fileName')}
-            className="flex-1 h-7 text-sm"
-            onBlur={() => setTimeout(() => setCreating(null), 200)}
+            className="flex-1 h-7 text-sm px-2 bg-background border border-primary rounded"
+            onSubmit={handleCreateSubmit}
+            onCancel={() => setCreating(null)}
           />
         </div>
       )}
@@ -990,14 +1042,18 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
                     <Download className="w-4 h-4" /> {t('common.download')}
                   </button>
                 )}
-                <button onClick={() => { startRename(contextMenu.entry); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent flex items-center gap-2">
-                  <Edit2 className="w-4 h-4" /> {t('common.rename')}
-                </button>
-                <div className="border-t border-border my-1" />
-                <button onClick={() => { handleDelete(contextMenu.entry); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10 flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                  {t('common.delete')}
-                </button>
+                {contextMenu.entry.path !== '/root' && (
+                  <>
+                    <button onClick={() => { startRename(contextMenu.entry); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent flex items-center gap-2">
+                      <Edit2 className="w-4 h-4" /> {t('common.rename')}
+                    </button>
+                    <div className="border-t border-border my-1" />
+                    <button onClick={() => { handleDelete(contextMenu.entry); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10 flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      {t('common.delete')}
+                    </button>
+                  </>
+                )}
               </>
             )}
         </ContextMenuPortal>,
