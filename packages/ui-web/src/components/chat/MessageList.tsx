@@ -259,7 +259,6 @@ const ProcessBubble = memo(function ProcessBubble({ message }: { message: Messag
             </div>
           </div>
         )}
-        <Timestamp time={message.timestamp} />
       </div>
     </div>
   );
@@ -322,6 +321,7 @@ const ToolResultBubble = memo(function ToolResultBubble({ message }: { message: 
             </div>
           )}
         </div>
+        <Timestamp time={message.timestamp} />
       </div>
     </div>
   );
@@ -354,7 +354,7 @@ function parseSkillResources(content: string): string[] {
 
 /**
  * Skill Activation Bubble — renders activate_skill tool_call messages.
- * Compact card with violet accent instead of generic tool call chrome.
+ * Compact card with grayscale accent instead of generic tool call chrome.
  */
 const SkillActivationBubble = memo(function SkillActivationBubble({ message }: { message: Message }) {
   const { t } = useTranslation();
@@ -370,16 +370,16 @@ const SkillActivationBubble = memo(function SkillActivationBubble({ message }: {
 
   return (
     <div className="flex gap-3 md:gap-4 animate-fade-in">
-      <div className="flex-shrink-0 w-8 h-8 md:w-9 md:h-9 rounded-full bg-violet-500/10 flex items-center justify-center shadow-elegant">
-        <Icon className="w-4 h-4 text-violet-500" />
+      <div className="flex-shrink-0 w-8 h-8 md:w-9 md:h-9 rounded-full bg-muted flex items-center justify-center shadow-elegant">
+        <Icon className="w-4 h-4 text-foreground/50" />
       </div>
       <div className="flex-1 max-w-[95%] md:max-w-[85%]">
-        <div className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-violet-500/5 border border-violet-500/20">
-          <span className="text-xs font-medium text-violet-600 dark:text-violet-400">
+        <div className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-muted/50 border border-border">
+          <span className="text-xs font-medium text-muted-foreground">
             {label}
           </span>
           {skillName && (
-            <Badge variant="outline" className="text-[10px] px-2 py-0 font-mono border-violet-500/30 text-violet-600 dark:text-violet-400">
+            <Badge variant="outline" className="text-[10px] px-2 py-0 font-mono border-border text-foreground/60">
               {skillName}
             </Badge>
           )}
@@ -390,13 +390,12 @@ const SkillActivationBubble = memo(function SkillActivationBubble({ message }: {
           )}
           {isStreaming && (
             <div className="flex gap-1 ml-1">
-              <span className="w-1 h-1 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <span className="w-1 h-1 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <span className="w-1 h-1 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              <span className="w-1 h-1 bg-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-1 h-1 bg-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-1 h-1 bg-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
             </div>
           )}
         </div>
-        <Timestamp time={message.timestamp} />
       </div>
     </div>
   );
@@ -434,6 +433,7 @@ const SkillResultBubble = memo(function SkillResultBubble({ message }: { message
           <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3">
             <span className="text-xs text-destructive">{content}</span>
           </div>
+          <Timestamp time={message.timestamp} />
         </div>
       </div>
     );
@@ -443,24 +443,25 @@ const SkillResultBubble = memo(function SkillResultBubble({ message }: { message
   if (isResourceResult) {
     const bodyMatch = content.match(/<skill_resource[^>]*>\n?([\s\S]*?)\n?<\/skill_resource>/);
     const fileContent = bodyMatch?.[1] || content;
+    const isMarkdownResource = /\.md$/i.test(resourcePath);
 
     return (
       <div className="flex gap-3 md:gap-4 animate-fade-in">
         <div className="w-8 md:w-9 flex-shrink-0" />
         <div className="flex-1 max-w-[95%] md:max-w-[85%]">
-          <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 overflow-hidden">
+          <div className="rounded-2xl border border-border bg-muted/30 overflow-hidden">
             <button
               onClick={() => setExpanded(!expanded)}
-              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-violet-500/10 transition-colors"
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-muted/50 transition-colors"
             >
               <svg
-                className={`w-3 h-3 transition-transform text-violet-500 ${expanded ? 'rotate-90' : ''}`}
+                className={`w-3 h-3 transition-transform text-foreground/50 ${expanded ? 'rotate-90' : ''}`}
                 fill="none" viewBox="0 0 24 24" stroke="currentColor"
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
-              <FileCode className="w-3.5 h-3.5 text-violet-500" />
-              <Badge variant="outline" className="text-[10px] px-2 py-0 font-medium border-violet-500/30 text-violet-600 dark:text-violet-400">
+              <FileCode className="w-3.5 h-3.5 text-foreground/50" />
+              <Badge variant="outline" className="text-[10px] px-2 py-0 font-medium border-border text-foreground/60">
                 {t('chat.skill.resourceLoaded')}
               </Badge>
               <code className="text-[10px] font-mono text-muted-foreground truncate">
@@ -468,36 +469,47 @@ const SkillResultBubble = memo(function SkillResultBubble({ message }: { message
               </code>
             </button>
             {expanded && (
-              <div className="px-4 pb-3 border-t border-violet-500/10 animate-slide-in">
-                <pre className="mt-3 text-xs bg-background/50 rounded-md p-3 overflow-x-auto font-mono text-foreground/80 whitespace-pre-wrap break-all max-h-64 overflow-y-auto border-elegant">
-                  {fileContent}
-                </pre>
+              <div className="px-4 pb-3 border-t border-border/30 animate-slide-in">
+                {isMarkdownResource ? (
+                  <div className="mt-3 text-sm max-h-64 overflow-y-auto">
+                    <ReactMarkdown content={fileContent} />
+                  </div>
+                ) : (
+                  <pre className="mt-3 text-xs bg-background/50 rounded-md p-3 overflow-x-auto font-mono text-foreground/80 whitespace-pre-wrap break-all max-h-64 overflow-y-auto border-elegant">
+                    {fileContent}
+                  </pre>
+                )}
               </div>
             )}
           </div>
+          <Timestamp time={message.timestamp} />
         </div>
       </div>
     );
   }
 
   // --- Skill activation result ---
+  // Extract SKILL.md body from <skill_content> XML for markdown rendering
+  const skillBodyMatch = content.match(/<skill_content[^>]*>\n?([\s\S]*?)(?:\nSkill directory:|<skill_resources>|<\/skill_content>)/);
+  const skillBody = skillBodyMatch?.[1]?.trim() || '';
+
   return (
     <div className="flex gap-3 md:gap-4 animate-fade-in">
       <div className="w-8 md:w-9 flex-shrink-0" />
       <div className="flex-1 max-w-[95%] md:max-w-[85%]">
-        <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 overflow-hidden">
+        <div className="rounded-2xl border border-border bg-muted/30 overflow-hidden">
           <button
             onClick={() => setExpanded(!expanded)}
-            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-violet-500/10 transition-colors"
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-muted/50 transition-colors"
           >
             <svg
-              className={`w-3 h-3 transition-transform text-violet-500 ${expanded ? 'rotate-90' : ''}`}
+              className={`w-3 h-3 transition-transform text-foreground/50 ${expanded ? 'rotate-90' : ''}`}
               fill="none" viewBox="0 0 24 24" stroke="currentColor"
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
-            <Sparkles className="w-3.5 h-3.5 text-violet-500" />
-            <Badge variant="outline" className="text-[10px] px-2 py-0 font-medium border-violet-500/30 text-violet-600 dark:text-violet-400">
+            <Sparkles className="w-3.5 h-3.5 text-foreground/50" />
+            <Badge variant="outline" className="text-[10px] px-2 py-0 font-medium border-border text-foreground/60">
               {t('chat.skill.activated')}
             </Badge>
             {skillName && (
@@ -510,9 +522,14 @@ const SkillResultBubble = memo(function SkillResultBubble({ message }: { message
             )}
           </button>
           {expanded && (
-            <div className="border-t border-violet-500/10 animate-slide-in">
+            <div className="border-t border-border/30 animate-slide-in">
+              {skillBody && (
+                <div className="px-4 py-3 text-sm max-h-64 overflow-y-auto">
+                  <ReactMarkdown content={skillBody} />
+                </div>
+              )}
               {resources.length > 0 && (
-                <div className="px-4 py-3">
+                <div className={`px-4 py-3 ${skillBody ? 'border-t border-border/30' : ''}`}>
                   <div className="text-[10px] font-semibold text-muted-foreground mb-2 uppercase tracking-wider">
                     {t('chat.skill.resources')}
                   </div>
@@ -531,6 +548,7 @@ const SkillResultBubble = memo(function SkillResultBubble({ message }: { message
             </div>
           )}
         </div>
+        <Timestamp time={message.timestamp} />
       </div>
     </div>
   );
