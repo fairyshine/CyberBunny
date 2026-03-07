@@ -73,8 +73,8 @@ export default function Header({ onToggleConsole, onToggleSidebar, onLogoClick }
               onClick={onLogoClick}
               className="w-7 h-7 rounded-md flex items-center justify-center text-sm hover:opacity-80 transition-opacity cursor-pointer"
               style={displayColor ? {
-                backgroundColor: displayColor,
-                color: '#fff'
+                backgroundColor: displayColor + '20',
+                color: displayColor
               } : {
                 backgroundColor: 'hsl(var(--foreground))',
                 color: 'hsl(var(--background))'
