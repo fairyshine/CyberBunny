@@ -51,7 +51,7 @@ export const cardRegistry: Record<DashboardCardId, DashboardCardDef> = {
     id: 'session-stats',
     titleKey: 'dashboard.sessionStats',
     icon: <MessageSquare className="w-4 h-4" />,
-    colSpan: 2,
+    colSpan: 1,
     rowSpan: 1,
     component: SessionStatsCard,
   },

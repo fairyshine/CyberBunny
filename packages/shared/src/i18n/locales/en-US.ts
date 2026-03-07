@@ -545,6 +545,9 @@ const enUS = {
   'dashboard.allTime': 'All Time',
   'dashboard.showDetails': 'Details',
   'dashboard.hideDetails': 'Collapse',
+  'dashboard.today': 'Today',
+  'dashboard.todayInteractions': 'Interactions',
+  'dashboard.todayTokens': 'Tokens',
 
   // Profile
   'settings.tabs.profile': 'Profile',

@@ -545,6 +545,9 @@ const zhCN = {
   'dashboard.allTime': '全部',
   'dashboard.showDetails': '详情',
   'dashboard.hideDetails': '收起',
+  'dashboard.today': '今日',
+  'dashboard.todayInteractions': '次交互',
+  'dashboard.todayTokens': 'Tokens',
 
   // Profile
   'settings.tabs.profile': '身份',
