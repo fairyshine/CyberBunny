@@ -30,6 +30,8 @@ export { createProvider, createModel, testConnection } from './services/ai/provi
 export { builtinTools, getEnabledTools } from './services/ai/tools';
 export { cronManager } from './services/cron';
 export type { CronJob } from './services/cron';
+export { heartbeatManager } from './services/heartbeat';
+export type { HeartbeatItem, HeartbeatInterval } from './services/heartbeat';
 export { generateSkillsSystemPrompt, getBuiltinSkills, getSkillTools } from './services/ai/skills';
 export type { SkillInfo } from './services/ai/skills';
 export { loadAllSkills, saveSkill, deleteSkill, readSkillMd, ensureSkillsDir, SKILLS_DIR, generateSkillTemplate } from './services/skills';

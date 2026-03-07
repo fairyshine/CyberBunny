@@ -3,18 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '@shared/stores/settings';
 import { builtinTools } from '@shared/services/ai/tools';
 import { detectPlatform } from '@shared/platform/detect';
-import { ToolIcon } from '../ToolIcon';
+import { ToolIcon, toolDisplayInfo } from '../ToolIcon';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
-
-// Tool metadata for display
-const toolDisplayInfo: Record<string, { name: string; description: string; icon: string }> = {
-  python: { name: 'Python', description: 'Execute Python code', icon: 'python' },
-  web_search: { name: 'Web Search', description: 'Search the web', icon: 'search' },
-  file_manager: { name: 'File Manager', description: 'Manage files', icon: 'folder' },
-  memory: { name: 'Memory', description: 'Persistent memory', icon: 'brain' },
-  exec: { name: 'Shell Exec', description: 'Execute shell commands (Desktop only)', icon: 'terminal' },
-  cron: { name: 'Cron', description: 'Schedule periodic tasks', icon: 'clock' },
-};
 
 const platform = detectPlatform();
 const execAvailable = platform.isDesktop && (platform.os === 'macos' || platform.os === 'linux');

@@ -6,7 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
-import { Clock, Plus, Trash2, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { getToolIcon } from '../ToolIcon';
 import { cronManager } from '@shared/services/cron';
 import type { CronJob } from '@shared/services/cron';
 
@@ -127,13 +128,15 @@ export function CronViewer({ isOpen, onClose }: CronViewerProps) {
   const minuteOptions = Array.from({ length: 12 }, (_, i) => i * 5);
   const intervalOptions = [1, 2, 3, 5, 10, 15, 20, 30];
 
+  const CronIcon = getToolIcon('cron');
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between pr-6">
             <DialogTitle className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
+              <CronIcon className="w-4 h-4" />
               {t('tools.cron.title')}
             </DialogTitle>
             <Button
@@ -328,7 +331,7 @@ export function CronViewer({ isOpen, onClose }: CronViewerProps) {
         <ScrollArea className="max-h-[60vh]">
           {jobs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Clock className="w-10 h-10 text-muted-foreground/30 mb-3" />
+              <CronIcon className="w-10 h-10 text-muted-foreground/30 mb-3" />
               <p className="text-sm text-muted-foreground">{t('tools.cron.empty')}</p>
               <p className="text-xs text-muted-foreground/60 mt-1">{t('tools.cron.emptyHint')}</p>
             </div>

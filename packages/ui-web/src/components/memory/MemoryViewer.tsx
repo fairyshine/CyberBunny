@@ -7,9 +7,10 @@ import { Button } from '../ui/button';
 import { Calendar } from '../ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Input } from '../ui/input';
-import { Brain, Search, Calendar as CalendarIcon, BarChart3, Eye, Edit2, BookOpen, Flame } from 'lucide-react';
+import { Search, Calendar as CalendarIcon, BarChart3, Eye, Edit2, BookOpen, Flame } from 'lucide-react';
 import { fileSystem } from '@shared/services/filesystem';
 import ReactMarkdown from '../ReactMarkdown';
+import { getToolIcon } from '../ToolIcon';
 
 const MEMORY_DIR = '/root/.memory';
 const MEMORY_FILE = '/root/.memory/MEMORY.md';
@@ -200,12 +201,14 @@ export function MemoryViewer({ isOpen, onClose }: MemoryViewerProps) {
     return diaryList.filter(d => d.date.includes(query));
   }, [diaryList, searchQuery]);
 
+  const MemoryIcon = getToolIcon('memory');
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-[1100px] h-[750px] max-w-[90vw] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Brain className="w-5 h-5" />
+            <MemoryIcon className="w-5 h-5" />
             {t('tools.memory.name')}
           </DialogTitle>
         </DialogHeader>
@@ -224,7 +227,7 @@ export function MemoryViewer({ isOpen, onClose }: MemoryViewerProps) {
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Brain className="w-3.5 h-3.5" />
+                <MemoryIcon className="w-3.5 h-3.5" />
                 {t('tools.memory.tabMemory')}
               </button>
               <button

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSessionStore, selectCurrentSession } from '@shared/stores/session';
 import { useSettingsStore } from '@shared/stores/settings';
@@ -34,6 +34,52 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
   const [sessionTypeFilter, setSessionTypeFilter] = useState<SessionTypeFilter>('all');
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<any>(null);
+
+  // Resizable sidebar width
+  const MIN_WIDTH = 270;
+  const MAX_WIDTH = 480;
+  const DEFAULT_WIDTH = 288; // w-72
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('sidebar-width');
+      return saved ? Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Number(saved))) : DEFAULT_WIDTH;
+    } catch {
+      return DEFAULT_WIDTH;
+    }
+  });
+  const [isResizing, setIsResizing] = useState(false);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const widthRef = useRef(sidebarWidth);
+
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isResizing) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, e.clientX));
+      widthRef.current = newWidth;
+      setSidebarWidth(newWidth);
+    };
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      try {
+        localStorage.setItem('sidebar-width', String(widthRef.current));
+      } catch { /* ignore */ }
+    };
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing]);
 
   const { setCurrentSession, deleteSession, renameSession, createSession, restoreSession, permanentlyDeleteSession, clearTrash, deleteProject } = useSessionStore();
   const currentSession = useSessionStore(selectCurrentSession);
@@ -202,8 +248,11 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
         />
       )}
 
-      <aside className={`
-        w-72 bg-background border-r border-border shadow-elegant
+      <aside
+        ref={sidebarRef}
+        style={{ width: sidebarWidth }}
+        className={`
+        bg-background border-r border-border shadow-elegant relative
         md:relative md:translate-x-0
         fixed inset-y-0 left-0 z-50 transition-transform duration-300
         ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
@@ -211,6 +260,11 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
         ${isOpen ? '!flex' : ''}
         flex-col
       `}>
+        {/* Resize Handle */}
+        <div
+          className="absolute top-0 right-0 w-1 h-full cursor-col-resize z-10 hover:bg-primary/30 active:bg-primary/50 transition-colors"
+          onMouseDown={handleResizeStart}
+        />
         {/* Header - Fixed */}
         <div className="h-14 border-b border-border flex items-center justify-between px-4 shrink-0">
           <span className="text-sm font-semibold tracking-tight">
@@ -379,7 +433,7 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
                                   ({filteredSessions.length})
                                 </span>
                               </div>
-                              <div className="flex items-center gap-0.5 shrink-0">
+                              <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <Button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -505,7 +559,7 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
                                     </div>
 
                                     {!readOnly && editingId !== session.id && (
-                                      <div className="flex items-center gap-0.5">
+                                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <SessionContextMenu
                                           session={session}
                                           onRename={() => startRename(session.id, session.name)}
@@ -657,7 +711,7 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
                                   </div>
 
                                   {!readOnly && editingId !== session.id && (
-                                    <div className="flex items-center gap-0.5">
+                                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                       <SessionContextMenu
                                         session={session}
                                         onRename={() => startRename(session.id, session.name)}

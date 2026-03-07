@@ -12,18 +12,8 @@ import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Switch } from '../ui/switch';
 import { Badge } from '../ui/badge';
-import { ToolIcon } from '../ToolIcon';
+import { ToolIcon, toolDisplayInfo } from '../ToolIcon';
 import { MemoryViewer } from '../memory/MemoryViewer';
-
-// Tool display metadata
-const toolDisplayInfo: Record<string, { name: string; icon: string }> = {
-  python: { name: 'Python', icon: 'python' },
-  web_search: { name: 'Web Search', icon: 'search' },
-  file_manager: { name: 'File Manager', icon: 'folder' },
-  memory: { name: 'Memory', icon: 'brain' },
-  exec: { name: 'Shell Exec', icon: 'terminal' },
-  cron: { name: 'Cron', icon: 'clock' },
-};
 
 function ToolRow({ toolId, enabled, onToggle }: {
   toolId: string;

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { pythonExecutor } from '../python/executor';
 import { fileSystem } from '../filesystem';
 import { cronManager } from '../cron';
+import { heartbeatManager } from '../heartbeat';
 import { logPython, logFile, logTool } from '../console/logger';
 import { getErrorMessage } from '../../utils/errors';
 import { useSettingsStore } from '../../stores/settings';
@@ -401,6 +402,72 @@ export const cronTool = tool({
   },
 });
 
+export const heartbeatTool = tool({
+  description: 'Manage a heartbeat watchlist. Add/remove/list text items, and set a periodic interval (30/60/120 minutes) to process all items.',
+  inputSchema: z.object({
+    operation: z.enum(['add', 'remove', 'list', 'clear', 'set_interval', 'status']).describe('Heartbeat operation'),
+    text: z.string().optional().describe('Text content for add operation'),
+    id: z.string().optional().describe('Item ID for remove operation'),
+    interval: z.number().optional().describe('Interval in minutes (30, 60, or 120) for set_interval operation'),
+  }),
+  execute: async ({ operation, text, id, interval }) => {
+    try {
+      switch (operation) {
+        case 'add': {
+          if (!text) return t()('tools.exec.heartbeatNeedText');
+          const item = heartbeatManager.add(text);
+          logTool('success', t()('tools.exec.heartbeatAdded', { text }));
+          return t()('tools.exec.heartbeatAddedResult', { id: item.id, text });
+        }
+        case 'remove': {
+          if (!id) return t()('tools.exec.heartbeatNeedId');
+          const removed = heartbeatManager.remove(id);
+          if (!removed) return t()('tools.exec.heartbeatNotFound', { id });
+          logTool('success', t()('tools.exec.heartbeatRemoved', { id }));
+          return t()('tools.exec.heartbeatRemovedResult', { id });
+        }
+        case 'list': {
+          const items = heartbeatManager.list();
+          if (items.length === 0) return t()('tools.exec.heartbeatEmpty');
+          const lines = items.map(i =>
+            `- **${i.text}**\n  ID: \`${i.id}\` | Created: ${new Date(i.createdAt).toLocaleString()}`
+          );
+          return t()('tools.exec.heartbeatListResult', { count: items.length, list: lines.join('\n\n') });
+        }
+        case 'clear': {
+          heartbeatManager.clear();
+          logTool('success', t()('tools.exec.heartbeatCleared'));
+          return t()('tools.exec.heartbeatClearedResult');
+        }
+        case 'set_interval': {
+          if (!interval || ![30, 60, 120].includes(interval)) {
+            return t()('tools.exec.heartbeatInvalidInterval');
+          }
+          heartbeatManager.setInterval(interval as 30 | 60 | 120);
+          logTool('success', t()('tools.exec.heartbeatIntervalSet', { interval }));
+          return t()('tools.exec.heartbeatIntervalSetResult', { interval });
+        }
+        case 'status': {
+          const items = heartbeatManager.list();
+          const iv = heartbeatManager.getInterval();
+          const lastTick = heartbeatManager.getLastTick();
+          const nextTick = heartbeatManager.getNextTick();
+          return t()('tools.exec.heartbeatStatus', {
+            count: items.length,
+            interval: iv,
+            lastTick: lastTick ? new Date(lastTick).toLocaleString() : '-',
+            nextTick: nextTick ? new Date(nextTick).toLocaleString() : '-',
+          });
+        }
+      }
+    } catch (error) {
+      const msg = getErrorMessage(error);
+      logTool('error', t()('tools.exec.heartbeatFailed'), msg);
+      return t()('tools.exec.heartbeatFailedResult', { error: msg });
+    }
+  },
+});
+
 /**
  * All built-in tools keyed by tool ID
  */
@@ -411,6 +478,7 @@ export const builtinTools = {
   memory: memoryTool,
   exec: execTool,
   cron: cronTool,
+  heartbeat: heartbeatTool,
 } as const;
 
 /**

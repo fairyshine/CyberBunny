@@ -1,11 +1,13 @@
 import { useState, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Settings, Menu, Brain, Languages, CheckIcon, Keyboard } from '../icons';
-import { SquareTerminal, Clock } from 'lucide-react';
+import { Settings, Menu, Languages, CheckIcon, Keyboard } from '../icons';
+import { SquareTerminal } from 'lucide-react';
 import { useSettingsStore } from '@shared/stores/settings';
 import type { Language } from '@shared/stores/settings';
 import { MemoryViewer } from '../memory/MemoryViewer';
 import { CronViewer } from '../cron/CronViewer';
+import { HeartbeatViewer } from '../heartbeat/HeartbeatViewer';
+import { getToolIcon } from '../ToolIcon';
 import { ThemeToggle } from './ThemeToggle';
 import { Button } from '../ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
@@ -30,10 +32,12 @@ export default function Header({ onToggleConsole, onToggleSidebar, onLogoClick }
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isMemoryOpen, setIsMemoryOpen] = useState(false);
   const [isCronOpen, setIsCronOpen] = useState(false);
+  const [isHeartbeatOpen, setIsHeartbeatOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const { enabledTools, language, setLanguage } = useSettingsStore();
   const isMemoryEnabled = enabledTools.includes('memory');
   const isCronEnabled = enabledTools.includes('cron');
+  const isHeartbeatEnabled = enabledTools.includes('heartbeat');
 
   const languageOptions: { value: Language; label: string }[] = [
     { value: 'system', label: t('settings.language.system') },
@@ -77,7 +81,7 @@ export default function Header({ onToggleConsole, onToggleSidebar, onLogoClick }
                     variant="ghost"
                     size="icon"
                   >
-                    <Brain className="w-4 h-4" />
+                    {(() => { const Icon = getToolIcon('memory'); return <Icon className="w-4 h-4" />; })()}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>{t('tools.memory.name')}</TooltipContent>
@@ -92,10 +96,25 @@ export default function Header({ onToggleConsole, onToggleSidebar, onLogoClick }
                     variant="ghost"
                     size="icon"
                   >
-                    <Clock className="w-4 h-4" />
+                    {(() => { const Icon = getToolIcon('cron'); return <Icon className="w-4 h-4" />; })()}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>{t('tools.cron.name')}</TooltipContent>
+              </Tooltip>
+            )}
+
+            {isHeartbeatEnabled && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={() => setIsHeartbeatOpen(true)}
+                    variant="ghost"
+                    size="icon"
+                  >
+                    {(() => { const Icon = getToolIcon('heartbeat'); return <Icon className="w-4 h-4" />; })()}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('tools.heartbeat.name')}</TooltipContent>
               </Tooltip>
             )}
 
@@ -183,6 +202,7 @@ export default function Header({ onToggleConsole, onToggleSidebar, onLogoClick }
       </Suspense>
       <MemoryViewer isOpen={isMemoryOpen} onClose={() => setIsMemoryOpen(false)} />
       <CronViewer isOpen={isCronOpen} onClose={() => setIsCronOpen(false)} />
+      <HeartbeatViewer isOpen={isHeartbeatOpen} onClose={() => setIsHeartbeatOpen(false)} />
     </>
   );
 }
