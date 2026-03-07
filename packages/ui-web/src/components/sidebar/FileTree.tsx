@@ -6,6 +6,7 @@ import { Folder, File as FileIcon, ChevronRight, ChevronDown, Search, Plus, Uplo
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '../ui/dropdown-menu';
 
 interface FileTreeProps {
   onSelectFile?: (path: string) => void;
@@ -45,6 +46,44 @@ function formatSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+// Recursively read all files from a FileSystemEntry (drag-and-drop folder)
+// basePath = the destination directory path where this entry should be placed
+async function readEntryFiles(entry: FileSystemEntry_Web, basePath: string): Promise<{ path: string; file: File }[]> {
+  if (entry.isFile) {
+    return new Promise((resolve) => {
+      (entry as FileSystemFileEntry_Web).file((file) => {
+        resolve([{ path: `${basePath}/${entry.name}`, file }]);
+      }, () => resolve([]));
+    });
+  }
+  if (entry.isDirectory) {
+    const dirPath = `${basePath}/${entry.name}`;
+    const dirReader = (entry as FileSystemDirectoryEntry_Web).createReader();
+    const entries = await new Promise<FileSystemEntry_Web[]>((resolve) => {
+      const all: FileSystemEntry_Web[] = [];
+      const readBatch = () => {
+        dirReader.readEntries((batch) => {
+          if (batch.length === 0) { resolve(all); return; }
+          all.push(...batch);
+          readBatch();
+        }, () => resolve(all));
+      };
+      readBatch();
+    });
+    const results: { path: string; file: File }[] = [];
+    for (const child of entries) {
+      results.push(...await readEntryFiles(child, dirPath));
+    }
+    return results;
+  }
+  return [];
+}
+
+// Browser FileSystem API types (webkitGetAsEntry)
+type FileSystemEntry_Web = { isFile: boolean; isDirectory: boolean; name: string };
+type FileSystemFileEntry_Web = FileSystemEntry_Web & { file: (cb: (f: File) => void, err?: (e: any) => void) => void };
+type FileSystemDirectoryEntry_Web = FileSystemEntry_Web & { createReader: () => { readEntries: (cb: (entries: FileSystemEntry_Web[]) => void, err?: (e: any) => void) => void } };
 
 export default function FileTree({ onSelectFile, selectedPath, onItemClick }: FileTreeProps) {
   const { t } = useTranslation();
@@ -264,7 +303,31 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
 
     const dragged = e.dataTransfer.getData('text/plain') || draggedPath;
 
-    // Handle file upload from OS
+    // Handle file/folder upload from OS
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      const dest = isDirectory ? targetPath : (targetPath.substring(0, targetPath.lastIndexOf('/')) || '/root');
+      const items = Array.from(e.dataTransfer.items);
+      const entries = items.map(item => (item as any).webkitGetAsEntry?.() as FileSystemEntry_Web | null).filter(Boolean);
+
+      if (entries.length > 0 && entries.some(e => e!.isDirectory)) {
+        // Has folders — use recursive entry reading
+        for (const entry of entries) {
+          if (!entry) continue;
+          const fileList = await readEntryFiles(entry, dest);
+          for (const { path, file } of fileList) {
+            try { await fileSystem.writeFile(path, file); } catch (err) { console.error(err); }
+          }
+        }
+        const newExpanded = new Set(expandedPaths);
+        newExpanded.add(dest);
+        setExpandedPaths(newExpanded);
+        await loadTree();
+        handleDragEnd();
+        return;
+      }
+    }
+
+    // Handle flat file upload from OS (fallback)
     if (e.dataTransfer.files.length > 0) {
       const dest = isDirectory ? targetPath : (targetPath.substring(0, targetPath.lastIndexOf('/')) || '/root');
       const files = Array.from(e.dataTransfer.files);
@@ -536,9 +599,19 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
             <TooltipContent>{t('fileTree.newFile')}</TooltipContent>
           </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button onClick={() => {
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                    <Upload className="w-3.5 h-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent>{t('fileTree.upload')}</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent align="start" className="min-w-[140px]">
+              <DropdownMenuItem onClick={() => {
                 const input = document.createElement('input');
                 input.type = 'file';
                 input.multiple = true;
@@ -553,12 +626,33 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
                   }
                 };
                 input.click();
-              }} variant="ghost" size="icon" className="h-7 w-7">
-                <Upload className="w-3.5 h-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('fileTree.upload')}</TooltipContent>
-          </Tooltip>
+              }} className="gap-2 text-xs">
+                <FileIcon className="w-3.5 h-3.5" />
+                {t('fileTree.uploadFiles')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                (input as any).webkitdirectory = true;
+                input.onchange = async (e) => {
+                  const files = (e.target as HTMLInputElement).files;
+                  if (!files || files.length === 0) return;
+                  const dest = viewMode === 'grid' ? gridPath : '/root';
+                  for (const file of files) {
+                    const relativePath = (file as any).webkitRelativePath as string;
+                    if (!relativePath) continue;
+                    const filePath = `${dest}/${relativePath}`;
+                    try { await fileSystem.writeFile(filePath, file); } catch (err) { console.error(err); }
+                  }
+                  await loadTree();
+                };
+                input.click();
+              }} className="gap-2 text-xs">
+                <Folder className="w-3.5 h-3.5" />
+                {t('fileTree.uploadFolder')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <div className="flex-1" />
 

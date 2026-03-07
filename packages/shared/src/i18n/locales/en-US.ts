@@ -401,7 +401,9 @@ const enUS = {
   // File Tree
   'fileTree.newFolder': 'New Folder',
   'fileTree.newFile': 'New File',
-  'fileTree.upload': 'Upload File',
+  'fileTree.upload': 'Upload',
+  'fileTree.uploadFiles': 'Upload Files',
+  'fileTree.uploadFolder': 'Upload Folder',
   'fileTree.refresh': 'Refresh',
   'fileTree.listView': 'List View',
   'fileTree.gridView': 'Grid View',

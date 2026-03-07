@@ -401,7 +401,9 @@ const zhCN = {
   // File Tree
   'fileTree.newFolder': '新建文件夹',
   'fileTree.newFile': '新建文件',
-  'fileTree.upload': '上传文件',
+  'fileTree.upload': '上传',
+  'fileTree.uploadFiles': '上传文件',
+  'fileTree.uploadFolder': '上传文件夹',
   'fileTree.refresh': '刷新',
   'fileTree.listView': '列表视图',
   'fileTree.gridView': '图标视图',
