@@ -58,11 +58,15 @@ This skill orchestrates web search and content extraction to create comprehensiv
 
 interface SkillState {
   skills: LoadedSkill[];
+  enabledSkillIds: string[];
   loading: boolean;
   error: string | null;
 
   /** Load built-in + user skills from filesystem */
   loadSkills: () => Promise<void>;
+
+  /** Toggle a skill on/off */
+  toggleSkill: (skillId: string) => void;
 
   /** Create a new user skill from template */
   createSkill: (name: string, description: string) => Promise<LoadedSkill>;
@@ -80,6 +84,14 @@ interface SkillState {
 export const useSkillStore = create<SkillState>()(
   (set, get) => ({
     skills: [],
+    enabledSkillIds: (() => {
+      try {
+        const saved = localStorage.getItem('cyberbunny-enabled-skills');
+        return saved ? JSON.parse(saved) : BUILTIN_SKILLS.map(s => s.id);
+      } catch {
+        return BUILTIN_SKILLS.map(s => s.id);
+      }
+    })(),
     loading: false,
     error: null,
 
@@ -87,15 +99,29 @@ export const useSkillStore = create<SkillState>()(
       set({ loading: true, error: null });
       try {
         const userSkills = await loadAllSkills();
-        // Merge: built-ins first, then user skills (user can override by name)
         const builtinIds = new Set(BUILTIN_SKILLS.map(s => s.id));
         const filteredUser = userSkills.filter(s => !builtinIds.has(s.id));
-        set({ skills: [...BUILTIN_SKILLS, ...filteredUser], loading: false });
+        const allSkills = [...BUILTIN_SKILLS, ...filteredUser];
+        // Auto-enable newly loaded skills that aren't tracked yet
+        const { enabledSkillIds } = get();
+        const knownIds = new Set([...allSkills.map(s => s.id)]);
+        const cleaned = enabledSkillIds.filter(id => knownIds.has(id));
+        set({ skills: allSkills, enabledSkillIds: cleaned, loading: false });
       } catch (error) {
         console.error('[SkillStore] Failed to load skills:', error);
-        // Fall back to built-in skills only
         set({ skills: [...BUILTIN_SKILLS], loading: false, error: String(error) });
       }
+    },
+
+    toggleSkill: (skillId: string) => {
+      const { enabledSkillIds } = get();
+      const next = enabledSkillIds.includes(skillId)
+        ? enabledSkillIds.filter(id => id !== skillId)
+        : [...enabledSkillIds, skillId];
+      set({ enabledSkillIds: next });
+      try {
+        localStorage.setItem('cyberbunny-enabled-skills', JSON.stringify(next));
+      } catch { /* ignore */ }
     },
 
     createSkill: async (name: string, description: string) => {

@@ -69,6 +69,7 @@ const enUS = {
   'settings.proxyDeploy': 'Deploy Worker',
   'settings.exaApiKey': 'Exa Search API Key',
   'settings.exaApiKeyHint': 'Required for web search. Get a free key at dashboard.exa.ai.',
+  'settings.exaFreeHint': 'Search via Exa public MCP endpoint. No API key required, works out of the box.',
   'settings.braveApiKey': 'Brave Search API Key',
   'settings.braveApiKeyHint': 'Required for web search. Get a free key at brave.com/search/api.',
   'settings.searchProvider': 'Search Provider',

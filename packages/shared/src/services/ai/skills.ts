@@ -29,10 +29,11 @@ function createSkillTool(skill: LoadedSkill): Tool {
  * Get all skills as tools (keyed as skills_{{name}})
  */
 export function getSkillTools(): Record<string, Tool> {
-  const skills = useSkillStore.getState().skills;
+  const { skills, enabledSkillIds } = useSkillStore.getState();
   const tools: Record<string, Tool> = {};
 
   for (const skill of skills) {
+    if (!enabledSkillIds.includes(skill.id)) continue;
     const toolName = `skills_${skill.name.replace(/-/g, '_')}`;
     tools[toolName] = createSkillTool(skill);
   }
@@ -44,13 +45,14 @@ export function getSkillTools(): Record<string, Tool> {
  * Generate system prompt section describing available skills
  */
 export function generateSkillsSystemPrompt(): string {
-  const skills = useSkillStore.getState().skills;
+  const { skills, enabledSkillIds } = useSkillStore.getState();
+  const enabled = skills.filter(s => enabledSkillIds.includes(s.id));
 
-  if (skills.length === 0) {
+  if (enabled.length === 0) {
     return '';
   }
 
-  const skillDescriptions = skills.map(skill => {
+  const skillDescriptions = enabled.map(skill => {
     const toolName = `skills_${skill.name.replace(/-/g, '_')}`;
     return `- **${skill.name}** (tool: \`${toolName}\`): ${skill.description}`;
   }).join('\n');

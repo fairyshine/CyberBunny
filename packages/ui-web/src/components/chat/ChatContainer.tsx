@@ -94,6 +94,9 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
     useSessionStore.getState().setSessionStreaming(sessionId, true);
     logLLM('info', `User message: ${content.trim().slice(0, 100)}${content.length > 100 ? '...' : ''}`);
 
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     try {
       const systemPrompt = await runAgentLoop(
         content.trim(),
@@ -103,11 +106,14 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
         callbacks,
         t,
         proxyUrl,
-        toolExecutionTimeout
+        toolExecutionTimeout,
+        abortController.signal
       );
       // Save system prompt to session
       useSessionStore.getState().setSessionSystemPrompt(sessionId, systemPrompt);
     } catch (error) {
+      // Don't show error message if user aborted
+      if (error instanceof Error && error.name === 'AbortError') return;
       console.error('Error:', error);
       addMessage(sessionId, {
         id: crypto.randomUUID(),
@@ -116,6 +122,7 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
         timestamp: Date.now(),
       });
     } finally {
+      abortControllerRef.current = null;
       setIsLoading(false);
       setCurrentStatus('');
       useSessionStore.getState().setSessionStreaming(sessionId, false);

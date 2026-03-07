@@ -66,8 +66,8 @@ interface SettingsState {
   setProxyUrl: (url: string) => void;
 
   // Web search settings
-  searchProvider: 'exa' | 'brave';
-  setSearchProvider: (provider: 'exa' | 'brave') => void;
+  searchProvider: 'exa_free' | 'exa' | 'brave';
+  setSearchProvider: (provider: 'exa_free' | 'exa' | 'brave') => void;
   exaApiKey: string;
   setExaApiKey: (key: string) => void;
   braveApiKey: string;
@@ -169,7 +169,7 @@ export const useSettingsStore = create<SettingsState>()(
         set({ braveApiKey: key });
       },
 
-      searchProvider: 'exa',
+      searchProvider: 'exa_free',
       setSearchProvider: (provider) => {
         logSettings('info', `Search provider: ${provider}`);
         set({ searchProvider: provider });

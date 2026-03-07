@@ -32,7 +32,8 @@ export async function runAgentLoop(
   callbacks: AgentCallbacks,
   t: TFunction,
   proxyUrl?: string,
-  toolTimeout?: number
+  toolTimeout?: number,
+  abortSignal?: AbortSignal
 ): Promise<string> {
   // Validate configuration
   if (!llmConfig.apiKey) {
@@ -110,6 +111,7 @@ export async function runAgentLoop(
       stopWhen: stepCountIs(10),
       temperature: llmConfig.temperature ?? 0.7,
       maxOutputTokens: llmConfig.maxTokens ?? 4096,
+      abortSignal,
       experimental_telemetry: {
         isEnabled: false,
       },

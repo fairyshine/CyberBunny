@@ -34,7 +34,7 @@ export default function ChatInput({ onSend, onStop, isLoading, disabled, placeho
   const panelRef = useRef<HTMLDivElement>(null);
 
   const { enabledTools, toggleTool } = useSettingsStore();
-  const { skills, loadSkills } = useSkillStore();
+  const { skills, enabledSkillIds, toggleSkill, loadSkills } = useSkillStore();
   const allToolIds = Object.keys(builtinTools);
 
   useEffect(() => {
@@ -78,7 +78,9 @@ export default function ChatInput({ onSend, onStop, isLoading, disabled, placeho
     }
   };
 
-  const enabledCount = allToolIds.filter((id) => enabledTools.includes(id)).length;
+  const enabledToolCount = allToolIds.filter((id) => enabledTools.includes(id)).length;
+  const enabledSkillCount = skills.filter((s) => enabledSkillIds.includes(s.id)).length;
+  const enabledCount = enabledToolCount + enabledSkillCount;
 
   return (
     <div className="p-4 md:p-6 pb-safe">
@@ -129,15 +131,27 @@ export default function ChatInput({ onSend, onStop, isLoading, disabled, placeho
                   <span className="text-xs text-muted-foreground/60">{t('chat.input.noSkills')}</span>
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
-                    {skills.map((skill) => (
-                      <div
-                        key={skill.id}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-foreground bg-primary/10 border border-primary/20 shadow-sm"
-                      >
-                        <ToolIcon icon={skillIconMap[skill.id] || 'wrench'} className="w-3.5 h-3.5" />
-                        <span>{skill.name}</span>
-                      </div>
-                    ))}
+                    {skills.map((skill) => {
+                      const isEnabled = enabledSkillIds.includes(skill.id);
+                      return (
+                        <button
+                          key={skill.id}
+                          onClick={() => toggleSkill(skill.id)}
+                          title={skill.description}
+                          className={`
+                            flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium
+                            transition-all duration-150 select-none cursor-pointer
+                            ${isEnabled
+                              ? 'text-foreground bg-primary/10 border border-primary/20 shadow-sm'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent'
+                            }
+                          `}
+                        >
+                          <ToolIcon icon={skillIconMap[skill.id] || 'wrench'} className="w-3.5 h-3.5" />
+                          <span>{skill.name}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>

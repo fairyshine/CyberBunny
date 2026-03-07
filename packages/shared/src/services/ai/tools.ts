@@ -73,21 +73,21 @@ export const webSearchTool = tool({
     const timeout = useSettingsStore.getState().toolExecutionTimeout || 300000;
     const getSearchConfig = () => {
       try {
-        if (typeof localStorage === 'undefined') return { provider: 'exa' as const, apiKey: '' };
+        if (typeof localStorage === 'undefined') return { provider: 'exa_free' as const, apiKey: '' };
         const raw = localStorage.getItem('webagent-settings');
         if (raw) {
           const parsed = JSON.parse(raw);
           const state = parsed?.state;
-          const provider = state?.searchProvider || 'exa';
+          const provider = state?.searchProvider || 'exa_free';
           const apiKey = provider === 'brave' ? (state?.braveApiKey || '') : (state?.exaApiKey || '');
-          return { provider: provider as 'exa' | 'brave', apiKey };
+          return { provider: provider as 'exa_free' | 'exa' | 'brave', apiKey };
         }
       } catch { /* ignore */ }
-      return { provider: 'exa' as const, apiKey: '' };
+      return { provider: 'exa_free' as const, apiKey: '' };
     };
 
     const { provider, apiKey } = getSearchConfig();
-    if (!apiKey) {
+    if (provider !== 'exa_free' && !apiKey) {
       return t()('tools.exec.searchNoKey');
     }
 
@@ -95,7 +95,54 @@ export const webSearchTool = tool({
       let results: Array<{title: string; url: string; snippet: string}>;
 
       const searchPromise = (async () => {
-        if (provider === 'brave') {
+        if (provider === 'exa_free') {
+          // Exa MCP public endpoint — no API key needed
+          const response = await fetch('https://mcp.exa.ai/mcp', {
+            method: 'POST',
+            headers: {
+              'accept': 'application/json, text/event-stream',
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: 1,
+              method: 'tools/call',
+              params: {
+                name: 'web_search_exa',
+                arguments: {
+                  query,
+                  type: 'auto',
+                  numResults: 8,
+                  livecrawl: 'fallback',
+                },
+              },
+            }),
+          });
+          if (!response.ok) {
+            const errBody = await response.text();
+            throw new Error(`Exa MCP ${response.status}: ${errBody.slice(0, 200)}`);
+          }
+          const text = await response.text();
+          // Parse SSE response
+          const lines = text.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = JSON.parse(line.substring(6));
+              const content = data?.result?.content?.[0]?.text;
+              if (content) {
+                // The MCP response contains formatted search results as text
+                return parseExaMcpResults(content);
+              }
+            }
+          }
+          // Fallback: try parsing as plain JSON
+          try {
+            const data = JSON.parse(text);
+            const content = data?.result?.content?.[0]?.text;
+            if (content) return parseExaMcpResults(content);
+          } catch { /* not plain JSON */ }
+          throw new Error('Failed to parse Exa MCP response');
+        } else if (provider === 'brave') {
           const params = new URLSearchParams({ q: query, count: '5' });
           const response = await fetch(`https://api.search.brave.com/res/v1/web/search?${params}`, {
             headers: { 'Accept': 'application/json', 'X-Subscription-Token': apiKey },
@@ -139,6 +186,42 @@ export const webSearchTool = tool({
     }
   },
 });
+
+/** Parse Exa MCP text response into structured results */
+function parseExaMcpResults(text: string): Array<{title: string; url: string; snippet: string}> {
+  const results: Array<{title: string; url: string; snippet: string}> = [];
+  // Try JSON parse first (MCP may return JSON array)
+  try {
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed)) {
+      return parsed.map((r: any) => ({
+        title: r.title || '', url: r.url || '', snippet: (r.text || r.snippet || r.description || '').slice(0, 200),
+      }));
+    }
+    if (parsed.results && Array.isArray(parsed.results)) {
+      return parsed.results.map((r: any) => ({
+        title: r.title || '', url: r.url || '', snippet: (r.text || r.snippet || r.description || '').slice(0, 200),
+      }));
+    }
+  } catch { /* not JSON, parse as text */ }
+  // Fallback: extract markdown-style links from text
+  const linkRegex = /\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g;
+  let match;
+  while ((match = linkRegex.exec(text)) !== null) {
+    const title = match[1];
+    const url = match[2];
+    // Grab text after the link as snippet
+    const afterIdx = match.index + match[0].length;
+    const nextMatch = linkRegex.exec(text);
+    const endIdx = nextMatch ? nextMatch.index : text.length;
+    linkRegex.lastIndex = nextMatch ? nextMatch.index : linkRegex.lastIndex;
+    const snippet = text.slice(afterIdx, endIdx).replace(/\n/g, ' ').trim().slice(0, 200);
+    results.push({ title, url, snippet });
+  }
+  if (results.length > 0) return results;
+  // Last resort: return the raw text as a single result
+  return [{ title: 'Search Results', url: '', snippet: text.slice(0, 500) }];
+}
 
 export const fileManagerTool = tool({
   description: 'Manage files: read, write, list, mkdir, delete operations on the virtual file system. The root directory is /root.',

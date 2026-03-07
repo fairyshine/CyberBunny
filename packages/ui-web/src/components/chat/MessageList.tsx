@@ -6,6 +6,7 @@ import ReactMarkdown from '../ReactMarkdown';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Zap } from '../icons';
+import { useSettingsStore } from '@shared/stores/settings';
 
 interface MessageListProps {
   messages: Message[];
@@ -106,10 +107,11 @@ const MessageItem = memo(function MessageItem({ message }: { message: Message })
 });
 
 const UserBubble = memo(function UserBubble({ message }: { message: Message }) {
+  const avatar = useSettingsStore(s => s.userProfile.avatar);
   return (
     <div className="flex gap-3 md:gap-4 flex-row-reverse animate-fade-in">
       <div className="flex-shrink-0 w-8 h-8 md:w-9 md:h-9 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-medium shadow-elegant">
-        U
+        {avatar || 'U'}
       </div>
       <div className="flex-1 max-w-[85%] md:max-w-[75%] text-right">
         <div className="inline-block text-left rounded-2xl px-4 py-3 bg-foreground text-background shadow-elegant border-elegant selection:bg-background/30 selection:text-background">

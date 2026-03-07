@@ -93,13 +93,20 @@ function ToolRow({ toolId, enabled, onToggle }: {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="exa">Exa</SelectItem>
+                <SelectItem value="exa_free">Exa (Free)</SelectItem>
+                <SelectItem value="exa">Exa (API Key)</SelectItem>
                 <SelectItem value="brave">Brave</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {searchProvider === 'exa' ? (
+          {searchProvider === 'exa_free' && (
+            <p className="text-xs text-muted-foreground">
+              {t('settings.exaFreeHint')}
+            </p>
+          )}
+
+          {searchProvider === 'exa' && (
             <div className="space-y-2">
               <Label htmlFor="exaApiKey" className="text-xs font-medium">{t('settings.exaApiKey')}</Label>
               <Input
@@ -114,7 +121,9 @@ function ToolRow({ toolId, enabled, onToggle }: {
                 {t('settings.exaApiKeyHint')}
               </p>
             </div>
-          ) : (
+          )}
+
+          {searchProvider === 'brave' && (
             <div className="space-y-2">
               <Label htmlFor="braveApiKey" className="text-xs font-medium">{t('settings.braveApiKey')}</Label>
               <Input

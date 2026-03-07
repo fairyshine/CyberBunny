@@ -69,6 +69,7 @@ const zhCN = {
   'settings.proxyDeploy': '一键部署 Worker',
   'settings.exaApiKey': 'Exa Search API Key',
   'settings.exaApiKeyHint': '用于网页搜索功能，可在 dashboard.exa.ai 免费获取。',
+  'settings.exaFreeHint': '通过 Exa 公开 MCP 端点搜索，无需 API Key，开箱即用。',
   'settings.braveApiKey': 'Brave Search API Key',
   'settings.braveApiKeyHint': '用于网页搜索功能，可在 brave.com/search/api 免费获取。',
   'settings.searchProvider': '搜索服务',
