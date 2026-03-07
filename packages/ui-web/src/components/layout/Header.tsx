@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Settings, Menu, Languages, CheckIcon, Keyboard } from '../icons';
 import { SquareTerminal } from 'lucide-react';
 import { useSettingsStore } from '@shared/stores/settings';
+import { useAgentStore, DEFAULT_AGENT_ID } from '@shared/stores/agent';
 import type { Language } from '@shared/stores/settings';
 import { MemoryViewer } from '../memory/MemoryViewer';
 import { CronViewer } from '../cron/CronViewer';
@@ -35,9 +36,17 @@ export default function Header({ onToggleConsole, onToggleSidebar, onLogoClick }
   const [isHeartbeatOpen, setIsHeartbeatOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const { enabledTools, language, setLanguage } = useSettingsStore();
+  const currentAgentId = useAgentStore((s) => s.currentAgentId);
+  const agents = useAgentStore((s) => s.agents);
   const isMemoryEnabled = enabledTools.includes('memory');
   const isCronEnabled = enabledTools.includes('cron');
   const isHeartbeatEnabled = enabledTools.includes('heartbeat');
+
+  // Get current agent info
+  const isDefaultAgent = currentAgentId === DEFAULT_AGENT_ID;
+  const currentAgent = agents.find((a) => a.id === currentAgentId);
+  const displayName = isDefaultAgent ? 'CyberBunny' : currentAgent?.name || 'CyberBunny';
+  const displayAvatar = isDefaultAgent ? '🐰' : currentAgent?.avatar || '🐰';
 
   const languageOptions: { value: Language; label: string }[] = [
     { value: 'system', label: t('settings.language.system') },
@@ -65,9 +74,16 @@ export default function Header({ onToggleConsole, onToggleSidebar, onLogoClick }
               className="w-7 h-7 bg-foreground rounded-md flex items-center justify-center text-background text-sm hover:opacity-80 transition-opacity cursor-pointer"
               title={t('status.subtitle')}
             >
-              🐰
+              {displayAvatar}
             </button>
-            <h1 className="font-semibold text-foreground tracking-tight">CyberBunny</h1>
+            <h1 className="font-semibold text-foreground tracking-tight">
+              {displayName}
+              {!isDefaultAgent && currentAgent && (
+                <span className="ml-2 text-xs text-muted-foreground font-normal">
+                  ({t('sidebar.agent.default')})
+                </span>
+              )}
+            </h1>
           </div>
         </div>
 
