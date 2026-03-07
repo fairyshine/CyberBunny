@@ -1,5 +1,5 @@
 // Project management dialog component
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSessionStore } from '@shared/stores/session';
 import type { Project } from '@shared/types';
@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
+import { PROJECT_ICON_NAMES, getProjectIcon } from '../icons';
 
 interface ProjectDialogProps {
   isOpen: boolean;
@@ -19,15 +20,22 @@ const PRESET_COLORS = [
   '#eab308', '#22c55e', '#14b8a6', '#06b6d4', '#6366f1',
 ];
 
-const PRESET_ICONS = ['📁', '💼', '🎯', '🚀', '💡', '🔬', '🎨', '📚', '🏗️', '⚡'];
-
 export function ProjectDialog({ isOpen, onClose, project }: ProjectDialogProps) {
   const { t } = useTranslation();
   const { createProject, updateProject } = useSessionStore();
-  const [name, setName] = useState(project?.name || '');
-  const [description, setDescription] = useState(project?.description || '');
-  const [color, setColor] = useState(project?.color || PRESET_COLORS[0]);
-  const [icon, setIcon] = useState(project?.icon || PRESET_ICONS[0]);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [color, setColor] = useState(PRESET_COLORS[0]);
+  const [icon, setIcon] = useState<string>(PROJECT_ICON_NAMES[0]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setName(project?.name || '');
+      setDescription(project?.description || '');
+      setColor(project?.color || PRESET_COLORS[0]);
+      setIcon(project?.icon || PROJECT_ICON_NAMES[0]);
+    }
+  }, [isOpen, project]);
 
   const handleSubmit = () => {
     if (!name.trim()) return;
@@ -39,10 +47,6 @@ export function ProjectDialog({ isOpen, onClose, project }: ProjectDialogProps) 
     }
 
     onClose();
-    setName('');
-    setDescription('');
-    setColor(PRESET_COLORS[0]);
-    setIcon(PRESET_ICONS[0]);
   };
 
   return (
@@ -59,19 +63,22 @@ export function ProjectDialog({ isOpen, onClose, project }: ProjectDialogProps) 
           <div>
             <label className="text-sm font-medium mb-2 block">{t('sidebar.projectIcon')}</label>
             <div className="flex gap-2 flex-wrap">
-              {PRESET_ICONS.map((emoji) => (
-                <button
-                  key={emoji}
-                  onClick={() => setIcon(emoji)}
-                  className={`w-10 h-10 text-xl rounded-lg border-2 transition-all ${
-                    icon === emoji
-                      ? 'border-primary bg-primary/10 scale-110'
-                      : 'border-border hover:border-primary/50'
-                  }`}
-                >
-                  {emoji}
-                </button>
-              ))}
+              {PROJECT_ICON_NAMES.map((iconName) => {
+                const IconComp = getProjectIcon(iconName);
+                return (
+                  <button
+                    key={iconName}
+                    onClick={() => setIcon(iconName)}
+                    className={`w-10 h-10 flex items-center justify-center rounded-lg border-2 transition-all ${
+                      icon === iconName
+                        ? 'border-primary bg-primary/10 scale-110'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <IconComp className="w-5 h-5" />
+                  </button>
+                );
+              })}
             </div>
           </div>
 

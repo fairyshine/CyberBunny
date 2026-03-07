@@ -24,7 +24,57 @@ export {
   Languages,
   Check as CheckIcon,
   HardDrive,
+  Briefcase,
+  Target,
+  Rocket,
+  FlaskConical,
+  Palette,
+  BookOpen,
+  Building2,
+  MessagesSquare,
+  FolderTree,
 } from 'lucide-react';
+
+import type { LucideIcon } from 'lucide-react';
+import {
+  FolderOpen as _FolderOpen,
+  Briefcase as _Briefcase,
+  Target as _Target,
+  Rocket as _Rocket,
+  Lightbulb as _Lightbulb,
+  FlaskConical as _FlaskConical,
+  Palette as _Palette,
+  BookOpen as _BookOpen,
+  Building2 as _Building2,
+  Zap as _Zap,
+  FolderKanban as _FolderKanban,
+  MessagesSquare as _MessagesSquare,
+} from 'lucide-react';
+
+// Project icon presets (lucide icon names)
+export const PROJECT_ICON_NAMES = [
+  'folder-open', 'briefcase', 'target', 'rocket', 'lightbulb',
+  'flask-conical', 'palette', 'book-open', 'building-2', 'zap',
+] as const;
+
+export type ProjectIconName = (typeof PROJECT_ICON_NAMES)[number];
+
+const PROJECT_ICON_MAP: Record<ProjectIconName, LucideIcon> = {
+  'folder-open': _FolderOpen,
+  'briefcase': _Briefcase,
+  'target': _Target,
+  'rocket': _Rocket,
+  'lightbulb': _Lightbulb,
+  'flask-conical': _FlaskConical,
+  'palette': _Palette,
+  'book-open': _BookOpen,
+  'building-2': _Building2,
+  'zap': _Zap,
+};
+
+export function getProjectIcon(name: string): LucideIcon {
+  return PROJECT_ICON_MAP[name as ProjectIconName] ?? _MessagesSquare;
+}
 
 export function Plus({ className }: { className?: string }) {
   return (

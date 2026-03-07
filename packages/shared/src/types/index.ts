@@ -91,7 +91,7 @@ export interface Project {
   name: string;
   description?: string;
   color?: string; // 项目颜色标识
-  icon?: string; // emoji icon
+  icon?: string; // lucide icon name (e.g. 'folder-open', 'rocket')
   createdAt: number;
   updatedAt: number;
 }

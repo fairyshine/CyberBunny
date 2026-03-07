@@ -311,7 +311,7 @@ export const useSessionStore = create<SessionState>()(
           name,
           description,
           color: color || '#3b82f6',
-          icon: icon || '📁',
+          icon: icon || 'folder-open',
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };

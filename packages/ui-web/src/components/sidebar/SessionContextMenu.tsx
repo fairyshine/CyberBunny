@@ -12,7 +12,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { Edit2, Trash, FolderInput } from '../icons';
+import { Edit2, Trash, FolderInput, MessagesSquare, getProjectIcon } from '../icons';
 
 interface SessionContextMenuProps {
   session: Session;
@@ -50,19 +50,23 @@ export function SessionContextMenu({ session, children, onRename, onDelete }: Se
               onClick={() => handleMoveToProject(null)}
               disabled={!session.projectId}
             >
-              📋 {t('sidebar.noProject')}
+              <MessagesSquare className="w-4 h-4 mr-2" />
+              {t('sidebar.noProject')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            {projects.map((project) => (
-              <DropdownMenuItem
-                key={project.id}
-                onClick={() => handleMoveToProject(project.id)}
-                disabled={session.projectId === project.id}
-              >
-                <span className="mr-2">{project.icon}</span>
-                {project.name}
-              </DropdownMenuItem>
-            ))}
+            {projects.map((project) => {
+              const ProjectIcon = getProjectIcon(project.icon || '');
+              return (
+                <DropdownMenuItem
+                  key={project.id}
+                  onClick={() => handleMoveToProject(project.id)}
+                  disabled={session.projectId === project.id}
+                >
+                  <ProjectIcon className="w-4 h-4 mr-2" style={project.color ? { color: project.color } : undefined} />
+                  {project.name}
+                </DropdownMenuItem>
+              );
+            })}
           </DropdownMenuSubContent>
         </DropdownMenuSub>
 

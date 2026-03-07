@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useSessionStore, selectCurrentSession } from '@shared/stores/session';
 import { useSettingsStore } from '@shared/stores/settings';
 import { SessionType } from '@shared/types';
-import { Trash, ChevronLeft, ChevronRight, MessageSquare, Folder, Edit2, Plus, Undo2, TrashIcon, Globe, Lightbulb, HardDrive } from '../icons';
+import { Trash, ChevronLeft, ChevronRight, MessageSquare, Edit2, Plus, Undo2, TrashIcon, Globe, Lightbulb, HardDrive, getProjectIcon, MessagesSquare, FolderOpen, FolderTree } from '../icons';
 import FileTree from './FileTree';
 import { ProjectDialog } from './ProjectDialog';
 import { SessionContextMenu } from './SessionContextMenu';
@@ -58,6 +58,24 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
   });
 
   const { moveSessionToProject } = useSessionStore();
+  const [projectsListVisible, setProjectsListVisible] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('projects-list-visible');
+      return saved !== null ? JSON.parse(saved) : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleProjectsListVisible = () => {
+    const next = !projectsListVisible;
+    setProjectsListVisible(next);
+    try {
+      localStorage.setItem('projects-list-visible', JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+  };
 
   const toggleProjectCollapse = (projectId: string) => {
     const newCollapsed = new Set(collapsedProjects);
@@ -168,7 +186,7 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
             title={t('sidebar.files')}
             className="h-9 w-9"
           >
-            <Folder className="w-4 h-4" />
+            <FolderTree className="w-4 h-4" />
           </Button>
         </div>
       </div>
@@ -200,15 +218,29 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
           </span>
           <div className="flex items-center gap-1">
             {activeTab === 'sessions' && (
-              <Button
-                onClick={handleCreateSession}
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                title={t('header.newSession')}
-              >
-                <Plus className="w-4 h-4" />
-              </Button>
+              <>
+                <Button
+                  onClick={() => {
+                    setEditingProject(null);
+                    setProjectDialogOpen(true);
+                  }}
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  title={t('sidebar.createProject')}
+                >
+                  <FolderOpen className="w-4 h-4" />
+                </Button>
+                <Button
+                  onClick={handleCreateSession}
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  title={t('header.newSession')}
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </>
             )}
             <Button
               onClick={() => {
@@ -246,7 +278,7 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            <Folder className="w-3.5 h-3.5" />
+            <FolderTree className="w-3.5 h-3.5" />
             {t('sidebar.files')}
           </button>
         </div>
@@ -283,13 +315,28 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
                 <div className="p-2 space-y-2">
                   {!showTrash ? (
                     <>
+                      {/* Projects Section Header */}
+                      {projects.length > 0 && (
+                        <div
+                          className="flex items-center gap-2 px-2 py-1 cursor-pointer rounded-md hover:bg-muted/30 transition-colors"
+                          onClick={toggleProjectsListVisible}
+                        >
+                          <span className={`transition-transform ${projectsListVisible ? 'rotate-90' : ''}`}>
+                            <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                          </span>
+                          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            {t('sidebar.projects')}
+                          </span>
+                          <span className="text-xs text-muted-foreground">({projects.length})</span>
+                        </div>
+                      )}
+
                       {/* Project Sections */}
-                      {projects.map((project) => {
+                      {projectsListVisible && projects.map((project) => {
                         const projectSessions = allSessions.filter(s => !s.deletedAt && s.projectId === project.id);
-                        if (sessionTypeFilter !== 'all') {
-                          const filtered = projectSessions.filter(s => (s.sessionType || 'user') === sessionTypeFilter);
-                          if (filtered.length === 0) return null;
-                        }
+                        const filteredSessions = sessionTypeFilter === 'all'
+                          ? projectSessions
+                          : projectSessions.filter(s => (s.sessionType || 'user') === sessionTypeFilter);
 
                         const isCollapsed = collapsedProjects.has(project.id);
 
@@ -321,12 +368,15 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
                                 <span className={`transition-transform ${isCollapsed ? '' : 'rotate-90'}`}>
                                   <ChevronRight className="w-3 h-3 text-muted-foreground" />
                                 </span>
-                                <span className="text-base">{project.icon}</span>
+                                {(() => {
+                                  const ProjectIcon = getProjectIcon(project.icon || '');
+                                  return <ProjectIcon className="w-4 h-4" style={project.color ? { color: project.color } : undefined} />;
+                                })()}
                                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">
                                   {project.name}
                                 </span>
                                 <span className="text-xs text-muted-foreground shrink-0">
-                                  ({projectSessions.filter(s => sessionTypeFilter === 'all' || (s.sessionType || 'user') === sessionTypeFilter).length})
+                                  ({filteredSessions.length})
                                 </span>
                               </div>
                               <div className="flex items-center gap-0.5 shrink-0">
@@ -373,8 +423,7 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
                             </div>
 
                             {/* Sessions in this project */}
-                            {!isCollapsed && projectSessions
-                              .filter(s => sessionTypeFilter === 'all' || (s.sessionType || 'user') === sessionTypeFilter)
+                            {!isCollapsed && filteredSessions
                               .map((session) => {
                                 const readOnly = isReadOnly(session);
                                 return (
@@ -518,7 +567,7 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
                                   }
                                 }}
                               >
-                                <span className="text-base">📋</span>
+                                <MessagesSquare className="w-4 h-4 text-muted-foreground" />
                                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                                   {t('sidebar.noProject')}
                                 </span>
@@ -643,20 +692,6 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
                           </div>
                         );
                       })()}
-
-                      {/* Add Project Button */}
-                      <Button
-                        onClick={() => {
-                          setEditingProject(null);
-                          setProjectDialogOpen(true);
-                        }}
-                        variant="ghost"
-                        size="sm"
-                        className="w-full justify-start text-xs mt-2"
-                      >
-                        <Plus className="w-3 h-3 mr-2" />
-                        {t('sidebar.createProject')}
-                      </Button>
                     </>
                   ) : (
                     <>
