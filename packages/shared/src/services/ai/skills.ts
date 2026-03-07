@@ -1,6 +1,6 @@
 /**
  * Skills — register loaded skills as callable tools (opencode pattern)
- * Each skill becomes a tool named `skills_{{name}}` that injects the SKILL.md body
+ * Each skill becomes a tool named `skills_{{slug}}` that injects the SKILL.md body
  * as a synthetic instruction when invoked.
  */
 
@@ -8,6 +8,7 @@ import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 import { useSkillStore } from '../../stores/skills';
 import type { LoadedSkill } from '../skills';
+import { slugifySkillName } from '../skills';
 
 /**
  * Create a tool for a single skill (opencode pattern: lazy loading via tool invocation)
@@ -26,7 +27,7 @@ function createSkillTool(skill: LoadedSkill): Tool {
 }
 
 /**
- * Get all skills as tools (keyed as skills_{{name}})
+ * Get all skills as tools (keyed as skills_{{slug}})
  */
 export function getSkillTools(): Record<string, Tool> {
   const { skills, enabledSkillIds } = useSkillStore.getState();
@@ -34,7 +35,7 @@ export function getSkillTools(): Record<string, Tool> {
 
   for (const skill of skills) {
     if (!enabledSkillIds.includes(skill.id)) continue;
-    const toolName = `skills_${skill.name.replace(/-/g, '_')}`;
+    const toolName = `skills_${slugifySkillName(skill.name)}`;
     tools[toolName] = createSkillTool(skill);
   }
 
@@ -53,7 +54,7 @@ export function generateSkillsSystemPrompt(): string {
   }
 
   const skillDescriptions = enabled.map(skill => {
-    const toolName = `skills_${skill.name.replace(/-/g, '_')}`;
+    const toolName = `skills_${slugifySkillName(skill.name)}`;
     return `- **${skill.name}** (tool: \`${toolName}\`): ${skill.description}`;
   }).join('\n');
 

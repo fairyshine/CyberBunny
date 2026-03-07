@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSkillStore } from '@shared/stores/skills';
 import type { LoadedSkill } from '@shared/services/skills';
+import { slugifySkillName } from '@shared/services/skills';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -42,11 +43,6 @@ export function SkillManager() {
 
   const handleCreate = useCallback(async () => {
     if (!newName || !newDesc) return;
-    // Validate name format
-    if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(newName) || newName.includes('--')) {
-      setError(t('skills.invalidName'));
-      return;
-    }
     setSaving(true);
     setError(null);
     try {
@@ -59,7 +55,7 @@ export function SkillManager() {
     } finally {
       setSaving(false);
     }
-  }, [newName, newDesc, createSkill, t]);
+  }, [newName, newDesc, createSkill]);
 
   const handleEdit = useCallback(async (skill: LoadedSkill) => {
     const content = await getSkillContent(skill.name);
@@ -150,7 +146,7 @@ export function SkillManager() {
               <Input
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                placeholder="my-skill"
+                placeholder={t('skills.namePlaceholder')}
                 className="mt-1"
               />
               <p className="text-xs text-muted-foreground mt-1">{t('skills.nameHint')}</p>
@@ -212,7 +208,7 @@ function SkillCard({
   onDelete: () => void;
 }) {
   const { t } = useTranslation();
-  const toolName = `skills_${skill.name.replace(/-/g, '_')}`;
+  const toolName = `skills_${slugifySkillName(skill.name)}`;
 
   return (
     <Card className="p-4 group">
@@ -298,7 +294,7 @@ function SkillEditor({
             onChange={(e) => onChange(e.target.value)}
             className="h-full font-mono text-sm resize-none"
             readOnly={isBuiltin}
-            placeholder="---\nname: my-skill\ndescription: ...\n---\n\n# My Skill\n..."
+            placeholder={'---\nname: "数据分析"\ndescription: ...\n---\n\n# 数据分析\n...'}
           />
         </TabsContent>
 

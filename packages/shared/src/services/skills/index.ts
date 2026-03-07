@@ -4,7 +4,7 @@
  * Each skill becomes a callable tool following the opencode pattern (skills_{{name}}).
  */
 
-export { parseSkillMd, generateSkillTemplate } from './parser';
+export { parseSkillMd, generateSkillTemplate, slugifySkillName } from './parser';
 export type { ParsedSkill, SkillMetadata } from './parser';
 export {
   loadAllSkills,

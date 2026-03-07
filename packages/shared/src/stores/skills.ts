@@ -152,7 +152,7 @@ export const useSkillStore = create<SkillState>()(
       if (!skill) return null;
       if (skill.source === 'builtin') {
         // Generate content from built-in definition
-        return `---\nname: ${skill.name}\ndescription: ${skill.description}\nmetadata:\n  author: system\n  version: "1.0"\n---\n\n${skill.body}`;
+        return `---\nname: "${skill.name}"\ndescription: ${skill.description}\nmetadata:\n  author: system\n  version: "1.0"\n---\n\n${skill.body}`;
       }
       return readSkillMd(name);
     },

@@ -23,12 +23,6 @@ export default function AddSkillScreen() {
       return;
     }
 
-    // Validate name format
-    if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(name.trim()) || name.includes('--')) {
-      Alert.alert('Error', t('skills.invalidName'));
-      return;
-    }
-
     setLoading(true);
     try {
       if (useTemplate) {
@@ -67,7 +61,7 @@ export default function AddSkillScreen() {
         onChangeText={setName}
         mode="outlined"
         style={styles.input}
-        placeholder="my-skill"
+        placeholder={t('skills.namePlaceholder')}
       />
       <Text variant="bodySmall" style={styles.hint}>
         {t('skills.nameHint')}

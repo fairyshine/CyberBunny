@@ -45,13 +45,12 @@ export function parseSkillMd(content: string): ParsedSkill {
     throw new Error('SKILL.md requires a "description" field');
   }
 
-  // Validate name format: 1-64 chars, lowercase alphanumeric with single hyphens
-  if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(frontmatter.name) || frontmatter.name.length > 64) {
-    throw new Error(`Invalid skill name "${frontmatter.name}": must be 1-64 lowercase alphanumeric chars with single hyphens, no leading/trailing hyphens`);
+  // Validate name: 1-64 chars, no path separators or control characters
+  if (frontmatter.name.length > 64 || frontmatter.name.length === 0) {
+    throw new Error(`Invalid skill name "${frontmatter.name}": must be 1-64 characters`);
   }
-
-  if (frontmatter.name.includes('--')) {
-    throw new Error(`Invalid skill name "${frontmatter.name}": consecutive hyphens not allowed`);
+  if (/[\/\\<>:"|?*\x00-\x1f]/.test(frontmatter.name)) {
+    throw new Error(`Invalid skill name "${frontmatter.name}": contains invalid characters`);
   }
 
   return { frontmatter, body };
@@ -126,11 +125,26 @@ function stripQuotes(s: string): string {
 }
 
 /**
+ * Convert a skill name (possibly containing Unicode) to a safe ASCII slug for tool IDs.
+ * e.g. "数据分析" -> "6570636e5206", "data-analysis" -> "data_analysis"
+ */
+export function slugifySkillName(name: string): string {
+  // If already ASCII-safe, just replace non-alphanumeric with underscores
+  if (/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(name) || /^[a-z0-9]$/.test(name)) {
+    return name.replace(/-/g, '_');
+  }
+  // For Unicode names, hex-encode to produce a stable ASCII slug
+  return Array.from(name)
+    .map(ch => ch.codePointAt(0)!.toString(16))
+    .join('');
+}
+
+/**
  * Generate a SKILL.md template for creating new skills
  */
 export function generateSkillTemplate(name: string, description: string): string {
   return `---
-name: ${name}
+name: "${name}"
 description: ${description}
 metadata:
   author: user
