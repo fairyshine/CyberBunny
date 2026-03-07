@@ -45,8 +45,8 @@ export default function Header({ onToggleConsole, onToggleSidebar, onLogoClick }
   // Get current agent info
   const isDefaultAgent = currentAgentId === DEFAULT_AGENT_ID;
   const currentAgent = agents.find((a) => a.id === currentAgentId);
-  const displayName = isDefaultAgent ? 'CyberBunny' : currentAgent?.name || 'CyberBunny';
   const displayAvatar = isDefaultAgent ? '🐰' : currentAgent?.avatar || '🐰';
+  const displayColor = isDefaultAgent ? undefined : currentAgent?.color;
 
   const languageOptions: { value: Language; label: string }[] = [
     { value: 'system', label: t('settings.language.system') },
@@ -71,19 +71,24 @@ export default function Header({ onToggleConsole, onToggleSidebar, onLogoClick }
           <div className="flex items-center gap-2">
             <button
               onClick={onLogoClick}
-              className="w-7 h-7 bg-foreground rounded-md flex items-center justify-center text-background text-sm hover:opacity-80 transition-opacity cursor-pointer"
+              className="w-7 h-7 rounded-md flex items-center justify-center text-sm hover:opacity-80 transition-opacity cursor-pointer"
+              style={displayColor ? {
+                backgroundColor: displayColor,
+                color: '#fff'
+              } : {
+                backgroundColor: 'hsl(var(--foreground))',
+                color: 'hsl(var(--background))'
+              }}
               title={t('status.subtitle')}
             >
               {displayAvatar}
             </button>
-            <h1 className="font-semibold text-foreground tracking-tight">
-              {displayName}
+            <div className="flex items-center gap-2">
+              <h1 className="font-semibold text-foreground tracking-tight">CyberBunny</h1>
               {!isDefaultAgent && currentAgent && (
-                <span className="ml-2 text-xs text-muted-foreground font-normal">
-                  ({t('sidebar.agent.default')})
-                </span>
+                <span className="text-sm text-muted-foreground">{currentAgent.name}</span>
               )}
-            </h1>
+            </div>
           </div>
         </div>
 
