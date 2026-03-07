@@ -560,6 +560,15 @@ const zhCN = {
   'dashboard.today': '今日',
   'dashboard.todayInteractions': '次交互',
   'dashboard.todayTokens': 'Tokens',
+  'dashboard.totalDuration': '总耗时',
+  'dashboard.avgDuration': '平均耗时',
+  'dashboard.avgTokens': '平均 Tokens',
+  'dashboard.toolCalls': '工具调用',
+  'dashboard.steps': '推理步数',
+  'dashboard.errors': '错误',
+  'dashboard.byProvider': '按供应商',
+  'dashboard.byTool': '按工具',
+  'dashboard.invocations': '次调用',
 
   // Profile
   'settings.tabs.profile': '身份',

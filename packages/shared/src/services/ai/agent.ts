@@ -99,6 +99,7 @@ export async function runAgentLoop(
   const toolCallMessages = new Map<string, string>(); // toolCallId -> messageId
   const toolCallInputs = new Map<string, string>(); // toolCallId -> accumulated raw input text
   const toolCallNames = new Map<string, string>(); // toolCallId -> toolName (from delta)
+  const allToolCallNames: string[] = []; // all tool names invoked (for stats)
 
   try {
     console.log('[Agent] Creating streamText with:', {
@@ -250,6 +251,7 @@ export async function runAgentLoop(
               });
             }
             interactionMessageCount++; // tool_call
+            allToolCallNames.push(toolName);
 
             // --- tool_result message ---
             if (tr) {
@@ -334,6 +336,11 @@ export async function runAgentLoop(
       }
 
       // Record stats to database (fire-and-forget)
+      let finishReasonStr: string | undefined;
+      try {
+        finishReasonStr = await result.finishReason;
+      } catch { /* ignore */ }
+
       const record: StatsRecord = {
         id: crypto.randomUUID(),
         sessionId,
@@ -347,6 +354,15 @@ export async function runAgentLoop(
         duration: Date.now() - startTime,
         createdAt: Date.now(),
         date: new Date().toLocaleDateString('sv-SE'), // YYYY-MM-DD local time
+        stepCount,
+        toolCalls: allToolCallNames.length > 0 ? allToolCallNames : undefined,
+        toolCallCount: allToolCallNames.length || undefined,
+        finishReason: finishReasonStr,
+        temperature: llmConfig.temperature,
+        maxTokens: llmConfig.maxTokens,
+        userInputLength: userInput.length,
+        totalChunks: chunkCount,
+        error: hasError ? 'stream_error' : undefined,
       };
       statsStorage.record(record);
     } catch (e) {

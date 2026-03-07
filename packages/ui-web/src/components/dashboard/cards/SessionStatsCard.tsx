@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSessionStore, useStatsStore } from '@cyberbunny/shared';
+import type { AggregatedStats } from '@cyberbunny/shared';
 import {
   Dialog,
   DialogContent,
@@ -17,6 +18,12 @@ function formatTokens(n: number): string {
   return String(n);
 }
 
+function formatDuration(ms: number): string {
+  if (ms >= 60_000) return `${(ms / 60_000).toFixed(1)}m`;
+  if (ms >= 1_000) return `${(ms / 1_000).toFixed(1)}s`;
+  return `${ms}ms`;
+}
+
 function lastNDays(n: number): string[] {
   const days: string[] = [];
   const now = new Date();
@@ -28,7 +35,7 @@ function lastNDays(n: number): string[] {
   return days;
 }
 
-function DailyChart({ byDate, days }: { byDate: Record<string, { totalTokens: number; count: number }>; days: string[] }) {
+function DailyChart({ byDate, days }: { byDate: AggregatedStats['byDate']; days: string[] }) {
   const values = days.map((d) => byDate[d]?.totalTokens ?? 0);
   const max = Math.max(...values, 1);
 
@@ -48,6 +55,19 @@ function DailyChart({ byDate, days }: { byDate: Record<string, { totalTokens: nu
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function BarRow({ label, value, max, suffix }: { label: string; value: number; max: number; suffix?: string }) {
+  const pct = max > 0 ? (value / max) * 100 : 0;
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <span className="truncate flex-1 font-mono text-foreground/80">{label}</span>
+      <span className="text-muted-foreground whitespace-nowrap tabular-nums">{formatTokens(value)}{suffix}</span>
+      <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
+        <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
+      </div>
     </div>
   );
 }
@@ -84,6 +104,16 @@ export default function SessionStatsCard() {
   const modelEntries = useMemo(() => {
     if (!stats) return [];
     return Object.entries(stats.byModel).sort((a, b) => b[1].totalTokens - a[1].totalTokens);
+  }, [stats]);
+
+  const providerEntries = useMemo(() => {
+    if (!stats) return [];
+    return Object.entries(stats.byProvider).sort((a, b) => b[1].totalTokens - a[1].totalTokens);
+  }, [stats]);
+
+  const toolEntries = useMemo(() => {
+    if (!stats) return [];
+    return Object.entries(stats.byTool).sort((a, b) => b[1].count - a[1].count);
   }, [stats]);
 
   return (
@@ -124,14 +154,14 @@ export default function SessionStatsCard() {
 
       {/* Detail dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
+        <DialogContent className="max-w-lg h-[80vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
             <DialogTitle>{t('dashboard.usageStats')}</DialogTitle>
             <DialogDescription>{t('dashboard.sessionStats')}</DialogDescription>
           </DialogHeader>
 
-          {/* Time range selector */}
-          <div className="flex gap-1">
+          {/* Time range selector — fixed */}
+          <div className="flex gap-1 shrink-0">
             {(['7d', '30d', 'all'] as TimeRange[]).map((r) => (
               <button
                 key={r}
@@ -147,7 +177,10 @@ export default function SessionStatsCard() {
             ))}
           </div>
 
-          {/* Summary numbers */}
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto space-y-4 min-h-0">
+
+          {/* Summary numbers — row 1: core */}
           <div className="grid grid-cols-4 gap-3">
             <div className="rounded-lg bg-muted/50 p-3 text-center">
               <div className="text-xl font-bold">{stats?.totalSessions ?? 0}</div>
@@ -164,6 +197,26 @@ export default function SessionStatsCard() {
             <div className="rounded-lg bg-muted/50 p-3 text-center">
               <div className="text-xl font-bold">{formatTokens(stats?.totalOutputTokens ?? 0)}</div>
               <div className="text-xs text-muted-foreground">{t('dashboard.outputTokens')}</div>
+            </div>
+          </div>
+
+          {/* Summary numbers — row 2: extended */}
+          <div className="grid grid-cols-4 gap-3">
+            <div className="rounded-lg bg-muted/50 p-3 text-center">
+              <div className="text-xl font-bold">{formatDuration(stats?.avgDuration ?? 0)}</div>
+              <div className="text-xs text-muted-foreground">{t('dashboard.avgDuration')}</div>
+            </div>
+            <div className="rounded-lg bg-muted/50 p-3 text-center">
+              <div className="text-xl font-bold">{formatTokens(stats?.avgTokensPerInteraction ?? 0)}</div>
+              <div className="text-xs text-muted-foreground">{t('dashboard.avgTokens')}</div>
+            </div>
+            <div className="rounded-lg bg-muted/50 p-3 text-center">
+              <div className="text-xl font-bold">{stats?.totalToolCalls ?? 0}</div>
+              <div className="text-xs text-muted-foreground">{t('dashboard.toolCalls')}</div>
+            </div>
+            <div className="rounded-lg bg-muted/50 p-3 text-center">
+              <div className="text-xl font-bold">{stats?.totalSteps ?? 0}</div>
+              <div className="text-xs text-muted-foreground">{t('dashboard.steps')}</div>
             </div>
           </div>
 
@@ -185,15 +238,38 @@ export default function SessionStatsCard() {
             <div>
               <div className="text-xs text-muted-foreground mb-2 font-medium">{t('dashboard.byModel')}</div>
               <div className="space-y-2">
-                {modelEntries.slice(0, 8).map(([model, data]) => {
-                  const pct = (stats?.totalTokens ?? 0) > 0 ? (data.totalTokens / stats!.totalTokens) * 100 : 0;
+                {modelEntries.slice(0, 8).map(([model, data]) => (
+                  <BarRow key={model} label={model} value={data.totalTokens} max={stats?.totalTokens ?? 1} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Per-provider breakdown */}
+          {providerEntries.length > 1 && (
+            <div>
+              <div className="text-xs text-muted-foreground mb-2 font-medium">{t('dashboard.byProvider')}</div>
+              <div className="space-y-2">
+                {providerEntries.map(([provider, data]) => (
+                  <BarRow key={provider} label={provider} value={data.totalTokens} max={stats?.totalTokens ?? 1} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Per-tool breakdown */}
+          {toolEntries.length > 0 && (
+            <div>
+              <div className="text-xs text-muted-foreground mb-2 font-medium">{t('dashboard.byTool')}</div>
+              <div className="space-y-2">
+                {toolEntries.slice(0, 10).map(([tool, data]) => {
+                  const maxCount = toolEntries[0]?.[1]?.count ?? 1;
                   return (
-                    <div key={model} className="flex items-center gap-2 text-xs">
-                      <span className="truncate flex-1 font-mono text-foreground/80">{model}</span>
-                      <span className="text-muted-foreground whitespace-nowrap tabular-nums">{formatTokens(data.totalTokens)}</span>
-                      <span className="text-muted-foreground/60 whitespace-nowrap tabular-nums w-8 text-right">{data.count}x</span>
+                    <div key={tool} className="flex items-center gap-2 text-xs">
+                      <span className="truncate flex-1 font-mono text-foreground/80">{tool}</span>
+                      <span className="text-muted-foreground whitespace-nowrap tabular-nums">{data.count}x</span>
                       <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
+                        <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${(data.count / maxCount) * 100}%` }} />
                       </div>
                     </div>
                   );
@@ -205,6 +281,8 @@ export default function SessionStatsCard() {
           {stats?.totalInteractions === 0 && (
             <div className="text-sm text-muted-foreground text-center py-4">{t('dashboard.noStats')}</div>
           )}
+
+          </div>{/* end scrollable content */}
         </DialogContent>
       </Dialog>
     </>

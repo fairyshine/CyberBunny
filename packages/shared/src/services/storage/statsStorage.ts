@@ -82,19 +82,45 @@ const EMPTY_STATS: AggregatedStats = {
   totalTokens: 0,
   totalInputTokens: 0,
   totalOutputTokens: 0,
+  totalDuration: 0,
+  totalToolCalls: 0,
+  totalSteps: 0,
+  avgDuration: 0,
+  avgTokensPerInteraction: 0,
+  errorCount: 0,
   byModel: {},
+  byProvider: {},
   byDate: {},
   byProject: {},
+  byTool: {},
+  byFinishReason: {},
 };
+
+function addToBucket(
+  map: Record<string, { count: number; totalTokens: number; inputTokens: number; outputTokens: number; totalDuration: number }>,
+  key: string,
+  r: StatsRecord,
+) {
+  if (!map[key]) map[key] = { count: 0, totalTokens: 0, inputTokens: 0, outputTokens: 0, totalDuration: 0 };
+  map[key].count++;
+  map[key].totalTokens += r.totalTokens;
+  map[key].inputTokens += r.inputTokens;
+  map[key].outputTokens += r.outputTokens;
+  map[key].totalDuration += r.duration;
+}
 
 function computeAggregation(records: StatsRecord[]): AggregatedStats {
   if (records.length === 0) return EMPTY_STATS;
 
   const sessionIds = new Set<string>();
   const byModel: AggregatedStats['byModel'] = {};
+  const byProvider: AggregatedStats['byProvider'] = {};
   const byDate: AggregatedStats['byDate'] = {};
   const byProject: AggregatedStats['byProject'] = {};
+  const byTool: AggregatedStats['byTool'] = {};
+  const byFinishReason: AggregatedStats['byFinishReason'] = {};
   let totalMessages = 0, totalTokens = 0, totalInputTokens = 0, totalOutputTokens = 0;
+  let totalDuration = 0, totalToolCalls = 0, totalSteps = 0, errorCount = 0;
 
   for (const r of records) {
     sessionIds.add(r.sessionId);
@@ -102,37 +128,55 @@ function computeAggregation(records: StatsRecord[]): AggregatedStats {
     totalTokens += r.totalTokens;
     totalInputTokens += r.inputTokens;
     totalOutputTokens += r.outputTokens;
+    totalDuration += r.duration;
+    totalToolCalls += r.toolCallCount ?? 0;
+    totalSteps += r.stepCount ?? 0;
+    if (r.error) errorCount++;
 
-    // by model
-    if (!byModel[r.model]) byModel[r.model] = { inputTokens: 0, outputTokens: 0, totalTokens: 0, count: 0 };
-    byModel[r.model].inputTokens += r.inputTokens;
-    byModel[r.model].outputTokens += r.outputTokens;
-    byModel[r.model].totalTokens += r.totalTokens;
-    byModel[r.model].count++;
+    addToBucket(byModel, r.model, r);
+    addToBucket(byProvider, r.provider, r);
+    addToBucket(byDate, r.date, r);
+    if (r.projectId) addToBucket(byProject, r.projectId, r);
 
-    // by date
-    if (!byDate[r.date]) byDate[r.date] = { totalTokens: 0, count: 0 };
-    byDate[r.date].totalTokens += r.totalTokens;
-    byDate[r.date].count++;
+    // by tool
+    if (r.toolCalls) {
+      const seen = new Set<string>();
+      for (const name of r.toolCalls) {
+        if (!byTool[name]) byTool[name] = { count: 0, interactions: 0 };
+        byTool[name].count++;
+        if (!seen.has(name)) {
+          byTool[name].interactions++;
+          seen.add(name);
+        }
+      }
+    }
 
-    // by project
-    if (r.projectId) {
-      if (!byProject[r.projectId]) byProject[r.projectId] = { totalTokens: 0, count: 0 };
-      byProject[r.projectId].totalTokens += r.totalTokens;
-      byProject[r.projectId].count++;
+    // by finish reason
+    if (r.finishReason) {
+      byFinishReason[r.finishReason] = (byFinishReason[r.finishReason] ?? 0) + 1;
     }
   }
 
+  const n = records.length;
   return {
     totalSessions: sessionIds.size,
-    totalInteractions: records.length,
+    totalInteractions: n,
     totalMessages,
     totalTokens,
     totalInputTokens,
     totalOutputTokens,
+    totalDuration,
+    totalToolCalls,
+    totalSteps,
+    avgDuration: Math.round(totalDuration / n),
+    avgTokensPerInteraction: Math.round(totalTokens / n),
+    errorCount,
     byModel,
+    byProvider,
     byDate,
     byProject,
+    byTool,
+    byFinishReason,
   };
 }
 

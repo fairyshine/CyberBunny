@@ -8,7 +8,7 @@ import { getEnabledTools } from '@shared/services/ai/tools';
 import { useSettingsStore } from '@shared/stores/settings';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 import { Download } from '../icons';
 
 interface ExportDialogProps {
@@ -66,83 +66,64 @@ export default function ExportDialog({ messages, systemPrompt, sessionId, sessio
     onClose();
   };
 
-  const getPreview = () => {
+  const rawPreview = useMemo(() => {
     switch (format) {
       case 'json':
-        return MessageHistoryManager.exportToJSON(messages, exportOpts).slice(0, 500);
+        return MessageHistoryManager.exportToJSON(messages, exportOpts);
       case 'markdown':
-        return MessageHistoryManager.exportToMarkdown(messages, exportOpts).slice(0, 500);
+        return MessageHistoryManager.exportToMarkdown(messages, exportOpts);
       case 'text':
-        return MessageHistoryManager.exportToText(messages, exportOpts).slice(0, 500);
+        return MessageHistoryManager.exportToText(messages, exportOpts);
     }
-  };
+  }, [format, messages, exportOpts]);
 
   const stats = MessageHistoryManager.getMessageStats(messages);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[80vh]">
+      <DialogContent className="max-w-3xl max-h-[85vh]">
         <DialogHeader>
           <DialogTitle>{t('export.title')}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="grid grid-cols-4 gap-4 p-4 bg-muted rounded-lg">
+          {/* Stats bar */}
+          <div className="grid grid-cols-4 gap-4 p-3 bg-muted rounded-lg">
             <div>
-              <div className="text-sm text-muted-foreground">{t('export.totalMessages')}</div>
-              <div className="text-2xl font-bold">{stats.total}</div>
+              <div className="text-xs text-muted-foreground">{t('export.totalMessages')}</div>
+              <div className="text-lg font-bold">{stats.total}</div>
             </div>
             <div>
-              <div className="text-sm text-muted-foreground">{t('export.toolCalls')}</div>
-              <div className="text-2xl font-bold">{stats.toolCalls}</div>
+              <div className="text-xs text-muted-foreground">{t('export.toolCalls')}</div>
+              <div className="text-lg font-bold">{stats.toolCalls}</div>
             </div>
             <div>
-              <div className="text-sm text-muted-foreground">{t('export.estimatedTokens')}</div>
-              <div className="text-2xl font-bold">{stats.tokens}</div>
+              <div className="text-xs text-muted-foreground">{t('export.estimatedTokens')}</div>
+              <div className="text-lg font-bold">{stats.tokens}</div>
             </div>
             <div>
-              <div className="text-sm text-muted-foreground">{t('export.turns')}</div>
-              <div className="text-2xl font-bold">
+              <div className="text-xs text-muted-foreground">{t('export.turns')}</div>
+              <div className="text-lg font-bold">
                 {MessageHistoryManager.getConversationTurns(messages).length}
               </div>
             </div>
           </div>
 
+          {/* Format selector */}
           <Tabs value={format} onValueChange={(v) => setFormat(v as any)}>
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="markdown">Markdown</TabsTrigger>
-              <TabsTrigger value="json">JSON</TabsTrigger>
-              <TabsTrigger value="text">{t('export.plainText')}</TabsTrigger>
+            <TabsList>
+              <TabsTrigger value="markdown" className="text-xs">Markdown</TabsTrigger>
+              <TabsTrigger value="json" className="text-xs">JSON</TabsTrigger>
+              <TabsTrigger value="text" className="text-xs">{t('export.plainText')}</TabsTrigger>
             </TabsList>
-
-            <TabsContent value="markdown" className="space-y-2">
-              <p className="text-sm text-muted-foreground">
-                {t('export.markdownDesc')}
-              </p>
-              <pre className="p-4 bg-muted rounded-lg text-xs overflow-auto max-h-64 whitespace-pre-wrap break-all">
-                {getPreview()}...
-              </pre>
-            </TabsContent>
-
-            <TabsContent value="json" className="space-y-2">
-              <p className="text-sm text-muted-foreground">
-                {t('export.jsonDesc')}
-              </p>
-              <pre className="p-4 bg-muted rounded-lg text-xs overflow-auto max-h-64 whitespace-pre-wrap break-all">
-                {getPreview()}...
-              </pre>
-            </TabsContent>
-
-            <TabsContent value="text" className="space-y-2">
-              <p className="text-sm text-muted-foreground">
-                {t('export.textDesc')}
-              </p>
-              <pre className="p-4 bg-muted rounded-lg text-xs overflow-auto max-h-64 whitespace-pre-wrap break-all">
-                {getPreview()}...
-              </pre>
-            </TabsContent>
           </Tabs>
 
+          {/* Full raw preview — calc subtracts stats/tabs/footer/padding heights */}
+          <pre className="p-4 text-xs font-mono whitespace-pre-wrap break-all text-foreground/80 rounded-lg border border-border overflow-y-auto max-h-[calc(85vh-320px)]">
+            {rawPreview}
+          </pre>
+
+          {/* Footer */}
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={onClose}>
               {t('common.cancel')}

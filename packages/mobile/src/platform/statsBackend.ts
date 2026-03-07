@@ -30,12 +30,42 @@ export class SQLiteStatsBackend implements IStatsStorageBackend {
             message_count INTEGER NOT NULL,
             duration INTEGER NOT NULL,
             created_at INTEGER NOT NULL,
-            date TEXT NOT NULL
+            date TEXT NOT NULL,
+            step_count INTEGER,
+            tool_calls TEXT,
+            tool_call_count INTEGER,
+            finish_reason TEXT,
+            temperature REAL,
+            max_tokens INTEGER,
+            user_input_length INTEGER,
+            total_chunks INTEGER,
+            error TEXT
           );
           CREATE INDEX IF NOT EXISTS idx_stats_session ON stats(session_id);
           CREATE INDEX IF NOT EXISTS idx_stats_date ON stats(date);
           CREATE INDEX IF NOT EXISTS idx_stats_created ON stats(created_at);
         `);
+        // Migrate: add new columns if upgrading from v1
+        const cols = await this.db.getAllAsync<{ name: string }>(
+          `PRAGMA table_info(stats)`
+        );
+        const colNames = new Set(cols.map((c) => c.name));
+        const migrations: [string, string][] = [
+          ['step_count', 'INTEGER'],
+          ['tool_calls', 'TEXT'],
+          ['tool_call_count', 'INTEGER'],
+          ['finish_reason', 'TEXT'],
+          ['temperature', 'REAL'],
+          ['max_tokens', 'INTEGER'],
+          ['user_input_length', 'INTEGER'],
+          ['total_chunks', 'INTEGER'],
+          ['error', 'TEXT'],
+        ];
+        for (const [col, type] of migrations) {
+          if (!colNames.has(col)) {
+            await this.db.execAsync(`ALTER TABLE stats ADD COLUMN ${col} ${type}`);
+          }
+        }
       })();
     }
 
@@ -47,8 +77,9 @@ export class SQLiteStatsBackend implements IStatsStorageBackend {
     const db = await this.ensureDB();
     await db.runAsync(
       `INSERT OR REPLACE INTO stats
-        (id, session_id, project_id, model, provider, input_tokens, output_tokens, total_tokens, message_count, duration, created_at, date)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, session_id, project_id, model, provider, input_tokens, output_tokens, total_tokens, message_count, duration, created_at, date,
+         step_count, tool_calls, tool_call_count, finish_reason, temperature, max_tokens, user_input_length, total_chunks, error)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         record.id,
         record.sessionId,
@@ -62,6 +93,15 @@ export class SQLiteStatsBackend implements IStatsStorageBackend {
         record.duration,
         record.createdAt,
         record.date,
+        record.stepCount ?? null,
+        record.toolCalls ? JSON.stringify(record.toolCalls) : null,
+        record.toolCallCount ?? null,
+        record.finishReason ?? null,
+        record.temperature ?? null,
+        record.maxTokens ?? null,
+        record.userInputLength ?? null,
+        record.totalChunks ?? null,
+        record.error ?? null,
       ]
     );
   }
@@ -114,5 +154,14 @@ function rowToRecord(row: Record<string, any>): StatsRecord {
     duration: row.duration,
     createdAt: row.created_at,
     date: row.date,
+    stepCount: row.step_count ?? undefined,
+    toolCalls: row.tool_calls ? JSON.parse(row.tool_calls) : undefined,
+    toolCallCount: row.tool_call_count ?? undefined,
+    finishReason: row.finish_reason ?? undefined,
+    temperature: row.temperature ?? undefined,
+    maxTokens: row.max_tokens ?? undefined,
+    userInputLength: row.user_input_length ?? undefined,
+    totalChunks: row.total_chunks ?? undefined,
+    error: row.error ?? undefined,
   };
 }

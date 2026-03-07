@@ -560,6 +560,15 @@ const enUS = {
   'dashboard.today': 'Today',
   'dashboard.todayInteractions': 'Interactions',
   'dashboard.todayTokens': 'Tokens',
+  'dashboard.totalDuration': 'Total Time',
+  'dashboard.avgDuration': 'Avg Duration',
+  'dashboard.avgTokens': 'Avg Tokens',
+  'dashboard.toolCalls': 'Tool Calls',
+  'dashboard.steps': 'Steps',
+  'dashboard.errors': 'Errors',
+  'dashboard.byProvider': 'By Provider',
+  'dashboard.byTool': 'By Tool',
+  'dashboard.invocations': 'invocations',
 
   // Profile
   'settings.tabs.profile': 'Profile',
