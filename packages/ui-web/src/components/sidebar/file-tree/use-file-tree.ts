@@ -1,18 +1,26 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fileSystem, FileSystemEntry } from '@shared/services/filesystem';
+import { useAgentStore, DEFAULT_AGENT_ID } from '@shared/stores/agent';
 import { TreeNode, ViewMode } from './types';
 
 export function useFileTree() {
   const { t } = useTranslation();
+  const currentAgentId = useAgentStore((s) => s.currentAgentId);
+  const agents = useAgentStore((s) => s.agents);
+
+  // Get current agent's file root
+  const currentAgent = agents.find((a) => a.id === currentAgentId);
+  const rootPath = currentAgent?.filesRoot || '/root';
+
   const [tree, setTree] = useState<TreeNode[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set(['/root']));
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => new Set([rootPath]));
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     try { return (localStorage.getItem('filetree-view') as ViewMode) || 'list'; } catch { return 'list'; }
   });
-  const [gridPath, setGridPath] = useState('/root');
+  const [gridPath, setGridPath] = useState(rootPath);
   const [gridEntries, setGridEntries] = useState<TreeNode[]>([]);
 
   const [creating, setCreating] = useState<{ path: string; type: 'folder' | 'file' } | null>(null);
@@ -22,6 +30,12 @@ export function useFileTree() {
   const [renaming, setRenaming] = useState<{ path: string; name: string } | null>(null);
 
   const isDraggingRef = useRef(false);
+
+  // Update expanded paths and grid path when agent changes
+  useEffect(() => {
+    setExpandedPaths(new Set([rootPath]));
+    setGridPath(rootPath);
+  }, [rootPath]);
 
   const loadDirectory = useCallback(async (path: string): Promise<TreeNode[]> => {
     try {
@@ -56,9 +70,9 @@ export function useFileTree() {
       return entries;
     };
 
-    setTree(await buildTree('/root'));
+    setTree(await buildTree(rootPath));
     setIsLoading(false);
-  }, [loadDirectory, expandedPaths]);
+  }, [loadDirectory, expandedPaths, rootPath]);
 
   useEffect(() => {
     if (!isDraggingRef.current && !creatingRef.current) loadTree();
@@ -123,13 +137,13 @@ export function useFileTree() {
     setRenaming(null);
     if (!cur || !name.trim()) return;
     try {
-      const parentPath = cur.path.substring(0, cur.path.lastIndexOf('/')) || '/root';
+      const parentPath = cur.path.substring(0, cur.path.lastIndexOf('/')) || rootPath;
       const newPath = `${parentPath}/${name.trim()}`;
       if (newPath !== cur.path) { await fileSystem.rename(cur.path, newPath); await loadTree(); }
     } catch (error) {
       alert(t('fileManager.renameFailed', { error: error instanceof Error ? error.message : String(error) }));
     }
-  }, [renaming, loadTree, t]);
+  }, [renaming, loadTree, t, rootPath]);
 
   const handleDelete = useCallback(async (entry: FileSystemEntry) => {
     if (!confirm(t('fileManager.confirmDelete', { name: entry.name }))) return;
@@ -159,5 +173,6 @@ export function useFileTree() {
     handleDelete, handleDownload,
     toggleExpand, loadTree, loadDirectory,
     isDraggingRef,
+    rootPath, // Export rootPath for use in components
   };
 }

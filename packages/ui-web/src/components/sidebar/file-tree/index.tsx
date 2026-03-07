@@ -49,7 +49,7 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick, onBl
       : filteredGrid.map(e => e.path);
   }, [ft.viewMode, filteredTree, filteredGrid, ft.expandedPaths]);
 
-  const rootDir = ft.viewMode === 'grid' ? ft.gridPath : '/root';
+  const rootDir = ft.viewMode === 'grid' ? ft.gridPath : ft.rootPath;
 
   return (
     <div className="h-full flex flex-col">
