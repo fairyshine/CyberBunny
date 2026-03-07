@@ -4,12 +4,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSkillStore } from '@shared/stores/skills';
+import { useAgentConfig } from '../../hooks/useAgentConfig';
 import type { LoadedSkill } from '@shared/services/skills';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
+import { Switch } from '../ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { ScrollArea } from '../ui/scroll-area';
@@ -27,6 +29,7 @@ import {
 export function SkillManager() {
   const { t } = useTranslation();
   const { skills, loading, loadSkills, createSkill, updateSkill, removeSkill, getSkillContent } = useSkillStore();
+  const { enabledSkills, toggleSkill } = useAgentConfig();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editSkill, setEditSkill] = useState<LoadedSkill | null>(null);
@@ -94,7 +97,7 @@ export function SkillManager() {
         <div>
           <h3 className="text-lg font-semibold">{t('skills.title')}</h3>
           <p className="text-sm text-muted-foreground mt-1">
-            {t('skills.totalCount', { count: skills.length })}
+            {t('skills.totalCount', { count: skills.length })} · {t('skills.enabledCount', { count: enabledSkills.length })}
           </p>
         </div>
         <Button onClick={() => setCreateOpen(true)} size="sm">
@@ -126,6 +129,8 @@ export function SkillManager() {
             <SkillCard
               key={skill.id}
               skill={skill}
+              enabled={enabledSkills.includes(skill.id)}
+              onToggle={() => toggleSkill(skill.id)}
               onEdit={() => handleEdit(skill)}
               onDelete={() => handleDelete(skill)}
             />
@@ -199,10 +204,14 @@ export function SkillManager() {
 
 function SkillCard({
   skill,
+  enabled,
+  onToggle,
   onEdit,
   onDelete,
 }: {
   skill: LoadedSkill;
+  enabled: boolean;
+  onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -227,15 +236,22 @@ function SkillCard({
             )}
           </div>
         </div>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit}>
-            <Pencil className="w-4 h-4" />
-          </Button>
-          {skill.source !== 'builtin' && (
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={onDelete}>
-              <Trash2 className="w-4 h-4" />
+        <div className="flex items-center gap-1">
+          <Switch
+            checked={enabled}
+            onCheckedChange={onToggle}
+            className="shrink-0"
+          />
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit}>
+              <Pencil className="w-4 h-4" />
             </Button>
-          )}
+            {skill.source !== 'builtin' && (
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={onDelete}>
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </Card>

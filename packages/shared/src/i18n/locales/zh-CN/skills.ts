@@ -29,5 +29,6 @@ export default {
   'skills.saveError': '保存技能失败',
   'skills.deleteError': '删除技能失败',
   'skills.totalCount': '共 {{count}} 个技能可用',
+  'skills.enabledCount': '已启用 {{count}} 个',
   'skills.toolName': 'activate_skill({{name}})',
 } as const;

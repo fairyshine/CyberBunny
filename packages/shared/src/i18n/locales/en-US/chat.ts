@@ -6,6 +6,7 @@ export default {
   'chat.input.skills': 'Skills',
   'chat.input.noSkills': 'No skills available',
   'chat.input.scopeGlobal': 'Global',
+  'chat.input.scopeAgent': 'Agent',
   'chat.input.scopeSession': 'Session',
   'chat.input.locked': 'Session started, config locked',
   'chat.input.processing': 'Processing...',

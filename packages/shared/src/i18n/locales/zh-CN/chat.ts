@@ -6,6 +6,7 @@ export default {
   'chat.input.skills': '技能',
   'chat.input.noSkills': '暂无可用技能',
   'chat.input.scopeGlobal': '全局',
+  'chat.input.scopeAgent': '智能体',
   'chat.input.scopeSession': '本会话',
   'chat.input.locked': '会话已开始，配置已锁定',
   'chat.input.processing': '处理中...',

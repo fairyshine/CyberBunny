@@ -196,7 +196,7 @@ export default function ChatInput({ onSend, onStop, isLoading, disabled, placeho
                     `} />
                   </span>
                   <span className="font-medium select-none">
-                    {scopeMode === 'session' ? t('chat.input.scopeSession') : t('chat.input.scopeGlobal')}
+                    {scopeMode === 'session' ? t('chat.input.scopeSession') : t('chat.input.scopeAgent')}
                   </span>
                 </button>
                 {isSessionStarted && (

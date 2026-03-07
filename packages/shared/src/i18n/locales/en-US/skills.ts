@@ -29,5 +29,6 @@ export default {
   'skills.saveError': 'Failed to save skill',
   'skills.deleteError': 'Failed to delete skill',
   'skills.totalCount': '{{count}} skills available',
+  'skills.enabledCount': '{{count}} enabled',
   'skills.toolName': 'activate_skill({{name}})',
 } as const;
