@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { logSettings } from '../services/console/logger';
-import type { UserProfile, AgentProfile } from '../types';
+import type { UserProfile, AgentProfile, LLMPreset } from '../types';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type Language = 'zh-CN' | 'en-US' | 'system';
@@ -91,6 +91,12 @@ interface SettingsState {
   updateAgentProfile: (id: string, updates: Partial<AgentProfile>) => void;
   removeAgentProfile: (id: string) => void;
   setActiveAgentProfile: (id: string) => void;
+
+  // LLM presets
+  llmPresets: LLMPreset[];
+  addLLMPreset: (preset: Omit<LLMPreset, 'id' | 'createdAt'>) => LLMPreset;
+  updateLLMPreset: (id: string, updates: Partial<Omit<LLMPreset, 'id' | 'createdAt'>>) => void;
+  removeLLMPreset: (id: string) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -216,6 +222,21 @@ export const useSettingsStore = create<SettingsState>()(
             ...p,
             isActive: p.id === id,
           })),
+        })),
+
+      llmPresets: [],
+      addLLMPreset: (preset) => {
+        const newPreset: LLMPreset = { ...preset, id: crypto.randomUUID(), createdAt: Date.now() };
+        set((state) => ({ llmPresets: [...state.llmPresets, newPreset] }));
+        return newPreset;
+      },
+      updateLLMPreset: (id, updates) =>
+        set((state) => ({
+          llmPresets: state.llmPresets.map((p) => p.id === id ? { ...p, ...updates } : p),
+        })),
+      removeLLMPreset: (id) =>
+        set((state) => ({
+          llmPresets: state.llmPresets.filter((p) => p.id !== id),
         })),
     }),
     {

@@ -82,6 +82,13 @@ export interface LLMConfig {
   maxTokens?: number;
 }
 
+// LLM 配置预设
+export interface LLMPreset extends LLMConfig {
+  id: string;
+  name: string;
+  createdAt: number;
+}
+
 // 会话类型
 export type SessionType = 'user' | 'agent' | 'mind';
 
