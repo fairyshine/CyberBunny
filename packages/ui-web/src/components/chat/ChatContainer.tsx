@@ -77,25 +77,35 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
     scrollPositions.set(sessionId, el.scrollTop);
   }, [sessionId]);
 
-  // Auto-scroll only when new messages arrive AND user is near bottom
+  // Auto-scroll: only trigger on new messages (length change), not content updates
+  const messageCount = session?.messages?.length ?? 0;
+
   useEffect(() => {
     if (!restoredRef.current) return;
-    const msgCount = session?.messages?.length ?? 0;
-    const isNewMessage = msgCount > prevMessageCountRef.current;
-    prevMessageCountRef.current = msgCount;
+    const isNewMessage = messageCount > prevMessageCountRef.current;
+    prevMessageCountRef.current = messageCount;
 
     // When user sends a new message, always scroll to bottom
-    if (isNewMessage && msgCount > 0) {
-      const lastMsg = session!.messages[msgCount - 1];
+    if (isNewMessage && messageCount > 0) {
+      const lastMsg = session!.messages[messageCount - 1];
       if (lastMsg.role === 'user') {
         isNearBottomRef.current = true;
       }
     }
 
-    if (isNearBottomRef.current) {
+    if (isNewMessage && isNearBottomRef.current) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [session?.messages, currentStatus]);
+  }, [messageCount]);
+
+  // During streaming, keep scroll pinned to bottom without smooth animation
+  useEffect(() => {
+    if (!isNearBottomRef.current || !isLoading) return;
+    const el = scrollContainerRef.current;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    }
+  });
 
   const handleStop = () => {
     if (abortControllerRef.current) {
@@ -201,7 +211,7 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden relative">
       <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto">
-        <div className="sticky top-0 z-10 flex items-center justify-end gap-2 px-3 py-1.5 pointer-events-none">
+        <div className="sticky top-0 z-10 flex items-center justify-end gap-2 px-3 py-1.5 pointer-events-none min-h-[36px]">
           {currentStatus && (
             <Badge variant="secondary" className="animate-pulse pointer-events-auto shadow-sm">
               {currentStatus}

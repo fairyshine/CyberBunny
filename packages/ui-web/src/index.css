@@ -96,6 +96,12 @@
   background: hsl(var(--muted-foreground) / 0.5);
 }
 
+/* Prevent layout shift when scrollbar appears/disappears */
+.overflow-y-auto,
+.overflow-y-scroll {
+  scrollbar-gutter: stable;
+}
+
 /* 代码块样式 - 极简风格 */
 pre {
   background: hsl(var(--muted));
