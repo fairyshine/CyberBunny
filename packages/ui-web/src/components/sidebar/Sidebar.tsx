@@ -8,10 +8,11 @@ import { ProjectDialog } from './ProjectDialog';
 import { CollapsedSidebar } from './CollapsedSidebar';
 import { SidebarHeader } from './SidebarHeader';
 import { SessionList } from './SessionList';
+import { AgentList } from './AgentList';
 import { useResizableSidebar } from './useResizableSidebar';
 import type { SessionTypeFilter } from './SessionTypeFilterBar';
 
-type TabType = 'sessions' | 'files';
+type TabType = 'agents' | 'sessions' | 'files';
 
 interface SidebarProps {
   selectedFilePath?: string;
@@ -25,7 +26,7 @@ interface SidebarProps {
 export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClose, onSessionSelect, onFileBlankClick }: SidebarProps) {
   const { t } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabType>('sessions');
+  const [activeTab, setActiveTab] = useState<TabType>('agents');
   const [sessionTypeFilter, setSessionTypeFilter] = useState<SessionTypeFilter>('all');
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -93,11 +94,14 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
           onCollapse={handleCollapse}
           onCreateProject={() => { setEditingProject(null); setProjectDialogOpen(true); }}
           onCreateSession={handleCreateSession}
+          onCreateAgent={() => {/* TODO: implement agent dialog */}}
         />
 
         {/* Content Area */}
         <div className="flex-1 overflow-hidden">
-          {activeTab === 'sessions' ? (
+          {activeTab === 'agents' ? (
+            <AgentList onItemClick={handleItemClick} />
+          ) : activeTab === 'sessions' ? (
             <SessionList
               onItemClick={handleItemClick}
               onSessionSelect={onSessionSelect}

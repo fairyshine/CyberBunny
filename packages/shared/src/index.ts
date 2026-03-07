@@ -13,6 +13,7 @@ export { useSettingsStore, setThemeHandler, setLanguageHandler, resolveLanguage 
 export type { Theme, Language } from './stores/settings';
 export { useToolStore, getBuiltinToolIds } from './stores/tools';
 export { useSkillStore } from './stores/skills';
+export { useAgentStore, DEFAULT_AGENT_ID } from './stores/agent';
 
 // Services - Message Storage (IndexedDB / AsyncStorage)
 export { messageStorage } from './services/storage/messageStorage';

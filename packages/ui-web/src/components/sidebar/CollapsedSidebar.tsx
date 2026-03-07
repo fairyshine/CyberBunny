@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from '../ui/button';
-import { ChevronRight, MessageSquare, FolderTree } from '../icons';
+import { ChevronRight, MessageSquare, FolderTree, Brain } from '../icons';
 
-type TabType = 'sessions' | 'files';
+type TabType = 'agents' | 'sessions' | 'files';
 
 interface CollapsedSidebarProps {
   activeTab: TabType;
@@ -25,6 +25,15 @@ export function CollapsedSidebar({ activeTab, onExpand }: CollapsedSidebarProps)
         </Button>
       </div>
       <div className="flex flex-col items-center py-3 gap-2">
+        <Button
+          onClick={() => onExpand('agents')}
+          variant={activeTab === 'agents' ? 'default' : 'ghost'}
+          size="icon"
+          title={t('sidebar.agents')}
+          className="h-9 w-9"
+        >
+          <Brain className="w-4 h-4" />
+        </Button>
         <Button
           onClick={() => onExpand('sessions')}
           variant={activeTab === 'sessions' ? 'default' : 'ghost'}

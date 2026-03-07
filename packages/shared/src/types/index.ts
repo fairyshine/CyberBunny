@@ -89,6 +89,25 @@ export interface LLMPreset extends LLMConfig {
   createdAt: number;
 }
 
+// 智能体（独立工作空间）
+export interface Agent {
+  id: string;
+  name: string;
+  avatar: string; // emoji
+  description: string;
+  systemPrompt: string;
+  color: string;
+  isDefault?: boolean; // 默认智能体，不可删除
+  // 独立配置
+  llmConfig: LLMConfig;
+  enabledTools: string[];
+  enabledSkills: string[];
+  // 文件系统根目录（沙盒隔离）
+  filesRoot: string; // e.g. /root/.agents/<id>/files
+  createdAt: number;
+  updatedAt: number;
+}
+
 // 会话类型
 export type SessionType = 'user' | 'agent' | 'mind';
 

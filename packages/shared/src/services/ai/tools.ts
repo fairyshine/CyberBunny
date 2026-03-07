@@ -237,9 +237,6 @@ export const fileManagerTool = tool({
       if (normalizedPath.includes('/.memory') || normalizedPath === '/root/.memory') {
         return '[Error] Access to .memory directory is restricted';
       }
-      if (normalizedPath.includes('/.skills') || normalizedPath === '/root/.skills') {
-        return '[Error] Access to .skills directory is restricted';
-      }
 
       const fileOperation = (async () => {
         await fileSystem.initialize();
@@ -271,7 +268,7 @@ export const fileManagerTool = tool({
           case 'list': {
             const targetPath = normalizedPath || '/root';
             const entries = await fileSystem.readdir(targetPath);
-            const filtered = entries.filter((e: any) => e.name !== '.memory' && e.name !== '.skills');
+            const filtered = entries.filter((e: any) => e.name !== '.memory');
             if (filtered.length === 0) {
               return `${targetPath}\n${t()('tools.exec.emptyFolder')}`;
             }
