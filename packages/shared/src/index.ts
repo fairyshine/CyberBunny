@@ -18,6 +18,13 @@ export { useSkillStore } from './stores/skills';
 export { messageStorage } from './services/storage/messageStorage';
 export type { IMessageStorageBackend } from './services/storage/messageStorage';
 
+// Services - Stats Storage (IndexedDB / SQLite)
+export { statsStorage } from './services/storage/statsStorage';
+export type { IStatsStorageBackend, StatsRecord, AggregatedStats } from './services/storage/statsStorage';
+
+// Stores - Stats
+export { useStatsStore } from './stores/stats';
+
 // Services - Console & FileSystem & Python (unchanged)
 export { logSystem, logLLM, logTool, logFile, logSettings, logMCP, logPython, consoleLogger } from './services/console/logger';
 export type { LogEntry, LogLevel, LogCategory } from './services/console/logger';

@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { Session, Message, LLMConfig, SessionType, Project } from '../types';
 import { logSettings } from '../services/console/logger';
 import { messageStorage } from '../services/storage/messageStorage';
+import { statsStorage } from '../services/storage/statsStorage';
 
 /** Cached session statistics — updated incrementally to avoid full recalculation */
 export interface SessionStats {
@@ -185,8 +186,9 @@ export const useSessionStore = create<SessionState>()(
       },
 
       permanentlyDeleteSession: (id: string) => {
-        // Also remove messages from IndexedDB
+        // Also remove messages and stats from database
         messageStorage.delete(id);
+        statsStorage.deleteSession(id);
         set((state) => {
           const target = state.sessions.find(s => s.id === id);
           const wasActive = target && !target.deletedAt;
@@ -206,10 +208,11 @@ export const useSessionStore = create<SessionState>()(
       },
 
       clearTrash: () => {
-        // Delete messages for all trashed sessions
+        // Delete messages and stats for all trashed sessions
         const trashed = get().sessions.filter((s) => s.deletedAt);
         for (const s of trashed) {
           messageStorage.delete(s.id);
+          statsStorage.deleteSession(s.id);
         }
         // Trashed sessions are already excluded from stats, no stats change needed
         set((state) => ({
@@ -311,6 +314,7 @@ export const useSessionStore = create<SessionState>()(
 
       clearAllSessions: () => {
         messageStorage.clear();
+        statsStorage.clear();
         set({
           sessions: [],
           currentSessionId: null,

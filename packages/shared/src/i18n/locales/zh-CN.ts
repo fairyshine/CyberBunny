@@ -532,6 +532,17 @@ const zhCN = {
   'dashboard.bunnyMascot': '赛博兔兔',
   'dashboard.customize': '自定义仪表盘',
   'dashboard.resetLayout': '重置布局',
+  'dashboard.usageStats': '用量统计',
+  'dashboard.interactions': '交互次数',
+  'dashboard.inputTokens': '输入',
+  'dashboard.outputTokens': '输出',
+  'dashboard.totalTokens': '总 Tokens',
+  'dashboard.byModel': '按模型',
+  'dashboard.byDate': '按日期',
+  'dashboard.noStats': '暂无用量数据',
+  'dashboard.last7days': '7 天',
+  'dashboard.last30days': '30 天',
+  'dashboard.allTime': '全部',
 
   // Profile
   'settings.tabs.profile': '身份',

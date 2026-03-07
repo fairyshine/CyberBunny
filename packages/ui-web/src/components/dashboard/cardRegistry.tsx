@@ -1,4 +1,4 @@
-import { Monitor, MessageSquare, Zap } from 'lucide-react';
+import { Monitor, MessageSquare, Zap, BarChart3 } from 'lucide-react';
 import { Brain, Wrench, Lightbulb } from 'lucide-react';
 import { Terminal } from '../icons';
 import type { DashboardCardDef, DashboardCardId } from './types';
@@ -6,6 +6,7 @@ import WelcomeCard from './cards/WelcomeCard';
 import SystemInfoCard from './cards/SystemInfoCard';
 import BunnyMascotCard from './cards/BunnyMascotCard';
 import SessionStatsCard from './cards/SessionStatsCard';
+import UsageStatsCard from './cards/UsageStatsCard';
 import LLMConfigCard from './cards/LLMConfigCard';
 import ToolStatusCard from './cards/ToolStatusCard';
 import MCPStatusCard from './cards/MCPStatusCard';
@@ -54,6 +55,14 @@ export const cardRegistry: Record<DashboardCardId, DashboardCardDef> = {
     colSpan: 1,
     rowSpan: 1,
     component: SessionStatsCard,
+  },
+  'usage-stats': {
+    id: 'usage-stats',
+    titleKey: 'dashboard.usageStats',
+    icon: <BarChart3 className="w-4 h-4" />,
+    colSpan: 2,
+    rowSpan: 1,
+    component: UsageStatsCard,
   },
   'tool-status': {
     id: 'tool-status',

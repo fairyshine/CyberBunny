@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSessionStore } from '@shared/stores/session';
 import { useSettingsStore } from '@shared/stores/settings';
@@ -13,6 +13,9 @@ import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Download } from '../icons';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+
+/** Persisted scroll positions per session (survives component re-mounts within the same page session) */
+const scrollPositions = new Map<string, number>();
 
 interface ChatContainerProps {
   sessionId: string;
@@ -29,14 +32,69 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
 
   const session = sessions.find((s) => s.id === sessionId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isNearBottomRef = useRef(true);
+  const prevMessageCountRef = useRef(0);
+  /** Whether the initial scroll position has been restored for this session */
+  const restoredRef = useRef(false);
 
   // Load messages from IndexedDB when session becomes active
   useEffect(() => {
     loadSessionMessages(sessionId);
   }, [sessionId, loadSessionMessages]);
 
+  // Reset restored flag when sessionId changes (non-tab mode where component is reused)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    restoredRef.current = false;
+  }, [sessionId]);
+
+  // Restore saved scroll position once messages are loaded
+  useEffect(() => {
+    if (restoredRef.current) return;
+    const el = scrollContainerRef.current;
+    const msgCount = session?.messages?.length ?? 0;
+    if (!el || msgCount === 0) return;
+
+    const saved = scrollPositions.get(sessionId);
+    if (saved != null) {
+      // Use rAF to ensure DOM has rendered the messages before scrolling
+      requestAnimationFrame(() => {
+        el.scrollTop = saved;
+        // Re-evaluate isNearBottom after restoring
+        isNearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
+      });
+    }
+    // For sessions with no saved position (brand new), stay at bottom (default)
+    restoredRef.current = true;
+    prevMessageCountRef.current = msgCount;
+  }, [sessionId, session?.messages]);
+
+  // Track whether user is near the bottom & persist scroll position
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    isNearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
+    scrollPositions.set(sessionId, el.scrollTop);
+  }, [sessionId]);
+
+  // Auto-scroll only when new messages arrive AND user is near bottom
+  useEffect(() => {
+    if (!restoredRef.current) return;
+    const msgCount = session?.messages?.length ?? 0;
+    const isNewMessage = msgCount > prevMessageCountRef.current;
+    prevMessageCountRef.current = msgCount;
+
+    // When user sends a new message, always scroll to bottom
+    if (isNewMessage && msgCount > 0) {
+      const lastMsg = session!.messages[msgCount - 1];
+      if (lastMsg.role === 'user') {
+        isNearBottomRef.current = true;
+      }
+    }
+
+    if (isNearBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [session?.messages, currentStatus]);
 
   const handleStop = () => {
@@ -107,7 +165,8 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
         t,
         proxyUrl,
         toolExecutionTimeout,
-        abortController.signal
+        abortController.signal,
+        session?.projectId,
       );
       // Save system prompt to session
       useSessionStore.getState().setSessionSystemPrompt(sessionId, systemPrompt);
@@ -141,7 +200,7 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden relative">
-      <div className="flex-1 overflow-y-auto">
+      <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto">
         <div className="sticky top-0 z-10 flex items-center justify-end gap-2 px-3 py-1.5 pointer-events-none">
           {currentStatus && (
             <Badge variant="secondary" className="animate-pulse pointer-events-auto shadow-sm">

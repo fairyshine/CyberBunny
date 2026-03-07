@@ -107,7 +107,9 @@ export default function ChatScreen() {
         callbacks,
         t,
         proxyUrl,
-        toolExecutionTimeout
+        toolExecutionTimeout,
+        undefined,
+        session.projectId,
       );
       // Save system prompt to session
       useSessionStore.getState().setSessionSystemPrompt(sessionId, systemPrompt);

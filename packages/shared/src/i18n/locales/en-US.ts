@@ -532,6 +532,17 @@ const enUS = {
   'dashboard.bunnyMascot': 'CyberBunny',
   'dashboard.customize': 'Customize Dashboard',
   'dashboard.resetLayout': 'Reset Layout',
+  'dashboard.usageStats': 'Usage Stats',
+  'dashboard.interactions': 'Interactions',
+  'dashboard.inputTokens': 'Input',
+  'dashboard.outputTokens': 'Output',
+  'dashboard.totalTokens': 'Total Tokens',
+  'dashboard.byModel': 'By Model',
+  'dashboard.byDate': 'By Date',
+  'dashboard.noStats': 'No usage data yet',
+  'dashboard.last7days': '7 Days',
+  'dashboard.last30days': '30 Days',
+  'dashboard.allTime': 'All Time',
 
   // Profile
   'settings.tabs.profile': 'Profile',

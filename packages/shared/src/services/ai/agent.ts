@@ -7,6 +7,8 @@ import { createModel } from './provider';
 import { getEnabledTools } from './tools';
 import { generateSkillsSystemPrompt, getSkillTools } from './skills';
 import { logLLM, logTool } from '../console/logger';
+import { statsStorage } from '../storage/statsStorage';
+import type { StatsRecord } from '../storage/statsTypes';
 import type { Message, LLMConfig } from '../../types';
 import type { TFunction } from 'i18next';
 
@@ -33,7 +35,8 @@ export async function runAgentLoop(
   t: TFunction,
   proxyUrl?: string,
   toolTimeout?: number,
-  abortSignal?: AbortSignal
+  abortSignal?: AbortSignal,
+  projectId?: string,
 ): Promise<string> {
   // Validate configuration
   if (!llmConfig.apiKey) {
@@ -83,7 +86,9 @@ export async function runAgentLoop(
     userInputLength: userInput.length,
   });
 
+  const startTime = Date.now();
   let stepCount = 0;
+  let interactionMessageCount = 0; // messages produced in this agent loop
   let currentStepMessageId: string | null = null;
   let currentStepContent = '';
   let lastChunkLogTime = 0;
@@ -204,6 +209,7 @@ export async function runAgentLoop(
 
         // Finalize the current step's text message
         if (currentStepMessageId && text) {
+          interactionMessageCount++;
           callbacks.updateMessage(sessionId, currentStepMessageId, {
             content: text,
             type: 'response',
@@ -243,6 +249,7 @@ export async function runAgentLoop(
                 metadata: { toolDescription, streaming: false },
               });
             }
+            interactionMessageCount++; // tool_call
 
             // --- tool_result message ---
             if (tr) {
@@ -261,6 +268,7 @@ export async function runAgentLoop(
                 groupId,
               });
 
+              interactionMessageCount++; // tool_result
               logTool('success', `Tool ${toolName} completed`, { resultLength: resultContent.length });
             }
           }
@@ -304,21 +312,43 @@ export async function runAgentLoop(
       const usage = await result.usage;
       console.log('[Agent] Token usage:', usage);
 
-      if (usage && (usage.inputTokens || usage.outputTokens)) {
-        const totalTokens = (usage.inputTokens || 0) + (usage.outputTokens || 0);
-        logLLM('info', `Tokens used: ${totalTokens} (input: ${usage.inputTokens}, output: ${usage.outputTokens})`);
+      const inputTokens = usage?.inputTokens || 0;
+      const outputTokens = usage?.outputTokens || 0;
+      const totalTokens = inputTokens + outputTokens;
+
+      if (totalTokens > 0) {
+        logLLM('info', `Tokens used: ${totalTokens} (input: ${inputTokens}, output: ${outputTokens})`);
 
         // Save token info to the last assistant response message
         if (lastResponseMessageId) {
           callbacks.updateMessage(sessionId, lastResponseMessageId, {
             metadata: {
               tokens: totalTokens,
-              inputTokens: usage.inputTokens,
-              outputTokens: usage.outputTokens,
+              inputTokens,
+              outputTokens,
+              model: llmConfig.model,
+              duration: Date.now() - startTime,
             },
           });
         }
       }
+
+      // Record stats to database (fire-and-forget)
+      const record: StatsRecord = {
+        id: crypto.randomUUID(),
+        sessionId,
+        projectId,
+        model: llmConfig.model,
+        provider: llmConfig.provider,
+        inputTokens,
+        outputTokens,
+        totalTokens,
+        messageCount: interactionMessageCount,
+        duration: Date.now() - startTime,
+        createdAt: Date.now(),
+        date: new Date().toLocaleDateString('sv-SE'), // YYYY-MM-DD local time
+      };
+      statsStorage.record(record);
     } catch (e) {
       console.error('[Agent] Could not get usage info:', e);
     }

@@ -5,6 +5,7 @@ export type DashboardCardId =
   | 'system-info'
   | 'bunny-mascot'
   | 'session-stats'
+  | 'usage-stats'
   | 'llm-config'
   | 'tool-status'
   | 'mcp-status'
