@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { fileSystem, FileSystemEntry } from '@shared/services/filesystem';
-import { Folder, File as FileIcon, ChevronRight, ChevronDown, Search, Plus, Upload, Download, Edit2, X } from '../icons';
+import { Folder, File as FileIcon, ChevronRight, ChevronDown, Search, Plus, Upload, Download, Edit2, X, Check } from '../icons';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
@@ -107,6 +107,11 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const isDraggingRef = useRef(false);
   const dragStartTimeRef = useRef(0);
+
+  // --- Multi-select / batch mode ---
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
+  const lastClickedPathRef = useRef<string | null>(null);
 
   // Current grid directory path (grid view navigates into folders)
   const [gridPath, setGridPath] = useState('/root');
@@ -240,6 +245,73 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
     } catch (error) { alert(t('fileManager.downloadFailed', { error: error instanceof Error ? error.message : String(error) })); }
   };
 
+  // --- Multi-select helpers ---
+  // Flatten visible tree nodes into ordered list (for shift-click range select)
+  const flattenVisible = useCallback((nodes: TreeNode[]): string[] => {
+    const result: string[] = [];
+    for (const node of nodes) {
+      result.push(node.path);
+      if (node.type === 'directory' && expandedPaths.has(node.path) && node.children) {
+        result.push(...flattenVisible(node.children));
+      }
+    }
+    return result;
+  }, [expandedPaths]);
+
+  const toggleSelectPath = (path: string) => {
+    setSelectedPaths(prev => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path); else next.add(path);
+      return next;
+    });
+  };
+
+  const handleSelectClick = (e: React.MouseEvent, path: string, flatList: string[]) => {
+    if (e.shiftKey && lastClickedPathRef.current) {
+      // Range select
+      const lastIdx = flatList.indexOf(lastClickedPathRef.current);
+      const curIdx = flatList.indexOf(path);
+      if (lastIdx !== -1 && curIdx !== -1) {
+        const [start, end] = lastIdx < curIdx ? [lastIdx, curIdx] : [curIdx, lastIdx];
+        setSelectedPaths(prev => {
+          const next = new Set(prev);
+          for (let i = start; i <= end; i++) next.add(flatList[i]);
+          return next;
+        });
+      }
+    } else {
+      toggleSelectPath(path);
+    }
+    lastClickedPathRef.current = path;
+  };
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedPaths(new Set());
+    lastClickedPathRef.current = null;
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedPaths.size === 0) return;
+    if (!confirm(t('fileTree.confirmBatchDelete', { count: selectedPaths.size }))) return;
+    try {
+      // Sort paths longest-first so children are deleted before parents
+      const sorted = [...selectedPaths].sort((a, b) => b.length - a.length);
+      for (const p of sorted) {
+        try { await fileSystem.rm(p, true); } catch { /* skip already-deleted children */ }
+      }
+      setSelectedPaths(new Set());
+      await loadTree();
+    } catch (error) {
+      alert(t('fileTree.batchDeleteFailed', { error: error instanceof Error ? error.message : String(error) }));
+    }
+  };
+
+  const selectAllVisible = () => {
+    const list = viewMode === 'list' ? flattenVisible(filteredTree) : filteredGrid.map(e => e.path);
+    setSelectedPaths(new Set(list));
+  };
+
   // --- Drag & Drop ---
   const handleDragStart = (e: React.DragEvent, path: string) => {
     e.dataTransfer.effectAllowed = 'copyMove';
@@ -370,6 +442,7 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
   const TreeItem = ({ entry, depth = 0 }: { entry: TreeNode; depth?: number }) => {
     const isExpanded = expandedPaths.has(entry.path);
     const isSelected = selectedPath === entry.path;
+    const isChecked = selectedPaths.has(entry.path);
     const isDragOver = dropTarget === entry.path;
     const isDragged = draggedPath === entry.path;
     const isRenamingHere = renaming?.path === entry.path;
@@ -378,28 +451,41 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
     return (
       <div>
         <div
-          draggable={!isRenamingHere}
+          draggable={!isRenamingHere && !selectMode}
           onDragStart={(e) => handleDragStart(e, entry.path)}
           onDragEnd={handleDragEnd}
           onDragEnter={(e) => handleDragEnter(e, entry.path, entry.type === 'directory')}
           onDragLeave={handleDragLeave}
           onDragOver={(e) => handleDragOver(e, entry.path, entry.type === 'directory')}
           onDrop={(e) => handleDrop(e, entry.path, entry.type === 'directory')}
-          onClick={() => {
-            // Don't trigger click actions during/after drag
+          onClick={(e) => {
             if (draggedPath || (Date.now() - dragStartTimeRef.current < 200)) return;
+            if (selectMode) {
+              handleSelectClick(e, entry.path, flattenVisible(filteredTree));
+              return;
+            }
             if (entry.type === 'directory') { toggleExpand(entry); }
             else { onSelectFile?.(entry.path); onItemClick?.(); }
           }}
           onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, entry }); }}
           className={`group flex items-center gap-1.5 px-2 py-[5px] cursor-pointer transition-all duration-150 rounded-sm mx-1 ${
-            isSelected ? 'bg-primary/15 text-foreground' : 'hover:bg-muted/60'
+            isChecked ? 'bg-primary/20 text-foreground' : isSelected ? 'bg-primary/15 text-foreground' : 'hover:bg-muted/60'
           } ${isDragOver && entry.type === 'directory' ? 'bg-primary/10 ring-2 ring-primary/40 ring-inset' : ''} ${
             isDragged ? 'opacity-50 scale-95' : ''
           }`}
           style={{ paddingLeft: `${4 + depth * 16}px` }}
         >
-          {entry.type === 'directory' ? (
+          {/* Checkbox in select mode */}
+          {selectMode ? (
+            <span
+              onClick={(e) => { e.stopPropagation(); handleSelectClick(e, entry.path, flattenVisible(filteredTree)); }}
+              className={`w-4 h-4 flex items-center justify-center shrink-0 rounded border transition-colors ${
+                isChecked ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground/40 hover:border-primary'
+              }`}
+            >
+              {isChecked && <Check className="w-3 h-3" />}
+            </span>
+          ) : entry.type === 'directory' ? (
             <span onClick={(e) => { e.stopPropagation(); toggleExpand(entry); }} className="w-4 h-4 flex items-center justify-center shrink-0 transition-transform">
               {isExpanded ? <ChevronDown className="w-3 h-3 text-muted-foreground" /> : <ChevronRight className="w-3 h-3 text-muted-foreground" />}
             </span>
@@ -459,32 +545,47 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
   // --- Grid Item ---
   const GridItem = ({ entry }: { entry: TreeNode }) => {
     const isSelected = selectedPath === entry.path;
+    const isChecked = selectedPaths.has(entry.path);
     const isDragOver = dropTarget === entry.path;
     const isDragged = draggedPath === entry.path;
     const isRenamingHere = renaming?.path === entry.path;
 
     return (
       <div
-        draggable={!isRenamingHere}
+        draggable={!isRenamingHere && !selectMode}
         onDragStart={(e) => handleDragStart(e, entry.path)}
         onDragEnd={handleDragEnd}
         onDragEnter={(e) => handleDragEnter(e, entry.path, entry.type === 'directory')}
         onDragLeave={handleDragLeave}
         onDragOver={(e) => handleDragOver(e, entry.path, entry.type === 'directory')}
         onDrop={(e) => handleDrop(e, entry.path, entry.type === 'directory')}
-        onClick={() => {
-          // Don't trigger click actions during/after drag
+        onClick={(e) => {
           if (draggedPath || (Date.now() - dragStartTimeRef.current < 200)) return;
+          if (selectMode) {
+            handleSelectClick(e, entry.path, filteredGrid.map(e => e.path));
+            return;
+          }
           if (entry.type === 'directory') { setGridPath(entry.path); }
           else { onSelectFile?.(entry.path); onItemClick?.(); }
         }}
         onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, entry }); }}
-        className={`group flex flex-col items-center gap-0.5 p-1.5 rounded-lg cursor-pointer transition-all duration-150 select-none ${
-          isSelected ? 'bg-primary/15' : 'hover:bg-muted/60'
+        className={`group flex flex-col items-center gap-0.5 p-1.5 rounded-lg cursor-pointer transition-all duration-150 select-none relative ${
+          isChecked ? 'bg-primary/20' : isSelected ? 'bg-primary/15' : 'hover:bg-muted/60'
         } ${isDragOver && entry.type === 'directory' ? 'bg-primary/10 ring-2 ring-primary/40' : ''} ${
           isDragged ? 'opacity-50 scale-95' : ''
         }`}
       >
+        {/* Checkbox overlay in select mode */}
+        {selectMode && (
+          <span
+            className={`absolute top-1 left-1 w-4 h-4 flex items-center justify-center rounded border transition-colors z-10 ${
+              isChecked ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground/40 bg-background/80 hover:border-primary'
+            }`}
+          >
+            {isChecked && <Check className="w-3 h-3" />}
+          </span>
+        )}
+
         {/* Icon area */}
         <div className="w-8 h-8 flex items-center justify-center shrink-0 relative">
           {entry.type === 'directory' ? (
@@ -656,6 +757,24 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
 
           <div className="flex-1" />
 
+          {/* Select mode toggle */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                onClick={() => selectMode ? exitSelectMode() : setSelectMode(true)}
+                variant={selectMode ? 'default' : 'ghost'}
+                size="icon"
+                className={`h-7 w-7 ${selectMode ? 'bg-primary text-primary-foreground' : ''}`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <path strokeLinecap="round" d="M7 14h0M7 18h0M14 6h6M14 12h6M14 18h6" />
+                </svg>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('fileTree.selectMode')}</TooltipContent>
+          </Tooltip>
+
           {/* View mode toggle */}
           <div className="flex items-center bg-muted rounded p-0.5">
             <button
@@ -693,6 +812,38 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
           </Tooltip>
         </div>
       </TooltipProvider>
+
+      {/* Batch action bar (visible when in select mode) */}
+      {selectMode && (
+        <div className="flex items-center gap-1 px-2 py-1.5 border-b border-border shrink-0 bg-muted/30">
+          <span className="text-xs text-muted-foreground mr-1">
+            {selectedPaths.size > 0 ? t('fileTree.selected', { count: selectedPaths.size }) : t('fileTree.selectMode')}
+          </span>
+          <div className="flex-1" />
+          <Button
+            onClick={() => selectedPaths.size > 0 ? setSelectedPaths(new Set()) : selectAllVisible()}
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-xs"
+          >
+            {selectedPaths.size > 0 ? t('fileTree.deselectAll') : t('fileTree.selectAll')}
+          </Button>
+          {selectedPaths.size > 0 && (
+            <Button
+              onClick={handleBatchDelete}
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              <svg className="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              {t('fileTree.batchDelete')}
+            </Button>
+          )}
+          <Button onClick={exitSelectMode} variant="ghost" size="icon" className="h-6 w-6">
+            <X className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      )}
 
       {/* Search Bar */}
       <div className="px-2 py-1.5 shrink-0">
@@ -785,40 +936,56 @@ export default function FileTree({ onSelectFile, selectedPath, onItemClick }: Fi
       {/* Context Menu — rendered via portal to avoid transform offset issues */}
       {contextMenu && createPortal(
         <ContextMenuPortal contextMenu={contextMenu} onClose={() => setContextMenu(null)}>
-            {contextMenu.entry.type === 'file' && (
-              <button onClick={() => { onSelectFile?.(contextMenu.entry.path); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent flex items-center gap-2">
-                <FileIcon className="w-4 h-4" /> {t('common.open')}
-              </button>
-            )}
-            {contextMenu.entry.type === 'directory' && (
+            {/* Batch operations when multiple items selected */}
+            {selectMode && selectedPaths.size > 0 ? (
               <>
-                {viewMode === 'grid' && (
-                  <button onClick={() => { setGridPath(contextMenu.entry.path); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent flex items-center gap-2">
-                    <Folder className="w-4 h-4 text-yellow-500" /> {t('common.open')}
+                <div className="px-3 py-1.5 text-xs text-muted-foreground">
+                  {t('fileTree.selected', { count: selectedPaths.size })}
+                </div>
+                <div className="border-t border-border my-1" />
+                <button onClick={() => { handleBatchDelete(); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10 flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  {t('fileTree.batchDelete')}
+                </button>
+              </>
+            ) : (
+              <>
+                {contextMenu.entry.type === 'file' && (
+                  <button onClick={() => { onSelectFile?.(contextMenu.entry.path); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent flex items-center gap-2">
+                    <FileIcon className="w-4 h-4" /> {t('common.open')}
                   </button>
                 )}
-                <button onClick={() => { startCreate(contextMenu.entry.path, 'folder'); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent flex items-center gap-2">
-                  <Folder className="w-4 h-4 text-yellow-500" /> {t('fileTree.newFolder')}
-                </button>
-                <button onClick={() => { startCreate(contextMenu.entry.path, 'file'); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent flex items-center gap-2">
-                  <Plus className="w-4 h-4" /> {t('fileTree.newFile')}
+                {contextMenu.entry.type === 'directory' && (
+                  <>
+                    {viewMode === 'grid' && (
+                      <button onClick={() => { setGridPath(contextMenu.entry.path); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent flex items-center gap-2">
+                        <Folder className="w-4 h-4 text-yellow-500" /> {t('common.open')}
+                      </button>
+                    )}
+                    <button onClick={() => { startCreate(contextMenu.entry.path, 'folder'); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent flex items-center gap-2">
+                      <Folder className="w-4 h-4 text-yellow-500" /> {t('fileTree.newFolder')}
+                    </button>
+                    <button onClick={() => { startCreate(contextMenu.entry.path, 'file'); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent flex items-center gap-2">
+                      <Plus className="w-4 h-4" /> {t('fileTree.newFile')}
+                    </button>
+                    <div className="border-t border-border my-1" />
+                  </>
+                )}
+                {contextMenu.entry.type === 'file' && (
+                  <button onClick={() => { handleDownload(contextMenu.entry); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent flex items-center gap-2">
+                    <Download className="w-4 h-4" /> {t('common.download')}
+                  </button>
+                )}
+                <button onClick={() => { startRename(contextMenu.entry); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent flex items-center gap-2">
+                  <Edit2 className="w-4 h-4" /> {t('common.rename')}
                 </button>
                 <div className="border-t border-border my-1" />
+                <button onClick={() => { handleDelete(contextMenu.entry); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10 flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  {t('common.delete')}
+                </button>
               </>
             )}
-            {contextMenu.entry.type === 'file' && (
-              <button onClick={() => { handleDownload(contextMenu.entry); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent flex items-center gap-2">
-                <Download className="w-4 h-4" /> {t('common.download')}
-              </button>
-            )}
-            <button onClick={() => { startRename(contextMenu.entry); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent flex items-center gap-2">
-              <Edit2 className="w-4 h-4" /> {t('common.rename')}
-            </button>
-            <div className="border-t border-border my-1" />
-            <button onClick={() => { handleDelete(contextMenu.entry); setContextMenu(null); }} className="w-full px-3 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10 flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-              {t('common.delete')}
-            </button>
         </ContextMenuPortal>,
         document.body
       )}

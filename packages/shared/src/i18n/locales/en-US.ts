@@ -412,6 +412,15 @@ const enUS = {
   'fileTree.refresh': 'Refresh',
   'fileTree.listView': 'List View',
   'fileTree.gridView': 'Grid View',
+  'fileTree.selectMode': 'Select',
+  'fileTree.selectAll': 'Select All',
+  'fileTree.deselectAll': 'Deselect All',
+  'fileTree.selected': '{{count}} selected',
+  'fileTree.batchDelete': 'Delete Selected',
+  'fileTree.batchMove': 'Move to...',
+  'fileTree.confirmBatchDelete': 'Are you sure you want to delete {{count}} items?',
+  'fileTree.batchDeleteFailed': 'Batch delete failed: {{error}}',
+  'fileTree.batchMoveFailed': 'Batch move failed: {{error}}',
 
   // Export Dialog
   'export.title': 'Export Conversation History',

@@ -412,6 +412,15 @@ const zhCN = {
   'fileTree.refresh': '刷新',
   'fileTree.listView': '列表视图',
   'fileTree.gridView': '图标视图',
+  'fileTree.selectMode': '选择',
+  'fileTree.selectAll': '全选',
+  'fileTree.deselectAll': '取消全选',
+  'fileTree.selected': '已选 {{count}} 项',
+  'fileTree.batchDelete': '删除所选',
+  'fileTree.batchMove': '移动到...',
+  'fileTree.confirmBatchDelete': '确定要删除 {{count}} 个项目吗？',
+  'fileTree.batchDeleteFailed': '批量删除失败: {{error}}',
+  'fileTree.batchMoveFailed': '批量移动失败: {{error}}',
 
   // Export Dialog
   'export.title': '导出对话历史',
