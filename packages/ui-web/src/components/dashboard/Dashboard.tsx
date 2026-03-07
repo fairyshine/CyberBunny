@@ -74,7 +74,7 @@ function SortableCard({ id }: { id: DashboardCardId }) {
             {t(def.titleKey as any)}
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex-1 min-h-0">
+        <CardContent className="flex-1 min-h-0 overflow-y-auto">
           <Component />
         </CardContent>
       </Card>

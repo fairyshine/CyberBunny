@@ -543,6 +543,8 @@ const zhCN = {
   'dashboard.last7days': '7 天',
   'dashboard.last30days': '30 天',
   'dashboard.allTime': '全部',
+  'dashboard.showDetails': '详情',
+  'dashboard.hideDetails': '收起',
 
   // Profile
   'settings.tabs.profile': '身份',

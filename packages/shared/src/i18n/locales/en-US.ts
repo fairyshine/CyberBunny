@@ -543,6 +543,8 @@ const enUS = {
   'dashboard.last7days': '7 Days',
   'dashboard.last30days': '30 Days',
   'dashboard.allTime': 'All Time',
+  'dashboard.showDetails': 'Details',
+  'dashboard.hideDetails': 'Collapse',
 
   // Profile
   'settings.tabs.profile': 'Profile',
