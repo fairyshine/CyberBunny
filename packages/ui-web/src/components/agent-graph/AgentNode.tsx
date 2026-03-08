@@ -3,7 +3,7 @@ import { Handle, NodeProps, Position } from 'reactflow';
 import type { Agent } from '@shared/types';
 
 export const AGENT_NODE_WIDTH = 80;
-export const AGENT_NODE_HEIGHT = 82;
+export const AGENT_NODE_HEIGHT = 90;
 export const AGENT_AVATAR_CENTER_X = 40;
 export const AGENT_AVATAR_CENTER_Y = 32;
 
@@ -92,7 +92,7 @@ export const AgentNode = memo(({ data, selected }: NodeProps<AgentNodeData>) => 
       />
 
       <div
-        className={`relative flex flex-col items-center gap-2 px-3 pt-3 pb-2.5 rounded-xl transition-all duration-200 ${isPendingSource ? 'animate-pulse' : ''}`}
+        className={`relative flex flex-col items-center gap-2 px-3 pt-3 pb-3.5 rounded-xl transition-all duration-200 ${isPendingSource ? 'animate-pulse' : ''}`}
         style={{
           background: 'hsl(var(--card))',
           border: `1px solid ${borderColor}`,
@@ -111,7 +111,7 @@ export const AgentNode = memo(({ data, selected }: NodeProps<AgentNodeData>) => 
         />
 
         <div
-          className="relative flex items-center justify-center w-10 h-10 rounded-full text-xl transition-colors duration-200"
+          className="relative inline-flex items-center justify-center w-10 h-10 shrink-0 overflow-hidden rounded-full text-xl leading-none transition-colors duration-200"
           style={{
             background: isDefault
               ? 'hsl(var(--muted))'
@@ -119,7 +119,7 @@ export const AgentNode = memo(({ data, selected }: NodeProps<AgentNodeData>) => 
             border: `1.5px solid ${avatarBorder === 'transparent' ? 'hsl(var(--border) / 0.6)' : avatarBorder}`,
           }}
         >
-          {agent.avatar}
+          <span className="select-none leading-none">{agent.avatar}</span>
         </div>
 
         <div
