@@ -102,4 +102,18 @@ export default {
   'settings.profile.editAgent': 'Edit',
   'settings.profile.deleteAgent': 'Delete',
   'settings.profile.deleteConfirm': 'Are you sure you want to delete this agent profile?',
+
+  // Sidebar nav labels
+  'settings.nav.profile': 'Profile',
+  'settings.nav.general': 'General',
+  'settings.nav.llm': 'LLM',
+  'settings.nav.tools': 'Tools',
+  'settings.nav.skills': 'Skills',
+  'settings.nav.network': 'Network',
+
+  // Network section
+  'settings.network': 'Network',
+  'settings.networkDesc': 'Configure proxy and search services',
+  'settings.network.proxy': 'Proxy Settings',
+  'settings.network.search': 'Search Service',
 } as const;

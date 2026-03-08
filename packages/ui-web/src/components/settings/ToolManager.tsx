@@ -190,26 +190,24 @@ export function ToolManager() {
   const allToolIds = Object.keys(builtinTools);
 
   return (
-    <div>
-      <div className="flex items-center justify-between px-4 md:px-6 pt-4 pb-3">
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">{t('tools.management')}</h2>
         <Badge variant="secondary">
           {enabledTools.length}/{allToolIds.length} {t('tools.enable') || 'enabled'}
         </Badge>
       </div>
 
-      <div className="px-4 md:px-6 pb-4 md:pb-6">
-        <div className="border rounded-lg">
-          <div className="px-3 pb-3 pt-2">
-            {allToolIds.map(toolId => (
-              <ToolRow
-                key={toolId}
-                toolId={toolId}
-                enabled={enabledTools.includes(toolId)}
-                onToggle={() => toggleTool(toolId)}
-              />
-            ))}
-          </div>
+      <div className="rounded-xl border bg-background">
+        <div className="px-3 pb-3 pt-2">
+          {allToolIds.map(toolId => (
+            <ToolRow
+              key={toolId}
+              toolId={toolId}
+              enabled={enabledTools.includes(toolId)}
+              onToggle={() => toggleTool(toolId)}
+            />
+          ))}
         </div>
       </div>
     </div>

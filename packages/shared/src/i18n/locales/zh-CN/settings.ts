@@ -102,4 +102,18 @@ export default {
   'settings.profile.editAgent': '编辑',
   'settings.profile.deleteAgent': '删除',
   'settings.profile.deleteConfirm': '确定要删除这个 Agent 配置吗？',
+
+  // Sidebar nav labels
+  'settings.nav.profile': '用户设置',
+  'settings.nav.general': '通用',
+  'settings.nav.llm': '大模型',
+  'settings.nav.tools': '工具',
+  'settings.nav.skills': '技能',
+  'settings.nav.network': '联网',
+
+  // Network section
+  'settings.network': '联网设置',
+  'settings.networkDesc': '配置网络代理和搜索服务',
+  'settings.network.proxy': '代理设置',
+  'settings.network.search': '搜索服务',
 } as const;
