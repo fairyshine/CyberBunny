@@ -6,7 +6,9 @@ import Sidebar from './components/sidebar/Sidebar';
 import Header from './components/layout/Header';
 import StatusScreen from './components/layout/StatusScreen';
 import { AgentGraph } from './components/agent-graph/AgentGraphDialog';
+import { AgentConfigPanel } from './components/settings/AgentConfigPanel';
 import { useSessionStore, selectCurrentSession } from '@shared/stores/session';
+import { useAgentStore } from '@shared/stores/agent';
 import { useSettingsStore } from '@shared/stores/settings';
 import { useSkillStore } from '@shared/stores/skills';
 import { pythonExecutor } from '@shared/services/python/executor';
@@ -29,6 +31,7 @@ function App() {
   const theme = useSettingsStore(s => s.theme);
   const enableSessionTabs = useSettingsStore(s => s.enableSessionTabs);
   const loadSkills = useSkillStore(s => s.loadSkills);
+  const currentAgentId = useAgentStore(s => s.currentAgentId);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [fileContent, setFileContent] = useState<string>('');
   const [showConsole, setShowConsole] = useState(false);
@@ -36,6 +39,7 @@ function App() {
   const [showStatusPage, setShowStatusPage] = useState(false);
   const [showGraph, setShowGraph] = useState(false);
   const [graphGroupId, setGraphGroupId] = useState<string | undefined>(undefined);
+  const [sidebarTab, setSidebarTab] = useState<'agents' | 'sessions' | 'files'>('agents');
 
   // Apply theme on mount
   useEffect(() => {
@@ -181,10 +185,14 @@ function App() {
     onSessionSelect: () => { setShowStatusPage(false); setShowGraph(false); },
     onFileBlankClick: handleFileBlankClick,
     onOpenGraph: handleOpenGraph,
+    onTabChange: setSidebarTab,
   };
 
+  // 智能体 tab 下且没有 graph/file 覆盖时，右侧常态显示配置面板
+  const showAgentConfig = sidebarTab === 'agents' && !showGraph && !selectedFile;
+
   // 如果应该显示状态页，直接返回状态页
-  if (shouldShowStatusScreen() && !selectedFile && !showGraph) {
+  if (shouldShowStatusScreen() && !selectedFile && !showGraph && !showAgentConfig) {
     return (
       <div className="h-screen flex flex-col bg-background overflow-x-hidden">
         <Header
@@ -223,9 +231,11 @@ function App() {
             {...sidebarProps}
           />
 
-          {/* 主内容区 - 关系图、文件编辑器或聊天 */}
+          {/* 主内容区 - 智能体配置、关系图、文件编辑器或聊天 */}
           <main className="flex-1 flex flex-col min-w-0">
-            {showGraph ? (
+            {showAgentConfig ? (
+              <AgentConfigPanel agentId={currentAgentId} />
+            ) : showGraph ? (
               <AgentGraph onClose={handleCloseGraph} groupId={graphGroupId} />
             ) : selectedFile ? (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center">Loading...</div>}>

@@ -104,6 +104,8 @@ export default {
   'settings.profile.noAgentsHint': '添加一个 Agent 身份用于联网通信',
   'settings.profile.editAgent': '编辑',
   'settings.profile.deleteAgent': '删除',
+  'settings.profile.uploadAvatar': '上传图片',
+  'settings.profile.removeAvatar': '移除',
   'settings.profile.deleteConfirm': '确定要删除这个 Agent 配置吗？',
 
   // Sidebar nav labels

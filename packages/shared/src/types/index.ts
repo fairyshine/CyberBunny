@@ -3,7 +3,7 @@ export interface UserProfile {
   nickname: string;
   callName: string; // how the agent addresses the user
   bio: string;
-  avatar: string; // emoji or URL
+  avatar: string; // emoji or data URL
   email: string;
   location: string;
 }
@@ -12,7 +12,7 @@ export interface UserProfile {
 export interface AgentProfile {
   id: string;
   name: string;
-  avatar: string; // emoji
+  avatar: string; // emoji or data URL
   description: string;
   systemPrompt: string;
   isActive: boolean;
@@ -111,7 +111,7 @@ export interface AgentRelationship {
 export interface Agent {
   id: string;
   name: string;
-  avatar: string; // emoji
+  avatar: string; // emoji or data URL
   description: string;
   systemPrompt: string;
   color: string;

@@ -3,6 +3,9 @@ import { useSettingsStore } from '@shared/stores/settings';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { User } from 'lucide-react';
+import { Avatar } from '../ui/avatar';
+import { AvatarPicker } from '../ui/avatar-picker';
+import { isImageAvatar } from '@shared/utils/imageUtils';
 
 const AVATAR_EMOJIS = ['🐰', '🤖', '🦊', '🐱', '🐶', '🦉', '🐼', '🦄', '🐲', '🎭', '👾', '🧠'];
 
@@ -15,10 +18,16 @@ export default function ProfileSettings() {
       <h2 className="text-lg font-semibold">{t('settings.nav.profile')}</h2>
 
       {/* Avatar + Name hero card */}
-      <div className="rounded-xl border bg-background p-6">
+      <div className="rounded-xl bg-muted/30 p-6">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center text-4xl ring-2 ring-border">
-            {userProfile.avatar || <User className="w-8 h-8 text-muted-foreground" />}
+          <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center text-4xl overflow-hidden">
+            {userProfile.avatar ? (
+              isImageAvatar(userProfile.avatar)
+                ? <Avatar src={userProfile.avatar} className="w-full h-full rounded-full" />
+                : userProfile.avatar
+            ) : (
+              <User className="w-8 h-8 text-muted-foreground" />
+            )}
           </div>
           <div className="text-center">
             <p className="text-base font-medium">
@@ -36,27 +45,18 @@ export default function ProfileSettings() {
         </div>
 
         {/* Avatar picker */}
-        <div className="mt-4 pt-4 border-t space-y-1.5">
+        <div className="mt-5 space-y-1.5">
           <Label className="text-xs">{t('settings.profile.avatar')}</Label>
-          <div className="flex gap-1.5 flex-wrap justify-center">
-            {AVATAR_EMOJIS.map((emoji) => (
-              <button
-                key={emoji}
-                onClick={() => setUserProfile({ avatar: emoji })}
-                className={`w-8 h-8 rounded-md text-base flex items-center justify-center transition-all
-                  ${userProfile.avatar === emoji
-                    ? 'bg-primary text-primary-foreground ring-2 ring-primary ring-offset-1 ring-offset-background'
-                    : 'bg-muted hover:bg-accent'}`}
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
+          <AvatarPicker
+            value={userProfile.avatar}
+            emojis={AVATAR_EMOJIS}
+            onChange={(avatar) => setUserProfile({ avatar })}
+          />
         </div>
       </div>
 
       {/* Info fields */}
-      <div className="rounded-xl border bg-background p-4 space-y-3">
+      <div className="rounded-xl bg-muted/30 p-4 space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="nickname" className="text-xs">{t('settings.profile.nickname')}</Label>

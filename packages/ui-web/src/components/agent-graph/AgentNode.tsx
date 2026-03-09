@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { Handle, NodeProps, Position } from 'reactflow';
 import type { Agent } from '@shared/types';
+import { isImageAvatar } from '@shared/utils/imageUtils';
 
 export const AGENT_NODE_WIDTH = 80;
 export const AGENT_NODE_HEIGHT = 90;
@@ -119,7 +120,9 @@ export const AgentNode = memo(({ data, selected }: NodeProps<AgentNodeData>) => 
             border: `1.5px solid ${avatarBorder === 'transparent' ? 'hsl(var(--border) / 0.6)' : avatarBorder}`,
           }}
         >
-          <span className="select-none leading-none">{agent.avatar}</span>
+          {isImageAvatar(agent.avatar)
+            ? <img src={agent.avatar} alt="avatar" className="w-full h-full object-cover rounded-full" draggable={false} />
+            : <span className="select-none leading-none">{agent.avatar}</span>}
         </div>
 
         <div

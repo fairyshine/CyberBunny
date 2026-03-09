@@ -45,6 +45,8 @@ export default {
   'sidebar.agent.systemPrompt': 'System Prompt',
   'sidebar.agent.systemPromptPlaceholder': 'Define the behavior and personality of the agent',
   'sidebar.agent.avatar': 'Avatar',
+  'sidebar.agent.uploadAvatar': 'Upload Image',
+  'sidebar.agent.removeAvatar': 'Remove',
   'sidebar.agent.color': 'Color',
   'sidebar.agent.sessions': '{{count}} sessions',
   'sidebar.agent.noAgents': 'No custom agents yet',
@@ -59,4 +61,7 @@ export default {
   'sidebar.agent.deleteGroupConfirm': 'Delete group "{{name}}"? Agents will be moved to ungrouped.',
   'sidebar.agent.renameGroup': 'Rename',
   'sidebar.agent.moveToGroup': 'Move to Group',
+  'sidebar.agent.defaultName': 'Bunny',
+  'sidebar.agent.config': 'Agent Settings',
+  'sidebar.agent.basicInfo': 'Basic Info',
 } as const;

@@ -16,6 +16,8 @@ import json from 'react-syntax-highlighter/dist/esm/languages/hljs/json';
 import { atomOneDark, atomOneLight } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import { useSettingsStore } from '@shared/stores/settings';
 import { useSkillStore } from '@shared/stores/skills';
+import { useAgentStore } from '@shared/stores/agent';
+import { isImageAvatar } from '@shared/utils/imageUtils';
 import { getToolIcon } from '../ToolIcon';
 
 SyntaxHighlighter.registerLanguage('python', python);
@@ -136,8 +138,12 @@ const UserBubble = memo(function UserBubble({ message }: { message: Message }) {
   const avatar = useSettingsStore(s => s.userProfile.avatar);
   return (
     <div className="flex gap-3 md:gap-4 flex-row-reverse animate-fade-in">
-      <div className="flex-shrink-0 w-8 h-8 md:w-9 md:h-9 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-medium shadow-elegant">
-        {avatar || 'U'}
+      <div className="flex-shrink-0 w-8 h-8 md:w-9 md:h-9 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-medium shadow-elegant overflow-hidden">
+        {avatar ? (
+          isImageAvatar(avatar)
+            ? <img src={avatar} alt="avatar" className="w-full h-full object-cover" draggable={false} />
+            : avatar
+        ) : 'U'}
       </div>
       <div className="flex-1 max-w-[85%] md:max-w-[75%] text-right">
         <div className="inline-block text-left rounded-2xl px-4 py-3 bg-foreground text-background shadow-elegant border-elegant selection:bg-background/30 selection:text-background">
@@ -151,10 +157,17 @@ const UserBubble = memo(function UserBubble({ message }: { message: Message }) {
 
 const ResponseBubble = memo(function ResponseBubble({ message }: { message: Message }) {
   if (!message.content) return null;
+  const agents = useAgentStore(s => s.agents);
+  const currentAgentId = useAgentStore(s => s.currentAgentId);
+  const currentAgent = agents.find(a => a.id === currentAgentId);
+  const agentAvatar = currentAgent?.avatar || '🐰';
+  const hasImage = isImageAvatar(agentAvatar);
   return (
     <div className="flex gap-3 md:gap-4 animate-fade-in">
-      <div className="flex-shrink-0 w-8 h-8 md:w-9 md:h-9 rounded-full bg-muted flex items-center justify-center text-sm shadow-elegant">
-        🐰
+      <div className="flex-shrink-0 w-8 h-8 md:w-9 md:h-9 rounded-full bg-muted flex items-center justify-center text-sm shadow-elegant overflow-hidden">
+        {hasImage
+          ? <img src={agentAvatar} alt="avatar" className="w-full h-full object-cover" draggable={false} />
+          : agentAvatar}
       </div>
       <div className="flex-1 max-w-[95%] md:max-w-[85%]">
         <Card className="rounded-2xl px-4 py-3 shadow-elegant border-elegant hover-lift">

@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useAgentStore } from '@shared/stores/agent';
+import { isImageAvatar } from '@shared/utils/imageUtils';
 import { Button } from '../ui/button';
 import { MoreHorizontal, Edit2, Trash2, Network } from '../icons';
 import { useState } from 'react';
@@ -8,11 +9,10 @@ import { ChevronRight, Pencil, ArrowRightLeft } from 'lucide-react';
 
 interface AgentListProps {
   onItemClick?: () => void;
-  onEditAgent?: (agent: Agent) => void;
   onOpenGraph?: (groupId?: string) => void;
 }
 
-export function AgentList({ onItemClick, onEditAgent, onOpenGraph }: AgentListProps) {
+export function AgentList({ onItemClick, onOpenGraph }: AgentListProps) {
   const { t } = useTranslation();
   const agents = useAgentStore((s) => s.agents);
   const currentAgentId = useAgentStore((s) => s.currentAgentId);
@@ -54,7 +54,7 @@ export function AgentList({ onItemClick, onEditAgent, onOpenGraph }: AgentListPr
 
   const handleEditAgent = (agent: Agent) => {
     setContextMenuAgentId(null);
-    onEditAgent?.(agent);
+    setCurrentAgent(agent.id);
   };
 
   const handleDeleteGroup = (groupId: string) => {
@@ -109,7 +109,7 @@ export function AgentList({ onItemClick, onEditAgent, onOpenGraph }: AgentListPr
           `}
         >
           <div
-            className="w-7 h-7 rounded-full flex items-center justify-center text-base shrink-0"
+            className="w-7 h-7 rounded-full flex items-center justify-center text-base shrink-0 overflow-hidden"
             style={agent.isDefault ? {
               backgroundColor: 'hsl(var(--foreground))',
               color: 'hsl(var(--background))'
@@ -118,7 +118,9 @@ export function AgentList({ onItemClick, onEditAgent, onOpenGraph }: AgentListPr
               color: agent.color
             }}
           >
-            {agent.avatar}
+            {isImageAvatar(agent.avatar)
+              ? <img src={agent.avatar} alt="avatar" className="w-full h-full object-cover" draggable={false} />
+              : agent.avatar}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">

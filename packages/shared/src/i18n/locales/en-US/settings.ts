@@ -104,6 +104,8 @@ export default {
   'settings.profile.noAgentsHint': 'Add an agent identity for networking',
   'settings.profile.editAgent': 'Edit',
   'settings.profile.deleteAgent': 'Delete',
+  'settings.profile.uploadAvatar': 'Upload Image',
+  'settings.profile.removeAvatar': 'Remove',
   'settings.profile.deleteConfirm': 'Are you sure you want to delete this agent profile?',
 
   // Sidebar nav labels

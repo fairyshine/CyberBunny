@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from '../icons';
 import { Button } from '../ui/button';
+import { AvatarPicker } from '../ui/avatar-picker';
 import { useAgentStore } from '@shared/stores/agent';
 import type { Agent } from '@shared/types';
 
@@ -12,7 +13,7 @@ interface AgentDialogProps {
 }
 
 const AGENT_COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#06b6d4', '#6366f1'];
-const AGENT_AVATARS = ['🤖', '🦾', '🧠', '👾', '🚀', '⚡', '🔮', '💎', '🌟', '🎯', '🎨', '🔥'];
+const AGENT_AVATARS = ['🐰', '🤖', '🦾', '🧠', '👾', '🚀', '⚡', '🔮', '💎', '🌟', '🎯', '🎨', '🔥'];
 
 export function AgentDialog({ isOpen, onClose, agent }: AgentDialogProps) {
   const { t } = useTranslation();
@@ -73,22 +74,13 @@ export function AgentDialog({ isOpen, onClose, agent }: AgentDialogProps) {
           {/* Avatar */}
           <div>
             <label className="block text-sm font-medium mb-2">{t('sidebar.agent.avatar')}</label>
-            <div className="flex flex-wrap gap-2">
-              {AGENT_AVATARS.map((emoji) => (
-                <button
-                  key={emoji}
-                  type="button"
-                  onClick={() => setAvatar(emoji)}
-                  className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl transition-all ${
-                    avatar === emoji
-                      ? 'bg-primary text-primary-foreground ring-2 ring-primary'
-                      : 'bg-muted hover:bg-muted/80'
-                  }`}
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
+            <AvatarPicker
+              value={avatar}
+              emojis={AGENT_AVATARS}
+              onChange={setAvatar}
+              uploadLabel={t('sidebar.agent.uploadAvatar')}
+              removeLabel={t('sidebar.agent.removeAvatar')}
+            />
           </div>
 
           {/* Color */}

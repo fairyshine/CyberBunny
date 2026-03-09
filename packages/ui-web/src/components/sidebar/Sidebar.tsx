@@ -3,10 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { useSessionStore } from '@shared/stores/session';
 import { useAgentStore, DEFAULT_AGENT_ID } from '@shared/stores/agent';
 import { SessionType } from '@shared/types';
-import type { Project, Agent } from '@shared/types';
+import type { Project } from '@shared/types';
 import FileTree from './file-tree';
 import { ProjectDialog } from './ProjectDialog';
-import { AgentDialog } from './AgentDialog';
 import { CollapsedSidebar } from './CollapsedSidebar';
 import { SidebarHeader } from './SidebarHeader';
 import { SessionList } from './SessionList';
@@ -24,22 +23,23 @@ interface SidebarProps {
   onSessionSelect?: () => void;
   onFileBlankClick?: () => void;
   onOpenGraph?: (groupId?: string) => void;
+  onTabChange?: (tab: 'agents' | 'sessions' | 'files') => void;
 }
 
-export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClose, onSessionSelect, onFileBlankClick, onOpenGraph }: SidebarProps) {
+export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClose, onSessionSelect, onFileBlankClick, onOpenGraph, onTabChange }: SidebarProps) {
   const { t } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('agents');
   const [sessionTypeFilter, setSessionTypeFilter] = useState<SessionTypeFilter>('all');
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
-  const [agentDialogOpen, setAgentDialogOpen] = useState(false);
-  const [editingAgent, setEditingAgent] = useState<Agent | undefined>(undefined);
 
   const { sidebarWidth, sidebarRef, handleResizeStart } = useResizableSidebar();
   const { createSession } = useSessionStore();
   const currentAgentId = useAgentStore((s) => s.currentAgentId);
   const createAgentSession = useAgentStore((s) => s.createAgentSession);
+  const createAgent = useAgentStore((s) => s.createAgent);
+  const setCurrentAgent = useAgentStore((s) => s.setCurrentAgent);
 
   const createAgentGroup = useAgentStore((s) => s.createAgentGroup);
   const agentGroups = useAgentStore((s) => s.agentGroups);
@@ -51,6 +51,11 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
       const candidate = t('sidebar.agent.defaultGroupName', { index }).trim();
       if (!existingNames.has(candidate)) return candidate;
     }
+  };
+
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    onTabChange?.(tab);
   };
 
   const handleItemClick = () => {
@@ -115,11 +120,14 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
 
         <SidebarHeader
           activeTab={activeTab}
-          onTabChange={setActiveTab}
+          onTabChange={handleTabChange}
           onCollapse={handleCollapse}
           onCreateProject={() => { setEditingProject(null); setProjectDialogOpen(true); }}
           onCreateSession={handleCreateSession}
-          onCreateAgent={() => { setEditingAgent(undefined); setAgentDialogOpen(true); }}
+          onCreateAgent={() => {
+            const agent = createAgent({ name: t('sidebar.agent.defaultName'), avatar: '🤖', description: '', systemPrompt: '', color: '#3b82f6' });
+            setCurrentAgent(agent.id);
+          }}
           onCreateGroup={() => { const name = prompt(t('sidebar.agent.groupName'), getDefaultGroupName()); if (name?.trim()) createAgentGroup(name.trim()); }}
           onOpenGraph={() => onOpenGraph?.()}
         />
@@ -129,7 +137,6 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
           {activeTab === 'agents' ? (
             <AgentList
               onItemClick={handleItemClick}
-              onEditAgent={(agent) => { setEditingAgent(agent); setAgentDialogOpen(true); }}
               onOpenGraph={onOpenGraph}
             />
           ) : activeTab === 'sessions' ? (
@@ -156,12 +163,6 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
           isOpen={projectDialogOpen}
           onClose={() => { setProjectDialogOpen(false); setEditingProject(null); }}
           project={editingProject ?? undefined}
-        />
-
-        <AgentDialog
-          isOpen={agentDialogOpen}
-          onClose={() => { setAgentDialogOpen(false); setEditingAgent(undefined); }}
-          agent={editingAgent}
         />
       </aside>
     </>

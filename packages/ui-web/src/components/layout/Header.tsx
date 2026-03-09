@@ -4,6 +4,7 @@ import { Settings, Menu, Languages, CheckIcon, Keyboard } from '../icons';
 import { SquareTerminal } from 'lucide-react';
 import { useSettingsStore } from '@shared/stores/settings';
 import { useAgentStore, DEFAULT_AGENT_ID } from '@shared/stores/agent';
+import { isImageAvatar } from '@shared/utils/imageUtils';
 import type { Language } from '@shared/stores/settings';
 import { MemoryViewer } from '../memory/MemoryViewer';
 import { CronViewer } from '../cron/CronViewer';
@@ -71,7 +72,7 @@ export default function Header({ onToggleConsole, onToggleSidebar, onLogoClick }
           <div className="flex items-center gap-2">
             <button
               onClick={onLogoClick}
-              className="w-7 h-7 rounded-full flex items-center justify-center text-sm hover:opacity-80 transition-opacity cursor-pointer"
+              className="w-7 h-7 rounded-full flex items-center justify-center text-sm hover:opacity-80 transition-opacity cursor-pointer overflow-hidden"
               style={displayColor ? {
                 backgroundColor: displayColor + '20',
                 color: displayColor
@@ -81,7 +82,9 @@ export default function Header({ onToggleConsole, onToggleSidebar, onLogoClick }
               }}
               title={t('status.subtitle')}
             >
-              {displayAvatar}
+              {isImageAvatar(displayAvatar)
+                ? <img src={displayAvatar} alt="avatar" className="w-full h-full object-cover" draggable={false} />
+                : displayAvatar}
             </button>
             <div className="flex items-center gap-2">
               <h1 className="font-semibold text-foreground tracking-tight">CyberBunny</h1>

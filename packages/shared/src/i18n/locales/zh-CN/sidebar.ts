@@ -45,6 +45,8 @@ export default {
   'sidebar.agent.systemPrompt': '系统提示词',
   'sidebar.agent.systemPromptPlaceholder': '定义智能体的行为和人格',
   'sidebar.agent.avatar': '头像',
+  'sidebar.agent.uploadAvatar': '上传图片',
+  'sidebar.agent.removeAvatar': '移除',
   'sidebar.agent.color': '颜色',
   'sidebar.agent.sessions': '{{count}} 个会话',
   'sidebar.agent.noAgents': '暂无自定义智能体',
@@ -59,4 +61,7 @@ export default {
   'sidebar.agent.deleteGroupConfirm': '删除分组 "{{name}}"？智能体将移至未分组。',
   'sidebar.agent.renameGroup': '重命名',
   'sidebar.agent.moveToGroup': '移动到分组',
+  'sidebar.agent.defaultName': '兔子',
+  'sidebar.agent.config': '智能体配置',
+  'sidebar.agent.basicInfo': '基本信息',
 } as const;
