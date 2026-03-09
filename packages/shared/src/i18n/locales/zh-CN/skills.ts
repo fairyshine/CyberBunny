@@ -30,5 +30,10 @@ export default {
   'skills.deleteError': '删除技能失败',
   'skills.totalCount': '共 {{count}} 个技能可用',
   'skills.enabledCount': '已启用 {{count}} 个',
+  'skills.enabled': '已启用',
+  'skills.disabled': '未启用',
+  'skills.toggleHint': '勾选表示启用，点击技能卡片即可快速开关。',
+  'skills.cardClickHint': '点击卡片可切换',
+  'skills.toggleAriaLabel': '切换技能 {{name}}，当前状态：{{status}}',
   'skills.toolName': 'activate_skill({{name}})',
 } as const;

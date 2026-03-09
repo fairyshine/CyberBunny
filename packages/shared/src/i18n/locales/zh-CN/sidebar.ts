@@ -53,6 +53,7 @@ export default {
   'sidebar.agent.group': '分组',
   'sidebar.agent.createGroup': '新建分组',
   'sidebar.agent.groupName': '分组名称',
+  'sidebar.agent.defaultGroupName': '兔子窝-{{index}}',
   'sidebar.agent.ungrouped': '未分组',
   'sidebar.agent.deleteGroup': '删除分组',
   'sidebar.agent.deleteGroupConfirm': '删除分组 "{{name}}"？智能体将移至未分组。',

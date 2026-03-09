@@ -206,7 +206,7 @@ export function AgentList({ onItemClick, onEditAgent, onOpenGraph }: AgentListPr
     return (
       <div key={groupId} className="mb-1">
         {/* Group header */}
-        <div className="flex items-center gap-1 px-2 py-1 group/grp">
+        <div className="relative flex items-center gap-1 px-2 py-1 group/grp">
           <button
             onClick={() => toggleGroupCollapse(groupId)}
             className="flex items-center gap-1.5 flex-1 min-w-0 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -228,7 +228,7 @@ export function AgentList({ onItemClick, onEditAgent, onOpenGraph }: AgentListPr
             )}
             <span className="text-muted-foreground/60 ml-auto shrink-0">{groupAgents.length}</span>
           </button>
-          <div className="flex items-center gap-0.5 opacity-0 group-hover/grp:opacity-100 transition-opacity">
+          <div className={`flex items-center gap-0.5 transition-opacity ${showGroupCtx ? 'opacity-100' : 'opacity-0 group-hover/grp:opacity-100'}`}>
             <Button
               variant="ghost" size="icon" className="h-5 w-5"
               onClick={(e) => { e.stopPropagation(); onOpenGraph?.(groupId); }}

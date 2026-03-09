@@ -42,6 +42,16 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
   const createAgentSession = useAgentStore((s) => s.createAgentSession);
 
   const createAgentGroup = useAgentStore((s) => s.createAgentGroup);
+  const agentGroups = useAgentStore((s) => s.agentGroups);
+
+  const getDefaultGroupName = () => {
+    const existingNames = new Set(agentGroups.map((group) => group.name.trim()));
+
+    for (let index = 1; ; index += 1) {
+      const candidate = t('sidebar.agent.defaultGroupName', { index }).trim();
+      if (!existingNames.has(candidate)) return candidate;
+    }
+  };
 
   const handleItemClick = () => {
     if (onClose && window.innerWidth < 768) {
@@ -110,7 +120,7 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
           onCreateProject={() => { setEditingProject(null); setProjectDialogOpen(true); }}
           onCreateSession={handleCreateSession}
           onCreateAgent={() => { setEditingAgent(undefined); setAgentDialogOpen(true); }}
-          onCreateGroup={() => { const name = prompt(t('sidebar.agent.groupName')); if (name?.trim()) createAgentGroup(name.trim()); }}
+          onCreateGroup={() => { const name = prompt(t('sidebar.agent.groupName'), getDefaultGroupName()); if (name?.trim()) createAgentGroup(name.trim()); }}
           onOpenGraph={() => onOpenGraph?.()}
         />
 

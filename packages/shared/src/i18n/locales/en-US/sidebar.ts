@@ -53,6 +53,7 @@ export default {
   'sidebar.agent.group': 'Group',
   'sidebar.agent.createGroup': 'New Group',
   'sidebar.agent.groupName': 'Group Name',
+  'sidebar.agent.defaultGroupName': 'Bunny Nest-{{index}}',
   'sidebar.agent.ungrouped': 'Ungrouped',
   'sidebar.agent.deleteGroup': 'Delete Group',
   'sidebar.agent.deleteGroupConfirm': 'Delete group "{{name}}"? Agents will be moved to ungrouped.',

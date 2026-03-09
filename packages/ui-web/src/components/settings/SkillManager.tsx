@@ -1,7 +1,7 @@
 // Skill Manager — full CRUD for built-in + user skills
 // Skills stored as folders with SKILL.md in the virtual filesystem
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type KeyboardEvent, type MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSkillStore } from '@shared/stores/skills';
 import { useAgentConfig } from '../../hooks/useAgentConfig';
@@ -9,9 +9,9 @@ import type { LoadedSkill } from '@shared/services/skills';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
+import { Checkbox } from '../ui/checkbox';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
-import { Switch } from '../ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { ScrollArea } from '../ui/scroll-area';
@@ -114,7 +114,7 @@ export function SkillManager() {
       )}
 
       {/* Skill Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-3">
         {loading ? (
           <Card className="col-span-full p-8 text-center text-muted-foreground">
             Loading...
@@ -216,43 +216,88 @@ function SkillCard({
   onDelete: () => void;
 }) {
   const { t } = useTranslation();
+  const statusText = enabled ? t('skills.enabled') : t('skills.disabled');
+
+  const handleCardKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    onToggle();
+  };
+
+  const handleActionClick = (
+    event: MouseEvent<HTMLButtonElement>,
+    action: () => void,
+  ) => {
+    event.stopPropagation();
+    action();
+  };
 
   return (
-    <Card className="p-4 group">
-      <div className="flex items-start gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h4 className="font-semibold">{skill.name}</h4>
-            <Badge variant={skill.source === 'builtin' ? 'secondary' : 'default'} className="text-xs">
+    <Card
+      className={`group relative overflow-hidden border cursor-pointer transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+        enabled
+          ? 'border-primary/40 bg-primary/5 shadow-sm shadow-primary/10'
+          : 'hover:border-primary/20 hover:bg-accent/30'
+      }`}
+      role="button"
+      tabIndex={0}
+      onClick={onToggle}
+      onKeyDown={handleCardKeyDown}
+    >
+      <div className="p-4 space-y-3">
+        {/* Top row: icon + name + badge + checkbox */}
+        <div className="flex items-center gap-3">
+          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${
+            enabled
+              ? 'border-primary/30 bg-primary/10 text-primary'
+              : 'border-border bg-muted/50 text-muted-foreground'
+          }`}>
+            <Sparkles className="h-4 w-4" />
+          </div>
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <h4 className="font-semibold leading-none truncate">{skill.name}</h4>
+            <Badge variant={skill.source === 'builtin' ? 'secondary' : 'default'} className="text-xs shrink-0">
               {skill.source === 'builtin' ? t('skills.builtin') : t('skills.user')}
             </Badge>
-          </div>
-          <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-            {skill.description}
-          </p>
-          <div className="flex items-center gap-2">
             {skill.metadata?.version && (
-              <span className="text-xs text-muted-foreground">v{skill.metadata.version}</span>
+              <span className="text-xs text-muted-foreground shrink-0">v{skill.metadata.version}</span>
             )}
           </div>
-        </div>
-        <div className="flex items-center gap-1">
-          <Switch
+          <Checkbox
             checked={enabled}
             onCheckedChange={onToggle}
+            aria-label={t('skills.toggleAriaLabel', { name: skill.name, status: statusText })}
             className="shrink-0"
+            onClick={(event) => event.stopPropagation()}
           />
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit}>
-              <Pencil className="w-4 h-4" />
-            </Button>
-            {skill.source !== 'builtin' && (
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={onDelete}>
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            )}
-          </div>
         </div>
+
+        {/* Description */}
+        <p className="text-sm text-muted-foreground line-clamp-2 pl-12">
+          {skill.description}
+        </p>
+      </div>
+
+      {/* Hover action buttons */}
+      <div className="absolute right-2 bottom-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          onClick={(event) => handleActionClick(event, onEdit)}
+        >
+          <Pencil className="w-3.5 h-3.5" />
+        </Button>
+        {skill.source !== 'builtin' && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-destructive"
+            onClick={(event) => handleActionClick(event, onDelete)}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
+        )}
       </div>
     </Card>
   );

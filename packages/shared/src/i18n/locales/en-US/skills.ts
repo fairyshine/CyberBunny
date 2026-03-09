@@ -30,5 +30,10 @@ export default {
   'skills.deleteError': 'Failed to delete skill',
   'skills.totalCount': '{{count}} skills available',
   'skills.enabledCount': '{{count}} enabled',
+  'skills.enabled': 'Enabled',
+  'skills.disabled': 'Disabled',
+  'skills.toggleHint': 'Checked means enabled. Click a skill card to toggle it quickly.',
+  'skills.cardClickHint': 'Click card to toggle',
+  'skills.toggleAriaLabel': 'Toggle skill {{name}}, current status: {{status}}',
   'skills.toolName': 'activate_skill({{name}})',
 } as const;
