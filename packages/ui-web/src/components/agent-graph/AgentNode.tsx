@@ -15,10 +15,11 @@ export interface AgentNodeData {
   willConnect?: boolean;
   willDisconnect?: boolean;
   isStatic?: boolean;
+  isStreaming?: boolean;
 }
 
 export const AgentNode = memo(({ data, selected }: NodeProps<AgentNodeData>) => {
-  const { agent, isEditMode, isPendingSource, willConnect, willDisconnect, isStatic } = data;
+  const { agent, isEditMode, isPendingSource, willConnect, willDisconnect, isStatic, isStreaming } = data;
   const isDefault = agent.isDefault;
 
   const accentColor = isDefault ? 'hsl(var(--primary))' : agent.color;
@@ -93,7 +94,7 @@ export const AgentNode = memo(({ data, selected }: NodeProps<AgentNodeData>) => 
       />
 
       <div
-        className={`relative flex flex-col items-center gap-2 px-3 pt-3 pb-3.5 rounded-xl transition-all duration-200 ${isPendingSource ? 'animate-pulse' : ''}`}
+        className={`relative flex flex-col items-center gap-2 px-3 pt-3 pb-3.5 rounded-xl transition-all duration-200 ${isPendingSource ? 'animate-pulse' : ''} ${isStreaming ? 'streaming-border' : ''}`}
         style={{
           background: 'hsl(var(--card))',
           border: `1px solid ${borderColor}`,

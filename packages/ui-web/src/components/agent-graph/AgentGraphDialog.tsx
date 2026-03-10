@@ -25,7 +25,8 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import ELK from 'elkjs/lib/elk.bundled.js';
-import { useAgentStore } from '@shared/stores/agent';
+import { useAgentStore, DEFAULT_AGENT_ID } from '@shared/stores/agent';
+import { useSessionStore } from '@shared/stores/session';
 import type { Agent, AgentGroup } from '@shared/types';
 import { Button } from '../ui/button';
 import { AgentNode, AGENT_AVATAR_CENTER_X, AGENT_AVATAR_CENTER_Y, type AgentNodeData } from './AgentNode';
@@ -199,7 +200,7 @@ function getGroupDimensions(agentCount: number) {
   return { columns, rows, width, height };
 }
 
-function buildOverviewNodes(agents: Agent[], agentGroups: AgentGroup[]): Node[] {
+function buildOverviewNodes(agents: Agent[], agentGroups: AgentGroup[], streamingAgentIds?: Set<string>): Node[] {
   const nodes: Node[] = [];
   const groupedEntries = agentGroups.map((group) => ({
     group,
@@ -266,6 +267,7 @@ function buildOverviewNodes(agents: Agent[], agentGroups: AgentGroup[]): Node[] 
         data: {
           agent,
           isStatic: true,
+          isStreaming: streamingAgentIds?.has(agent.id),
         } satisfies AgentNodeData,
         className: 'bg-transparent border-0 shadow-none',
         style: { zIndex: 1, background: 'transparent', border: 'none', boxShadow: 'none', padding: 0 },
@@ -308,6 +310,22 @@ function GraphContent({ onClose, groupId }: GraphContentProps) {
     updateAgent,
   } = useAgentStore();
   const { fitView } = useReactFlow();
+
+  // Track which agents have streaming sessions
+  const agentSessions = useAgentStore((s) => s.agentSessions);
+  const defaultAgentSessions = useSessionStore((s) => s.sessions);
+  const streamingAgentIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (defaultAgentSessions.some((s) => s.isStreaming)) {
+      ids.add(DEFAULT_AGENT_ID);
+    }
+    for (const [agentId, sessions] of Object.entries(agentSessions)) {
+      if (sessions.some((s) => s.isStreaming)) {
+        ids.add(agentId);
+      }
+    }
+    return ids;
+  }, [defaultAgentSessions, agentSessions]);
 
   const isOverviewMode = groupId === undefined;
 
@@ -391,13 +409,13 @@ function GraphContent({ onClose, groupId }: GraphContentProps) {
           id: agent.id,
           type: 'agentNode',
           position: positions.get(agent.id) ?? nodePositionsRef.current.get(agent.id) ?? { x: 0, y: 0 },
-          data: { agent } satisfies AgentNodeData,
+          data: { agent, isStreaming: streamingAgentIds.has(agent.id) } satisfies AgentNodeData,
           className: 'bg-transparent border-0 shadow-none',
           style: { background: 'transparent', border: 'none', boxShadow: 'none', padding: 0 },
         })),
       );
     },
-    [agents, setNodes],
+    [agents, setNodes, streamingAgentIds],
   );
 
   useEffect(() => {
@@ -406,9 +424,25 @@ function GraphContent({ onClose, groupId }: GraphContentProps) {
     setIsEditMode(false);
     setPendingSourceId(null);
     setSelectedEdge(null);
-    setNodes(buildOverviewNodes(allAgents, agentGroups));
+    setNodes(buildOverviewNodes(allAgents, agentGroups, streamingAgentIds));
     setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 80);
   }, [agentGroups, allAgents, fitView, isOverviewMode, overviewKey, setEdges, setNodes]);
+
+  // Lightweight streaming state sync for overview nodes (no fitView / reset)
+  useEffect(() => {
+    if (!isOverviewMode) return;
+
+    setNodes((existingNodes) =>
+      existingNodes.map((node) => {
+        if (node.type !== 'agentNode') return node;
+        const newIsStreaming = streamingAgentIds.has(node.id);
+        if (node.data?.isStreaming !== newIsStreaming) {
+          return { ...node, data: { ...node.data, isStreaming: newIsStreaming } };
+        }
+        return node;
+      }),
+    );
+  }, [isOverviewMode, streamingAgentIds, setNodes]);
 
   useEffect(() => {
     if (isOverviewMode || agents.length === 0) return;
@@ -453,13 +487,15 @@ function GraphContent({ onClose, groupId }: GraphContentProps) {
     setNodes((existingNodes) =>
       existingNodes.map((node) => {
         const agent = agentMap.get(node.id);
-        if (agent && node.data?.agent !== agent) {
-          return { ...node, data: { ...node.data, agent } };
+        if (!agent) return node;
+        const newIsStreaming = streamingAgentIds.has(agent.id);
+        if (agent !== node.data?.agent || newIsStreaming !== node.data?.isStreaming) {
+          return { ...node, data: { ...node.data, agent, isStreaming: newIsStreaming } };
         }
         return node;
       }),
     );
-  }, [agents, isOverviewMode, setNodes]);
+  }, [agents, isOverviewMode, setNodes, streamingAgentIds]);
 
   const hasRelationship = useCallback(
     (sourceAgentId: string, targetAgentId: string) => {
@@ -604,7 +640,7 @@ function GraphContent({ onClose, groupId }: GraphContentProps) {
 
   const handleRelayout = useCallback(() => {
     if (isOverviewMode) {
-      setNodes(buildOverviewNodes(allAgents, agentGroups));
+      setNodes(buildOverviewNodes(allAgents, agentGroups, streamingAgentIds));
       setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 80);
       return;
     }

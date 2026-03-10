@@ -1,9 +1,10 @@
 import { useTranslation } from 'react-i18next';
-import { useAgentStore } from '@shared/stores/agent';
+import { useAgentStore, DEFAULT_AGENT_ID } from '@shared/stores/agent';
+import { useSessionStore } from '@shared/stores/session';
 import { isImageAvatar } from '@shared/utils/imageUtils';
 import { Button } from '../ui/button';
 import { MoreHorizontal, Edit2, Trash2, Network } from '../icons';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { Agent } from '@shared/types';
 import { ChevronRight, Pencil, ArrowRightLeft } from 'lucide-react';
 
@@ -25,6 +26,23 @@ export function AgentList({ onItemClick, onOpenGraph, onAgentSelect, onCurrentAg
   const agentGroups = useAgentStore((s) => s.agentGroups);
   const deleteAgentGroup = useAgentStore((s) => s.deleteAgentGroup);
   const updateAgentGroup = useAgentStore((s) => s.updateAgentGroup);
+
+  // Track which agents have streaming sessions
+  const defaultAgentSessions = useSessionStore((s) => s.sessions);
+  const streamingAgentIds = useMemo(() => {
+    const ids = new Set<string>();
+    // Default agent uses the main session store
+    if (defaultAgentSessions.some((s) => s.isStreaming)) {
+      ids.add(DEFAULT_AGENT_ID);
+    }
+    // Non-default agents use agentSessions
+    for (const [agentId, sessions] of Object.entries(agentSessions)) {
+      if (sessions.some((s) => s.isStreaming)) {
+        ids.add(agentId);
+      }
+    }
+    return ids;
+  }, [defaultAgentSessions, agentSessions]);
 
   const [contextMenuAgentId, setContextMenuAgentId] = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
@@ -110,6 +128,7 @@ export function AgentList({ onItemClick, onOpenGraph, onAgentSelect, onCurrentAg
     const sessionCount = agentSessions[agent.id]?.length || 0;
     const isActive = currentAgentId === agent.id;
     const showCtx = contextMenuAgentId === agent.id;
+    const isStreaming = streamingAgentIds.has(agent.id);
 
     return (
       <div key={agent.id} className="relative">
@@ -118,6 +137,7 @@ export function AgentList({ onItemClick, onOpenGraph, onAgentSelect, onCurrentAg
           className={`
             w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left
             ${isActive ? 'bg-accent text-accent-foreground' : 'hover:bg-muted/50'}
+            ${isStreaming ? 'streaming-border' : ''}
           `}
         >
           <div
