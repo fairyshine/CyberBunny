@@ -80,6 +80,17 @@
   }
 }
 
+@layer utilities {
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* 高级感滚动条 */
 ::-webkit-scrollbar {
   width: 6px;
@@ -285,14 +296,20 @@ code {
   border-color: hsl(var(--foreground) / 0.2);
 }
 
-/* 流光边框动画 */
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
+/* 顺时针旋转边框光效 */
+@keyframes border-rotate {
+  from {
+    --border-angle: 0deg;
   }
-  100% {
-    background-position: 200% 0;
+  to {
+    --border-angle: 360deg;
   }
+}
+
+@property --border-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
 }
 
 .streaming-border {
@@ -306,16 +323,13 @@ code {
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    hsl(var(--primary)) 20%,
-    hsl(var(--primary) / 0.8) 40%,
-    hsl(var(--primary)) 60%,
-    transparent
+  background: conic-gradient(
+    from var(--border-angle),
+    transparent 30%,
+    hsl(var(--primary)) 50%,
+    transparent 70%
   );
-  background-size: 200% 100%;
-  animation: shimmer 2s linear infinite;
+  animation: border-rotate 2.5s linear infinite;
   -webkit-mask:
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
@@ -325,6 +339,15 @@ code {
 }
 
 /* 流光标签页动画 */
+@keyframes tab-sweep {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
 .streaming-tab::after {
   content: '';
   position: absolute;
@@ -341,7 +364,7 @@ code {
     transparent
   );
   background-size: 200% 100%;
-  animation: shimmer 2s linear infinite;
+  animation: tab-sweep 2s linear infinite;
 }
 
 /* Dashboard drag overlay */
@@ -352,4 +375,3 @@ code {
     0 2px 8px hsl(var(--foreground) / 0.08);
   border-radius: var(--radius);
 }
-

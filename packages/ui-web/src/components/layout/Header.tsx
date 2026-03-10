@@ -66,8 +66,8 @@ export default function Header({ onToggleConsole, onToggleSidebar, onLogoClick }
 
   return (
     <>
-      <header className="h-14 bg-background border-b border-border flex items-center justify-between px-4 shadow-none overflow-hidden">
-        <div className="flex items-center gap-3 shrink-0">
+      <header className="h-14 bg-background border-b border-border flex items-center justify-between gap-2 px-3 sm:px-4 shadow-none overflow-hidden min-w-0">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           {onToggleSidebar && (
             <Button
               onClick={onToggleSidebar}
@@ -78,7 +78,7 @@ export default function Header({ onToggleConsole, onToggleSidebar, onLogoClick }
               <Menu className="w-5 h-5" />
             </Button>
           )}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <button
               onClick={onLogoClick}
               className="w-7 h-7 rounded-full flex items-center justify-center text-sm hover:opacity-80 transition-opacity cursor-pointer overflow-hidden shrink-0"
@@ -105,114 +105,127 @@ export default function Header({ onToggleConsole, onToggleSidebar, onLogoClick }
         </div>
 
         <TooltipProvider>
-          <div className="flex items-center gap-1 shrink-0">
-            {isMemoryEnabled && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    onClick={() => setIsMemoryOpen(true)}
-                    variant="ghost"
-                    size="icon"
-                  >
-                    {(() => { const Icon = getToolIcon('memory'); return <Icon className="w-4 h-4" />; })()}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('tools.memory.name')}</TooltipContent>
-              </Tooltip>
-            )}
-
-            {isCronEnabled && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    onClick={() => setIsCronOpen(true)}
-                    variant="ghost"
-                    size="icon"
-                  >
-                    {(() => { const Icon = getToolIcon('cron'); return <Icon className="w-4 h-4" />; })()}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('tools.cron.name')}</TooltipContent>
-              </Tooltip>
-            )}
-
-            {isHeartbeatEnabled && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    onClick={() => setIsHeartbeatOpen(true)}
-                    variant="ghost"
-                    size="icon"
-                  >
-                    {(() => { const Icon = getToolIcon('heartbeat'); return <Icon className="w-4 h-4" />; })()}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('tools.heartbeat.name')}</TooltipContent>
-              </Tooltip>
-            )}
-
-            {onToggleConsole && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    onClick={onToggleConsole}
-                    variant="ghost"
-                    size="icon"
-                  >
-                    <SquareTerminal className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('header.console')}</TooltipContent>
-              </Tooltip>
-            )}
-
-            <ThemeToggle />
-
-            <div className="hidden sm:block">
-              <DropdownMenu>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <DropdownMenuTrigger asChild>
+          <div className="flex items-center gap-1 min-w-0 max-w-[58vw] sm:max-w-none shrink-0">
+            <div
+              className="min-w-0 overflow-x-auto scrollbar-none py-1 -my-1"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              <div className="flex items-center gap-1 min-w-max pr-1">
+                {isMemoryEnabled && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
                       <Button
+                        onClick={() => setIsMemoryOpen(true)}
                         variant="ghost"
                         size="icon"
+                        className="shrink-0"
                       >
-                        <Languages className="w-4 h-4" />
+                        {(() => { const Icon = getToolIcon('memory'); return <Icon className="w-4 h-4" />; })()}
                       </Button>
-                    </DropdownMenuTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent>{t('settings.language')}</TooltipContent>
-                </Tooltip>
-                <DropdownMenuContent align="end">
-                  {languageOptions.map((option) => (
-                    <DropdownMenuItem
-                      key={option.value}
-                      onClick={() => setLanguage(option.value)}
-                      className="flex items-center justify-between min-w-[140px]"
-                    >
-                      <span>{option.label}</span>
-                      {language === option.value && (
-                        <CheckIcon className="w-4 h-4 ml-2" />
-                      )}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('tools.memory.name')}</TooltipContent>
+                  </Tooltip>
+                )}
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  onClick={() => setIsShortcutsOpen(true)}
-                  variant="ghost"
-                  size="icon"
-                  className="hidden sm:inline-flex"
-                >
-                  <Keyboard className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('shortcuts.title')}</TooltipContent>
-            </Tooltip>
+                {isCronEnabled && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={() => setIsCronOpen(true)}
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0"
+                      >
+                        {(() => { const Icon = getToolIcon('cron'); return <Icon className="w-4 h-4" />; })()}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('tools.cron.name')}</TooltipContent>
+                  </Tooltip>
+                )}
+
+                {isHeartbeatEnabled && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={() => setIsHeartbeatOpen(true)}
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0"
+                      >
+                        {(() => { const Icon = getToolIcon('heartbeat'); return <Icon className="w-4 h-4" />; })()}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('tools.heartbeat.name')}</TooltipContent>
+                  </Tooltip>
+                )}
+
+                {onToggleConsole && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={onToggleConsole}
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0"
+                      >
+                        <SquareTerminal className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('header.console')}</TooltipContent>
+                  </Tooltip>
+                )}
+
+                <div className="shrink-0">
+                  <ThemeToggle />
+                </div>
+
+                <div className="hidden sm:block shrink-0">
+                  <DropdownMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                          >
+                            <Languages className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('settings.language')}</TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent align="end">
+                      {languageOptions.map((option) => (
+                        <DropdownMenuItem
+                          key={option.value}
+                          onClick={() => setLanguage(option.value)}
+                          className="flex items-center justify-between min-w-[140px]"
+                        >
+                          <span>{option.label}</span>
+                          {language === option.value && (
+                            <CheckIcon className="w-4 h-4 ml-2" />
+                          )}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      onClick={() => setIsShortcutsOpen(true)}
+                      variant="ghost"
+                      size="icon"
+                      className="hidden sm:inline-flex shrink-0"
+                    >
+                      <Keyboard className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('shortcuts.title')}</TooltipContent>
+                </Tooltip>
+              </div>
+            </div>
 
             <Tooltip>
               <TooltipTrigger asChild>
@@ -220,6 +233,7 @@ export default function Header({ onToggleConsole, onToggleSidebar, onLogoClick }
                   onClick={() => { setSettingsSection(null); setIsSettingsOpen(true); }}
                   variant="ghost"
                   size="icon"
+                  className="shrink-0"
                 >
                   <Settings className="w-4 h-4" />
                 </Button>
