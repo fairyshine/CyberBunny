@@ -6,7 +6,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Agent, LLMConfig, Session, Message, SessionType, AgentRelationship, AgentGroup } from '../types';
+import type { Agent, LLMConfig, Session, Message, SessionType, AgentRelationship, AgentGroup, MindSessionMeta } from '../types';
 import { messageStorage } from '../services/storage/messageStorage';
 
 const DEFAULT_AGENT_ID = 'default';
@@ -29,7 +29,7 @@ const DEFAULT_LLM_CONFIG: LLMConfig = {
   maxTokens: 4096,
 };
 
-const DEFAULT_TOOLS = ['python', 'web_search', 'file_manager', 'memory'];
+const DEFAULT_TOOLS = ['python', 'web_search', 'file_manager', 'memory', 'mind'];
 
 function createDefaultAgent(): Agent {
   return {
@@ -74,7 +74,7 @@ interface AgentState {
   // Per-agent sessions
   agentSessions: Record<string, Session[]>;
   agentCurrentSessionId: Record<string, string | null>;
-  createAgentSession: (agentId: string, name?: string, projectId?: string) => Session;
+  createAgentSession: (agentId: string, name?: string, projectId?: string, sessionType?: SessionType) => Session;
   renameAgentSession: (agentId: string, sessionId: string, name: string) => void;
   deleteAgentSession: (agentId: string, sessionId: string) => void;
   setAgentCurrentSession: (agentId: string, sessionId: string | null) => void;
@@ -84,6 +84,7 @@ interface AgentState {
   setAgentSessionSystemPrompt: (agentId: string, sessionId: string, systemPrompt: string) => void;
   setAgentSessionTools: (agentId: string, sessionId: string, tools: string[] | undefined) => void;
   setAgentSessionSkills: (agentId: string, sessionId: string, skills: string[] | undefined) => void;
+  setAgentSessionMindMeta: (agentId: string, sessionId: string, mindSession: MindSessionMeta) => void;
   loadAgentSessionMessages: (agentId: string, sessionId: string) => Promise<void>;
   flushAgentMessages: (agentId: string, sessionId: string) => Promise<void>;
   moveAgentSessionToProject: (agentId: string, sessionId: string, projectId: string | null) => void;
@@ -267,14 +268,14 @@ export const useAgentStore = create<AgentState>()(
       },
 
       // Per-agent sessions
-      createAgentSession: (agentId, name = '新会话', projectId) => {
+      createAgentSession: (agentId, name = '新会话', projectId, sessionType: SessionType = 'user') => {
         const session: Session = {
           id: crypto.randomUUID(),
           name,
           messages: [],
           createdAt: Date.now(),
           updatedAt: Date.now(),
-          sessionType: 'user' as SessionType,
+          sessionType,
           projectId,
         };
         set((state) => ({
@@ -406,6 +407,19 @@ export const useAgentStore = create<AgentState>()(
             [agentId]: (state.agentSessions[agentId] || []).map((session) =>
               session.id === sessionId
                 ? { ...session, sessionSkills: skills, updatedAt: Date.now() }
+                : session
+            ),
+          },
+        }));
+      },
+
+      setAgentSessionMindMeta: (agentId, sessionId, mindSession) => {
+        set((state) => ({
+          agentSessions: {
+            ...state.agentSessions,
+            [agentId]: (state.agentSessions[agentId] || []).map((session) =>
+              session.id === sessionId
+                ? { ...session, mindSession: { ...session.mindSession, ...mindSession }, updatedAt: Date.now() }
                 : session
             ),
           },

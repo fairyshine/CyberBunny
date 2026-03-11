@@ -71,4 +71,9 @@ export default {
   'sidebar.agent.openSharedFiles': '打开共享文件',
   'sidebar.agent.viewAgentFiles': '智能体文件',
   'sidebar.agent.basicInfo': '基本信息',
+  'sidebar.mind.placeholder': '输入一段想让 mind 内部推演的文本',
+  'sidebar.mind.run': '运行 Mind',
+  'sidebar.mind.running': 'Mind 运行中...',
+  'sidebar.mind.finished': 'Mind 对话已结束',
+  'sidebar.mind.error': 'Mind 运行失败：{{error}}',
 } as const;

@@ -1,13 +1,18 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { logSettings } from '../services/console/logger';
+import { isMCPToolId } from '../services/ai/mcp';
 import type { UserProfile, AgentProfile, LLMPreset } from '../types';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type Language = 'zh-CN' | 'en-US' | 'system';
 
-const SUPPORTED_TOOL_IDS = new Set(['python', 'web_search', 'file_manager', 'memory', 'exec', 'cron', 'heartbeat']);
-const DEFAULT_ENABLED_TOOLS = ['python', 'web_search', 'file_manager', 'memory'];
+const SUPPORTED_TOOL_IDS = new Set(['python', 'web_search', 'file_manager', 'memory', 'mind', 'exec', 'cron', 'heartbeat']);
+const DEFAULT_ENABLED_TOOLS = ['python', 'web_search', 'file_manager', 'memory', 'mind'];
+
+function isSupportedToolId(toolId: string): boolean {
+  return SUPPORTED_TOOL_IDS.has(toolId) || isMCPToolId(toolId);
+}
 
 // Platform-injected callbacks
 let onThemeChange: ((theme: Theme) => void) | null = null;
@@ -164,7 +169,7 @@ export const useSettingsStore = create<SettingsState>()(
       enabledTools: [...DEFAULT_ENABLED_TOOLS],
       toggleTool: (toolId) =>
         set((state) => {
-          if (!SUPPORTED_TOOL_IDS.has(toolId)) {
+          if (!isSupportedToolId(toolId)) {
             return state;
           }
           const isEnabling = !state.enabledTools.includes(toolId);
@@ -269,7 +274,7 @@ export const useSettingsStore = create<SettingsState>()(
           // Clean up legacy tool IDs from enabledTools
           if (Array.isArray(persisted.enabledTools)) {
             persisted.enabledTools = persisted.enabledTools.filter(
-              (id: string) => SUPPORTED_TOOL_IDS.has(id)
+              (id: string) => isSupportedToolId(id)
             );
           }
           // v1 → v2: migrate soundEnabled/soundVolume to new audio settings

@@ -8,6 +8,7 @@ import {
   Terminal,
   Clock,
   Heart,
+  MessagesSquare,
 } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 
@@ -20,6 +21,7 @@ const iconMap: Record<string, React.ComponentType<LucideProps>> = {
   terminal: Terminal,
   clock: Clock,
   heart: Heart,
+  mind: MessagesSquare,
 };
 
 // Centralized tool display metadata — single source of truth
@@ -31,6 +33,7 @@ export const toolDisplayInfo: Record<string, { name: string; description: string
   exec: { name: 'Shell Exec', description: 'Execute shell commands (Desktop only)', icon: 'terminal' },
   cron: { name: 'Cron', description: 'Schedule periodic tasks', icon: 'clock' },
   heartbeat: { name: 'Heartbeat', description: 'Periodic watchlist', icon: 'heart' },
+  mind: { name: 'Mind', description: 'Internal self-dialogue', icon: 'mind' },
 };
 
 export function getToolIcon(toolId: string): React.ComponentType<LucideProps> {

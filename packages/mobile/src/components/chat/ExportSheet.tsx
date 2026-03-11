@@ -3,6 +3,7 @@ import { View, StyleSheet, Share, Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Modal, Portal, Text, Button, RadioButton, Divider, useTheme } from 'react-native-paper';
 import { MessageHistoryManager } from '@shared/utils/messageHistory';
+import type { ExportHistoryVariant } from '@shared/utils/messageHistory';
 import type { Message } from '@shared/types';
 
 interface ExportSheetProps {
@@ -10,13 +11,14 @@ interface ExportSheetProps {
   systemPrompt?: string;
   sessionId: string;
   sessionName: string;
+  alternateHistories?: ExportHistoryVariant[];
   visible: boolean;
   onDismiss: () => void;
 }
 
 type ExportFormat = 'json' | 'markdown' | 'text';
 
-export default function ExportSheet({ messages, systemPrompt, sessionId, sessionName, visible, onDismiss }: ExportSheetProps) {
+export default function ExportSheet({ messages, systemPrompt, sessionId, sessionName, alternateHistories, visible, onDismiss }: ExportSheetProps) {
   const { t } = useTranslation();
   const theme = useTheme();
   const [format, setFormat] = useState<ExportFormat>('markdown');
@@ -27,7 +29,7 @@ export default function ExportSheet({ messages, systemPrompt, sessionId, session
     let content: string;
     let title: string;
 
-    const opts = { systemPrompt, sessionId, sessionName };
+    const opts = { systemPrompt, sessionId, sessionName, alternateHistories };
     switch (format) {
       case 'json':
         content = MessageHistoryManager.exportToJSON(messages, opts);

@@ -166,13 +166,29 @@ export default function ChatScreen() {
 
       <MessageList messages={session.messages} />
 
-      <ChatInput onSend={handleSend} isLoading={isLoading} onStop={handleStop} />
+      {session.sessionType === 'agent' || session.sessionType === 'mind' ? null : (
+        <ChatInput onSend={handleSend} isLoading={isLoading} onStop={handleStop} />
+      )}
 
       <ExportSheet
         messages={session.messages}
         systemPrompt={session.systemPrompt}
         sessionId={session.id}
         sessionName={session.name}
+        alternateHistories={session.sessionType === 'mind' && session.mindSession ? [
+          {
+            title: t('export.mindAssistantHistory'),
+            systemPrompt: session.mindSession.assistantHistory?.systemPrompt || session.systemPrompt,
+            messages: session.mindSession.assistantHistory?.messages || [],
+            rawData: session.mindSession.assistantHistory,
+          },
+          {
+            title: t('export.mindUserHistory'),
+            systemPrompt: session.mindSession.userHistory?.systemPrompt || session.mindSession.userSystemPrompt,
+            messages: session.mindSession.userHistory?.messages || [],
+            rawData: session.mindSession.userHistory,
+          },
+        ] : undefined}
         visible={showExport}
         onDismiss={() => setShowExport(false)}
       />

@@ -50,7 +50,12 @@ export function SessionItem({
   const isDefaultAgent = currentAgentId === DEFAULT_AGENT_ID;
 
   const isEditing = editingId === session.id;
-  const readOnly = session.sessionType === 'agent';
+  const isAgentSession = session.sessionType === 'agent';
+  const isMindSession = session.sessionType === 'mind';
+  const readOnly = isAgentSession || isMindSession;
+  const displayName = isMindSession
+    ? (session.mindSession?.sourceTask || session.name).replace(/\s+/g, ' ').trim() || session.name
+    : session.name;
 
   useEffect(() => {
     if (isEditing && editInputRef.current) {
@@ -130,13 +135,13 @@ export function SessionItem({
             className="w-full text-sm font-medium bg-transparent border-b border-primary outline-none py-0"
           />
         ) : (
-          <div className="flex items-center gap-1.5">
-            {session.sessionType && session.sessionType !== 'user' && (() => {
+          <div className="flex items-center gap-1.5 min-w-0">
+            {!isMindSession && session.sessionType && session.sessionType !== 'user' && (() => {
               const TypeIcon = SESSION_TYPE_ICONS[session.sessionType];
               return <TypeIcon className="w-3 h-3 shrink-0 text-muted-foreground" />;
             })()}
-            <p className="font-medium truncate text-sm">{session.name}</p>
-            {readOnly && (
+            <p className="font-medium truncate text-sm flex-1 min-w-0">{displayName}</p>
+            {isAgentSession && (
               <span className="shrink-0 text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground leading-none">
                 {t('sidebar.readOnly')}
               </span>
@@ -148,11 +153,11 @@ export function SessionItem({
         </p>
       </div>
 
-      {!readOnly && !isEditing && (
+      {!isAgentSession && !isEditing && (
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <SessionContextMenu
             session={session}
-            onRename={() => onStartRename(session.id, session.name)}
+            onRename={isMindSession ? undefined : () => onStartRename(session.id, session.name)}
             onDelete={() => {
               if (isDefaultAgent) {
                 deleteSession(session.id);
@@ -160,6 +165,8 @@ export function SessionItem({
                 deleteAgentSession(currentAgentId, session.id);
               }
             }}
+            allowRename={!isMindSession}
+            allowMoveToProject={!isMindSession}
           >
             <Button
               onClick={(e) => e.stopPropagation()}

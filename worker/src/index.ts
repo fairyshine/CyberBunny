@@ -73,9 +73,9 @@ export default {
         return new Response('Forbidden: Origin not allowed', { status: 403, headers: corsHeaders() });
       }
 
-      const targetUrl = request.headers.get('X-Target-URL');
+      const targetUrl = request.headers.get('X-Target-URL') || url.searchParams.get('target');
       if (!targetUrl) {
-        return new Response('Bad Request: Missing X-Target-URL header', { status: 400, headers: corsHeaders() });
+        return new Response('Bad Request: Missing target URL', { status: 400, headers: corsHeaders() });
       }
 
       try {

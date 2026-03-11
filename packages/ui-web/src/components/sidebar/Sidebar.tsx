@@ -123,7 +123,7 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
     if (isDefaultAgent) {
       createSession(t('header.newSession'), type);
     } else {
-      createAgentSession(currentAgentId, t('header.newSession'));
+      createAgentSession(currentAgentId, t('header.newSession'), undefined, type);
     }
     onSessionSelect?.();
     handleItemClick();

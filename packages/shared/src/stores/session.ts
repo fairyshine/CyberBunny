@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Session, Message, LLMConfig, SessionType, Project } from '../types';
+import { Session, Message, LLMConfig, SessionType, Project, MindSessionMeta } from '../types';
 import { logSettings } from '../services/console/logger';
 import { messageStorage } from '../services/storage/messageStorage';
 import { statsStorage } from '../services/storage/statsStorage';
@@ -43,6 +43,7 @@ interface SessionState {
   setSessionTools: (sessionId: string, tools: string[] | undefined) => void;
   /** Set per-session skill overrides (undefined to clear) */
   setSessionSkills: (sessionId: string, skills: string[] | undefined) => void;
+  setSessionMindMeta: (sessionId: string, mindSession: MindSessionMeta) => void;
   /** Recalculate stats from scratch (e.g. after migration or loadSessionMessages) */
   recalcStats: () => void;
 
@@ -422,6 +423,14 @@ export const useSessionStore = create<SessionState>()(
         set((state) => ({
           sessions: state.sessions.map((s) =>
             s.id === sessionId ? { ...s, sessionSkills: skills, updatedAt: Date.now() } : s
+          ),
+        }));
+      },
+
+      setSessionMindMeta: (sessionId: string, mindSession: MindSessionMeta) => {
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId ? { ...s, mindSession: { ...s.mindSession, ...mindSession }, updatedAt: Date.now() } : s
           ),
         }));
       },

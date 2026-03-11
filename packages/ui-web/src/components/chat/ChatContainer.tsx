@@ -8,6 +8,7 @@ import { useWorkspaceSession } from '../../hooks/useWorkspaceSession';
 import { Message } from '@shared/types';
 import { logLLM } from '@shared/services/console/logger';
 import { runAgentLoop } from '@shared/services/ai/agent';
+import { stopMindConversation } from '@shared/services/ai/mind';
 import type { AgentCallbacks } from '@shared/services/ai/agent';
 import MessageList from './MessageList';
 import ChatInput from './ChatInput';
@@ -153,6 +154,12 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
       timestamp: Date.now(),
     });
   };
+
+
+  const handleStopMind = useCallback(() => {
+    if (session?.sessionType !== 'mind' || !session.isStreaming) return;
+    stopMindConversation(session.id);
+  }, [session]);
 
   const appendMessage = useCallback((targetSessionId: string, message: Message) => {
     if (isDefaultAgent) {
@@ -312,7 +319,21 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
         <div ref={messagesEndRef} />
       </div>
 
-      {session.sessionType === 'agent' ? (
+      {session.sessionType === 'mind' ? (
+        <div className="absolute bottom-0 left-0 right-0 z-20 px-4 py-3">
+          <div className="flex items-center justify-center gap-3 rounded-lg border bg-background/95 px-3 py-2 text-xs text-muted-foreground backdrop-blur-sm">
+            <span>{t('sidebar.readOnly')}</span>
+            <Button
+              onClick={handleStopMind}
+              size="sm"
+              variant={session.isStreaming ? 'destructive' : 'outline'}
+              disabled={!session.isStreaming}
+            >
+              {t('chat.input.stop')}
+            </Button>
+          </div>
+        </div>
+      ) : session.sessionType === 'agent' ? (
         <div className="absolute bottom-0 left-0 right-0 px-4 py-3 text-center text-xs text-muted-foreground">
           {t('sidebar.readOnly')}
         </div>
@@ -331,6 +352,20 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
         systemPrompt={session.systemPrompt}
         sessionId={session.id}
         sessionName={session.name}
+        alternateHistories={session.sessionType === 'mind' && session.mindSession ? [
+          {
+            title: t('export.mindAssistantHistory'),
+            systemPrompt: session.mindSession.assistantHistory?.systemPrompt || session.systemPrompt,
+            messages: session.mindSession.assistantHistory?.messages || [],
+            rawData: session.mindSession.assistantHistory,
+          },
+          {
+            title: t('export.mindUserHistory'),
+            systemPrompt: session.mindSession.userHistory?.systemPrompt || session.mindSession.userSystemPrompt,
+            messages: session.mindSession.userHistory?.messages || [],
+            rawData: session.mindSession.userHistory,
+          },
+        ] : undefined}
         isOpen={showExportDialog}
         onClose={() => setShowExportDialog(false)}
       />

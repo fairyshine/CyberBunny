@@ -3,11 +3,19 @@ import { Message } from '../types';
 import type { Tool } from 'ai';
 import i18n from '../i18n';
 
+export interface ExportHistoryVariant {
+  title: string;
+  systemPrompt?: string;
+  messages?: Message[];
+  rawData?: unknown;
+}
+
 export interface ExportOptions {
   systemPrompt?: string;
   sessionId?: string;
   sessionName?: string;
   tools?: Record<string, Tool>;
+  alternateHistories?: ExportHistoryVariant[];
 }
 
 /**
@@ -164,65 +172,34 @@ export class MessageHistoryManager {
     return turns;
   }
 
-  /**
-   * 导出消息为 JSON
-   */
-  static exportToJSON(messages: Message[], opts: ExportOptions = {}): string {
-    const toolsList = opts.tools
-      ? Object.entries(opts.tools).map(([name, tool]) => ({
-          name,
-          description: (tool as any).description || '',
-        }))
-      : [];
-
-    const exportData = {
-      sessionId: opts.sessionId || null,
-      sessionName: opts.sessionName || null,
-      systemPrompt: opts.systemPrompt || null,
-      tools: toolsList.length > 0 ? toolsList : undefined,
-      messages,
-      exportedAt: new Date().toISOString(),
-    };
-    return JSON.stringify(exportData, null, 2);
-  }
-
-  /**
-   * 导出消息为 Markdown
-   */
-  static exportToMarkdown(messages: Message[], opts: ExportOptions = {}): string {
-    const t = i18n.t.bind(i18n);
-    const lines: string[] = [];
-    lines.push(t('history.title') + '\n');
-
-    // Add session metadata if available
-    if (opts.sessionId || opts.sessionName) {
-      lines.push('## Session Info\n');
-      if (opts.sessionName) {
-        lines.push(`**Name:** ${opts.sessionName}\n`);
-      }
-      if (opts.sessionId) {
-        lines.push(`**ID:** ${opts.sessionId}\n`);
-      }
-      lines.push('');
+  private static getHistoryVariants(messages: Message[], opts: ExportOptions): ExportHistoryVariant[] {
+    if (opts.alternateHistories && opts.alternateHistories.length > 0) {
+      return opts.alternateHistories.map((history) => ({
+        ...history,
+        messages: history.messages || messages,
+      }));
     }
 
-    // Add system prompt if available
+    return [{
+      title: i18n.t('export.defaultHistory'),
+      systemPrompt: opts.systemPrompt,
+      messages,
+    }];
+  }
+
+  private static renderMarkdownHistory(messages: Message[], opts: ExportOptions = {}, title?: string): string {
+    const t = i18n.t.bind(i18n);
+    const lines: string[] = [];
+
+    if (title) {
+      lines.push(`## ${title}\n`);
+    }
+
     if (opts.systemPrompt) {
-      lines.push('## System Prompt\n');
+      lines.push('### System Prompt\n');
       lines.push('```');
       lines.push(opts.systemPrompt);
       lines.push('```\n');
-      lines.push('---\n');
-    }
-
-    // Add enabled tools info
-    if (opts.tools && Object.keys(opts.tools).length > 0) {
-      lines.push('## Tools\n');
-      for (const [name, tool] of Object.entries(opts.tools)) {
-        const desc = (tool as any).description || '';
-        lines.push(`- **${name}**: ${desc}`);
-      }
-      lines.push('\n---\n');
     }
 
     const turns = this.getConversationTurns(messages);
@@ -232,7 +209,7 @@ export class MessageHistoryManager {
       const firstMsg = turn[0];
 
       if (firstMsg.role === 'system') {
-        lines.push('## System Prompt\n');
+        lines.push('### System Prompt\n');
         lines.push('```');
         lines.push(firstMsg.content || '');
         lines.push('```\n');
@@ -269,33 +246,116 @@ export class MessageHistoryManager {
     return lines.join('\n');
   }
 
-  /**
-   * 导出消息为纯文本
-   */
-  static exportToText(messages: Message[], opts: ExportOptions = {}): string {
+  private static renderTextHistory(messages: Message[], opts: ExportOptions = {}, title?: string): string {
     const t = i18n.t.bind(i18n);
     const lines: string[] = [];
 
-    // Add session metadata if available
-    if (opts.sessionId || opts.sessionName) {
-      lines.push('=== SESSION INFO ===');
-      if (opts.sessionName) {
-        lines.push(`Name: ${opts.sessionName}`);
-      }
-      if (opts.sessionId) {
-        lines.push(`ID: ${opts.sessionId}`);
-      }
+    if (title) {
+      lines.push(`=== ${title.toUpperCase()} ===`);
       lines.push('');
     }
 
-    // Add system prompt if available
     if (opts.systemPrompt) {
       lines.push('=== SYSTEM PROMPT ===');
       lines.push(opts.systemPrompt);
       lines.push('');
     }
 
-    // Add enabled tools info
+    lines.push('=== CONVERSATION ===');
+    lines.push('');
+
+    const turns = this.getConversationTurns(messages);
+    for (const turn of turns) {
+      for (const msg of turn) {
+        const timestamp = new Date(msg.timestamp).toLocaleString(i18n.language);
+        lines.push(`[${timestamp}] ${msg.role.toUpperCase()}`);
+        if (msg.type) lines.push(t('history.type', { type: msg.type }));
+        if (msg.toolName) lines.push(t('history.tool', { toolName: msg.toolName }));
+        lines.push(t('history.content', { content: msg.content || '' }));
+        lines.push('');
+      }
+      lines.push('---\n');
+    }
+
+    return lines.join('\n');
+  }
+
+  /**
+   * 导出消息为 JSON
+   */
+  static exportToJSON(messages: Message[], opts: ExportOptions = {}): string {
+    const toolsList = opts.tools
+      ? Object.entries(opts.tools).map(([name, tool]) => ({
+          name,
+          description: (tool as any).description || '',
+        }))
+      : [];
+
+    const exportData = {
+      sessionId: opts.sessionId || null,
+      sessionName: opts.sessionName || null,
+      systemPrompt: opts.systemPrompt || null,
+      tools: toolsList.length > 0 ? toolsList : undefined,
+      messages,
+      histories: this.getHistoryVariants(messages, opts).map((history) => ({
+        title: history.title,
+        systemPrompt: history.systemPrompt || null,
+        messages: history.messages || messages,
+        rawData: history.rawData,
+      })),
+      exportedAt: new Date().toISOString(),
+    };
+    return JSON.stringify(exportData, null, 2);
+  }
+
+  /**
+   * 导出消息为 Markdown
+   */
+  static exportToMarkdown(messages: Message[], opts: ExportOptions = {}): string {
+    const t = i18n.t.bind(i18n);
+    const lines: string[] = [];
+    lines.push(t('history.title') + '\n');
+
+    if (opts.sessionId || opts.sessionName) {
+      lines.push('## Session Info\n');
+      if (opts.sessionName) lines.push(`**Name:** ${opts.sessionName}\n`);
+      if (opts.sessionId) lines.push(`**ID:** ${opts.sessionId}\n`);
+      lines.push('');
+    }
+
+    if (opts.tools && Object.keys(opts.tools).length > 0) {
+      lines.push('## Tools\n');
+      for (const [name, tool] of Object.entries(opts.tools)) {
+        const desc = (tool as any).description || '';
+        lines.push(`- **${name}**: ${desc}`);
+      }
+      lines.push('\n---\n');
+    }
+
+    const histories = this.getHistoryVariants(messages, opts);
+    histories.forEach((history, index) => {
+      lines.push(this.renderMarkdownHistory(history.messages || messages, { ...opts, systemPrompt: history.systemPrompt }, history.title));
+      if (index < histories.length - 1) {
+        lines.push('\n---\n');
+      }
+    });
+
+    return lines.join('\n');
+  }
+
+  /**
+   * 导出消息为纯文本
+   */
+  static exportToText(messages: Message[], opts: ExportOptions = {}): string {
+    const lines: string[] = [];
+
+    if (opts.sessionId || opts.sessionName) {
+      lines.push('=== SESSION INFO ===');
+      if (opts.sessionName) lines.push(`Name: ${opts.sessionName}`);
+      if (opts.sessionId) lines.push(`ID: ${opts.sessionId}`);
+      lines.push('');
+    }
+
     if (opts.tools && Object.keys(opts.tools).length > 0) {
       lines.push('=== TOOLS ===');
       for (const [name, tool] of Object.entries(opts.tools)) {
@@ -305,29 +365,13 @@ export class MessageHistoryManager {
       lines.push('');
     }
 
-    lines.push('=== CONVERSATION ===');
-    lines.push('');
-
-    const turns = this.getConversationTurns(messages);
-
-    for (const turn of turns) {
-      for (const msg of turn) {
-        const timestamp = new Date(msg.timestamp).toLocaleString(i18n.language);
-        lines.push(`[${timestamp}] ${msg.role.toUpperCase()}`);
-
-        if (msg.type) {
-          lines.push(t('history.type', { type: msg.type }));
-        }
-
-        if (msg.toolName) {
-          lines.push(t('history.tool', { toolName: msg.toolName }));
-        }
-
-        lines.push(t('history.content', { content: msg.content || '' }));
+    const histories = this.getHistoryVariants(messages, opts);
+    histories.forEach((history, index) => {
+      lines.push(this.renderTextHistory(history.messages || messages, { ...opts, systemPrompt: history.systemPrompt }, history.title));
+      if (index < histories.length - 1) {
         lines.push('');
       }
-      lines.push('---\n');
-    }
+    });
 
     return lines.join('\n');
   }

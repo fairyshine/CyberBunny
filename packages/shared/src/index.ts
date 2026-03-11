@@ -11,7 +11,8 @@ export * from './types';
 export { useSessionStore, selectCurrentSession, selectActiveSessions, selectDeletedSessions } from './stores/session';
 export { useSettingsStore, setThemeHandler, setLanguageHandler, resolveLanguage } from './stores/settings';
 export type { Theme, Language } from './stores/settings';
-export { useToolStore, getBuiltinToolIds } from './stores/tools';
+export { useToolStore, getBuiltinToolIds, getMCPToolIds } from './stores/tools';
+export type { MCPConnection, MCPToolDescriptor, MCPTransportType } from './stores/tools';
 export { useSkillStore } from './stores/skills';
 export { useAgentStore, DEFAULT_AGENT_ID } from './stores/agent';
 
@@ -44,7 +45,7 @@ export { generateSkillsSystemPrompt, getActivateSkillTool, getBuiltinSkills, get
 export type { SkillInfo } from './services/ai/skills';
 export { loadAllSkills, saveSkill, deleteSkill, readSkillMd, ensureSkillsDir, SKILLS_DIR, generateSkillTemplate } from './services/skills';
 export type { LoadedSkill } from './services/skills';
-export { connectMCPServer } from './services/ai/mcp';
+export { connectMCPServer, discoverMCPConnection, getMCPToolId, isMCPToolId, parseMCPToolId } from './services/ai/mcp';
 export type { MCPClient } from './services/ai/mcp';
 export { runAgentLoop } from './services/ai/agent';
 export type { AgentCallbacks } from './services/ai/agent';

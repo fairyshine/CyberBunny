@@ -5,6 +5,9 @@
 import { streamText, stepCountIs, type ToolSet } from 'ai';
 import { createModel } from './provider';
 import { getEnabledTools } from './tools';
+import { loadEnabledMCPTools } from './mcp';
+import { useAgentStore } from '../../stores/agent';
+import { useToolStore } from '../../stores/tools';
 import { generateSkillsSystemPrompt, getActivateSkillTool } from './skills';
 import { logLLM, logTool } from '../console/logger';
 import { statsStorage } from '../storage/statsStorage';
@@ -63,9 +66,29 @@ export async function runAgentLoop(
   const timeout = toolTimeout || 300000; // Default 5 minutes
   const groupId = callbacks.generateId();
   const model = createModel(llmConfig, proxyUrl);
-  const builtinToolSet = getEnabledTools(enabledTools);
+  const builtinToolSet = getEnabledTools(enabledTools, {
+    sourceSessionId: sessionId,
+    llmConfig,
+    enabledToolIds: enabledTools,
+    sessionSkillIds,
+    projectId,
+    currentAgentId: useAgentStore.getState().currentAgentId,
+  });
   const skillActivationTool = getActivateSkillTool(sessionSkillIds);
-  const tools = { ...builtinToolSet, ...skillActivationTool };
+  const mcpToolSet = await loadEnabledMCPTools(
+    enabledTools,
+    useToolStore.getState().mcpConnections,
+    {
+      proxyUrl,
+      reservedToolNames: [...Object.keys(builtinToolSet), ...Object.keys(skillActivationTool)],
+      onConnectionStatusChange: (connectionId, status, error) => {
+        const toolStore = useToolStore.getState();
+        toolStore.updateMCPStatus(connectionId, status);
+        toolStore.setMCPError(connectionId, error || null);
+      },
+    },
+  );
+  const tools = { ...builtinToolSet, ...mcpToolSet, ...skillActivationTool };
 
   const toolCount = Object.keys(tools).length;
   logTool('info', `${toolCount} tools enabled (timeout: ${timeout}ms)`, {

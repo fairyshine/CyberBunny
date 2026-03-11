@@ -5,11 +5,22 @@ import { fileSystem } from '../filesystem';
 import { cronManager } from '../cron';
 import { heartbeatManager } from '../heartbeat';
 import { logPython, logFile, logTool } from '../console/logger';
+import type { LLMConfig } from '../../types';
+import { runMindConversation, type MindToolContext } from './mind';
 import { getErrorMessage } from '../../utils/errors';
 import { useSettingsStore } from '../../stores/settings';
 import i18n from '../../i18n';
 
 const t = () => i18n.t.bind(i18n);
+
+export interface ToolExecutionContext {
+  sourceSessionId: string;
+  llmConfig: LLMConfig;
+  enabledToolIds?: string[];
+  sessionSkillIds?: string[];
+  projectId?: string;
+  currentAgentId?: string;
+}
 
 /**
  * Wrap a promise with timeout
@@ -406,6 +417,29 @@ export const memoryTool = tool({
   },
 });
 
+export function createMindTool(context?: ToolExecutionContext) {
+  return tool({
+    description: "Run an internal self-dialogue: a user-role model talks to the assistant until it emits [END_SESSION]. Returns the assistant's final reply.",
+    inputSchema: z.object({
+      text: z.string().describe('Seed text for the internal dialogue'),
+    }),
+    execute: async ({ text }) => {
+      if (!context) {
+        return 'Error: mind tool requires runtime context.';
+      }
+
+      try {
+        const result = await runMindConversation(text, context as MindToolContext);
+        return result.finalAssistantReply || '[mind] Session ended without an assistant reply.';
+      } catch (error) {
+        const msg = getErrorMessage(error);
+        logTool('error', 'Mind session failed', msg);
+        return `Error:\n${msg}`;
+      }
+    },
+  });
+}
+
 export const execTool = tool({
   description: 'Execute shell commands in a persistent session (Desktop only: macOS/Linux). Maintains shell state across commands.',
   inputSchema: z.object({
@@ -556,6 +590,7 @@ export const builtinTools = {
   web_search: webSearchTool,
   file_manager: fileManagerTool,
   memory: memoryTool,
+  mind: createMindTool(),
   exec: execTool,
   cron: cronTool,
   heartbeat: heartbeatTool,
@@ -564,9 +599,13 @@ export const builtinTools = {
 /**
  * Get enabled tools as a record for AI SDK
  */
-export function getEnabledTools(enabledToolIds: string[]): Record<string, Tool> {
+export function getEnabledTools(enabledToolIds: string[], context?: ToolExecutionContext): Record<string, Tool> {
   const tools: Record<string, Tool> = {};
   for (const id of enabledToolIds) {
+    if (id === 'mind') {
+      tools[id] = createMindTool(context);
+      continue;
+    }
     if (id in builtinTools) {
       tools[id] = builtinTools[id as keyof typeof builtinTools];
     }

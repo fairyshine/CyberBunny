@@ -134,6 +134,21 @@ export interface Agent {
 // 会话类型
 export type SessionType = 'user' | 'agent' | 'mind';
 
+export interface MindDialogueSnapshot {
+  systemPrompt: string;
+  messages: Message[];
+}
+
+export interface MindSessionMeta {
+  assistantSystemPrompt?: string;
+  userSystemPrompt?: string;
+  sourceSessionId?: string;
+  sourceTask?: string;
+  assistantHistory?: MindDialogueSnapshot;
+  userHistory?: MindDialogueSnapshot;
+  updatedAt?: number;
+}
+
 // 项目分组
 export interface Project {
   id: string;
@@ -162,4 +177,6 @@ export interface Session {
   sessionTools?: string[];
   /** 会话级技能配置（首次发消息时快照，之后锁定） */
   sessionSkills?: string[];
+  /** Internal metadata for mind sessions */
+  mindSession?: MindSessionMeta;
 }

@@ -2,14 +2,18 @@ import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSessionStore } from '@shared/stores/session';
 import { useAgentStore, DEFAULT_AGENT_ID } from '@shared/stores/agent';
+import { useSettingsStore } from '@shared/stores/settings';
+import { runMindConversation } from '@shared/services/ai/mind';
 import { SessionType } from '@shared/types';
 import type { Project } from '@shared/types';
 import { ChevronRight, ChevronLeft, Plus, Edit2, Trash, TrashIcon, MessagesSquare, getProjectIcon } from '../icons';
 import { Button } from '../ui/button';
+import { Input } from '../ui/input';
 import { SessionTypeFilterBar, type SessionTypeFilter } from './SessionTypeFilterBar';
 import { SessionItem } from './SessionItem';
 import { TrashList } from './TrashList';
 import { useWorkspaceSession } from '../../hooks/useWorkspaceSession';
+import { useAgentConfig } from '../../hooks/useAgentConfig';
 
 interface SessionListProps {
   onItemClick: () => void;
@@ -29,12 +33,15 @@ export function SessionList({ onItemClick, onSessionSelect, onEditProject, sessi
   const deleteAgentSession = useAgentStore((s) => s.deleteAgentSession);
   const deleteAgentProject = useAgentStore((s) => s.deleteAgentProject);
   const moveAgentSessionToProject = useAgentStore((s) => s.moveAgentSessionToProject);
+  const setAgentCurrentSession = useAgentStore((s) => s.setAgentCurrentSession);
 
   // Fallback to default session store for default agent
-  const { deleteSession, createSession, deleteProject, moveSessionToProject, clearTrash } = useSessionStore();
+  const { deleteSession, createSession, deleteProject, moveSessionToProject, clearTrash, setCurrentSession, openSession } = useSessionStore();
   const globalSessions = useSessionStore(s => s.sessions);
   const globalProjects = useSessionStore(s => s.projects);
   const { currentSession } = useWorkspaceSession();
+  const enableSessionTabs = useSettingsStore((s) => s.enableSessionTabs);
+  const { llmConfig, enabledTools, enabledSkills } = useAgentConfig();
 
   // Use agent sessions/projects if not default agent, otherwise use global
   const isDefaultAgent = currentAgentId === DEFAULT_AGENT_ID;
@@ -46,6 +53,9 @@ export function SessionList({ onItemClick, onSessionSelect, onEditProject, sessi
   const [editingName, setEditingName] = useState('');
   const [draggedSessionId, setDraggedSessionId] = useState<string | null>(null);
   const [dropTargetProjectId, setDropTargetProjectId] = useState<string | null>(null);
+  const [mindInput, setMindInput] = useState('');
+  const [isMindRunning, setIsMindRunning] = useState(false);
+  const [mindStatus, setMindStatus] = useState<string | null>(null);
 
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(() => {
     try {
@@ -137,10 +147,54 @@ export function SessionList({ onItemClick, onSessionSelect, onEditProject, sessi
     if (isDefaultAgent) {
       createSession(t('header.newSession'), type, projectId);
     } else {
-      createAgentSession(currentAgentId, t('header.newSession'), projectId);
+      createAgentSession(currentAgentId, t('header.newSession'), projectId, type);
     }
     onSessionSelect?.();
     onItemClick();
+  };
+
+  const handleRunMind = async () => {
+    const text = mindInput.trim();
+    if (!text || isMindRunning) return;
+
+    if (!llmConfig.apiKey) {
+      setMindStatus(t('chat.configRequired'));
+      return;
+    }
+
+    setIsMindRunning(true);
+    setMindStatus(null);
+
+    try {
+      await runMindConversation(text, {
+        sourceSessionId: currentSession?.id || 'sidebar-mind-trigger',
+        llmConfig,
+        enabledToolIds: enabledTools,
+        sessionSkillIds: enabledSkills,
+        currentAgentId,
+        onSessionReady: (mindSessionId) => {
+          if (isDefaultAgent) {
+            if (enableSessionTabs) {
+              openSession(mindSessionId);
+            } else {
+              setCurrentSession(mindSessionId);
+            }
+          } else {
+            setAgentCurrentSession(currentAgentId, mindSessionId);
+          }
+
+          onSessionSelect?.();
+          onItemClick();
+        },
+      });
+
+      setMindInput('');
+      setMindStatus(t('sidebar.mind.finished'));
+    } catch (error) {
+      setMindStatus(t('sidebar.mind.error', { error: error instanceof Error ? error.message : String(error) }));
+    } finally {
+      setIsMindRunning(false);
+    }
   };
 
   const sessionItemProps = {
@@ -167,6 +221,36 @@ export function SessionList({ onItemClick, onSessionSelect, onEditProject, sessi
       {/* Session Type Filter */}
       {!showTrash && (
         <SessionTypeFilterBar value={sessionTypeFilter} onChange={onSessionTypeFilterChange} />
+      )}
+
+      {!showTrash && sessionTypeFilter === 'mind' && (
+        <div className="mx-2 mt-2 rounded-md border border-border bg-muted/30 p-2 space-y-2 shrink-0">
+          <Input
+            value={mindInput}
+            onChange={(e) => setMindInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                void handleRunMind();
+              }
+            }}
+            placeholder={t('sidebar.mind.placeholder')}
+            disabled={isMindRunning}
+          />
+          <Button
+            onClick={() => void handleRunMind()}
+            size="sm"
+            className="w-full"
+            disabled={isMindRunning || !mindInput.trim()}
+          >
+            {isMindRunning ? t('sidebar.mind.running') : t('sidebar.mind.run')}
+          </Button>
+          {mindStatus && (
+            <div className="text-xs text-muted-foreground whitespace-pre-wrap break-words">
+              {mindStatus}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Session List - Scrollable */}

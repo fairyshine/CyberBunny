@@ -71,4 +71,9 @@ export default {
   'sidebar.agent.openSharedFiles': 'Open Shared Files',
   'sidebar.agent.viewAgentFiles': 'Agent Files',
   'sidebar.agent.basicInfo': 'Basic Info',
+  'sidebar.mind.placeholder': 'Enter a prompt for the internal mind dialogue',
+  'sidebar.mind.run': 'Run Mind',
+  'sidebar.mind.running': 'Mind is running...',
+  'sidebar.mind.finished': 'Mind dialogue finished',
+  'sidebar.mind.error': 'Mind failed: {{error}}',
 } as const;

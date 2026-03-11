@@ -3,7 +3,7 @@ import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Message } from '@shared/types';
 import { MessageHistoryManager } from '@shared/utils/messageHistory';
-import type { ExportOptions } from '@shared/utils/messageHistory';
+import type { ExportHistoryVariant, ExportOptions } from '@shared/utils/messageHistory';
 import { getEnabledTools } from '@shared/services/ai/tools';
 import { useAgentConfig } from '../../hooks/useAgentConfig';
 import { Button } from '../ui/button';
@@ -16,11 +16,12 @@ interface ExportDialogProps {
   systemPrompt?: string;
   sessionId: string;
   sessionName: string;
+  alternateHistories?: ExportHistoryVariant[];
   isOpen: boolean;
   onClose: () => void;
 }
 
-export default function ExportDialog({ messages, systemPrompt, sessionId, sessionName, isOpen, onClose }: ExportDialogProps) {
+export default function ExportDialog({ messages, systemPrompt, sessionId, sessionName, alternateHistories, isOpen, onClose }: ExportDialogProps) {
   const { t } = useTranslation();
   const [format, setFormat] = useState<'json' | 'markdown' | 'text'>('markdown');
   const { enabledTools: enabledToolIds } = useAgentConfig();
@@ -30,7 +31,8 @@ export default function ExportDialog({ messages, systemPrompt, sessionId, sessio
     sessionId,
     sessionName,
     tools: getEnabledTools(enabledToolIds),
-  }), [systemPrompt, sessionId, sessionName, enabledToolIds]);
+    alternateHistories,
+  }), [systemPrompt, sessionId, sessionName, enabledToolIds, alternateHistories]);
 
   const handleExport = () => {
     let content: string;
@@ -110,7 +112,7 @@ export default function ExportDialog({ messages, systemPrompt, sessionId, sessio
           </div>
 
           {/* Format selector */}
-          <Tabs value={format} onValueChange={(v) => setFormat(v as any)}>
+          <Tabs value={format} onValueChange={(v) => setFormat(v as 'json' | 'markdown' | 'text')}>
             <TabsList>
               <TabsTrigger value="markdown" className="text-xs">Markdown</TabsTrigger>
               <TabsTrigger value="json" className="text-xs">JSON</TabsTrigger>
