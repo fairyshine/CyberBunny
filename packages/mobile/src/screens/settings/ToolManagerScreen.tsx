@@ -26,6 +26,7 @@ const toolDisplayInfo: Record<string, { name: string; icon: string; description:
   memory: { name: 'Memory', icon: 'brain', description: 'Persistent memory' },
   exec: { name: 'Shell Exec', icon: 'console', description: 'Execute shell commands (Desktop only)' },
   mind: { name: 'Mind', icon: 'head-sync', description: 'Internal self-dialogue' },
+  chat: { name: 'Chat', icon: 'forum-outline', description: 'Agent-to-agent conversation' },
   cron: { name: 'Cron', icon: 'clock-outline', description: 'Schedule periodic tasks' },
   heartbeat: { name: 'Heartbeat', icon: 'heart-pulse', description: 'Periodic watchlist' },
 };

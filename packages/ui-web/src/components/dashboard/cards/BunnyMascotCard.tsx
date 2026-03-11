@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { Fragment, useState, useEffect, useCallback, useRef } from 'react';
 import {
   animations,
   autoPlayNames,
@@ -132,7 +132,10 @@ export default function BunnyMascotCard() {
         )}
 
         {/* Animation-specific overlays (sleep Zzz, eat carrot, etc.) */}
-        {Object.values(animations).map(a => a.overlay?.(ctx))}
+        {Object.values(animations).map((animation) => {
+          const overlay = animation.overlay?.(ctx);
+          return overlay ? <Fragment key={animation.name}>{overlay}</Fragment> : null;
+        })}
 
         {/* Flying particles */}
         {particles.map(p => (

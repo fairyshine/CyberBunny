@@ -3,12 +3,17 @@ import { useTranslation } from 'react-i18next';
 import { useSessionStore } from '@shared/stores/session';
 import { useAgentStore, DEFAULT_AGENT_ID } from '@shared/stores/agent';
 import { useSettingsStore } from '@shared/stores/settings';
+import { isImageAvatar } from '@shared/utils/imageUtils';
 import { runMindConversation } from '@shared/services/ai/mind';
+import { deleteChatSessionPair, runChatConversation } from '@shared/services/ai/chat';
 import { SessionType } from '@shared/types';
 import type { Project } from '@shared/types';
 import { ChevronRight, ChevronLeft, Plus, Edit2, Trash, TrashIcon, MessagesSquare, getProjectIcon } from '../icons';
+import { Loader2, MessageCircle, Users } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { Textarea } from '../ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
 import { SessionTypeFilterBar, type SessionTypeFilter } from './SessionTypeFilterBar';
 import { SessionItem } from './SessionItem';
 import { TrashList } from './TrashList';
@@ -26,6 +31,8 @@ interface SessionListProps {
 export function SessionList({ onItemClick, onSessionSelect, onEditProject, sessionTypeFilter, onSessionTypeFilterChange }: SessionListProps) {
   const { t } = useTranslation();
   const currentAgentId = useAgentStore((s) => s.currentAgentId);
+  const agents = useAgentStore((s) => s.agents);
+  const relationships = useAgentStore((s) => s.relationships);
   const agentSessions = useAgentStore((s) => s.agentSessions);
   const agentProjects = useAgentStore((s) => s.agentProjects);
   const createAgentSession = useAgentStore((s) => s.createAgentSession);
@@ -54,9 +61,14 @@ export function SessionList({ onItemClick, onSessionSelect, onEditProject, sessi
   const [draggedSessionId, setDraggedSessionId] = useState<string | null>(null);
   const [dropTargetProjectId, setDropTargetProjectId] = useState<string | null>(null);
   const [mindInput, setMindInput] = useState('');
-  const [isMindRunning, setIsMindRunning] = useState(false);
-  const [activeMindSessionId, setActiveMindSessionId] = useState<string | null>(null);
+  const [isCreatingMindSession, setIsCreatingMindSession] = useState(false);
   const [mindStatus, setMindStatus] = useState<string | null>(null);
+  const [isCreatingChatForAgentId, setIsCreatingChatForAgentId] = useState<string | null>(null);
+  const [chatStatus, setChatStatus] = useState<string | null>(null);
+  const [chatDialogOpen, setChatDialogOpen] = useState(false);
+  const [chatDraft, setChatDraft] = useState('');
+  const [chatTargetAgent, setChatTargetAgent] = useState<{ id: string; name: string } | null>(null);
+  const [contactsExpanded, setContactsExpanded] = useState(true);
 
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(() => {
     try {
@@ -81,15 +93,234 @@ export function SessionList({ onItemClick, onSessionSelect, onEditProject, sessi
     [allSessions],
   );
 
+  const currentAgent = useMemo(
+    () => agents.find((agent) => agent.id === currentAgentId) || null,
+    [agents, currentAgentId],
+  );
+
+  const contactAgents = useMemo(() => {
+    if (!currentAgent) return [];
+
+    const contacts = new Map<string, { agent: typeof agents[number]; reasons: Set<'group' | 'relationship'> }>();
+
+    const addContact = (agent: typeof agents[number], reason: 'group' | 'relationship') => {
+      if (agent.id === currentAgent.id) return;
+
+      const existing = contacts.get(agent.id);
+      if (existing) {
+        existing.reasons.add(reason);
+        return;
+      }
+
+      contacts.set(agent.id, {
+        agent,
+        reasons: new Set([reason]),
+      });
+    };
+
+    if (currentAgent.groupId) {
+      for (const agent of agents) {
+        if (agent.groupId === currentAgent.groupId) {
+          addContact(agent, 'group');
+        }
+      }
+    }
+
+    for (const relationship of relationships) {
+      const relatedAgentId = relationship.sourceAgentId === currentAgent.id
+        ? relationship.targetAgentId
+        : relationship.targetAgentId === currentAgent.id
+          ? relationship.sourceAgentId
+          : null;
+
+      if (!relatedAgentId) continue;
+
+      const relatedAgent = agents.find((agent) => agent.id === relatedAgentId);
+      if (relatedAgent) {
+        addContact(relatedAgent, 'relationship');
+      }
+    }
+
+    return Array.from(contacts.values())
+      .map(({ agent, reasons }) => ({
+        agent,
+        reasons: Array.from(reasons),
+        sessionCount: agent.id === DEFAULT_AGENT_ID
+          ? globalSessions.filter((session) => !session.deletedAt).length
+          : (agentSessions[agent.id]?.filter((session) => !session.deletedAt).length || 0),
+      }))
+      .sort((left, right) => {
+        const leftPriority = left.reasons.includes('group') ? 0 : 1;
+        const rightPriority = right.reasons.includes('group') ? 0 : 1;
+        if (leftPriority !== rightPriority) return leftPriority - rightPriority;
+        return left.agent.name.localeCompare(right.agent.name, undefined, { numeric: true, sensitivity: 'base' });
+      });
+  }, [agentSessions, agents, currentAgent, globalSessions, relationships]);
+
+  const handleContactClick = (agentId: string) => {
+    if (agentId !== currentAgentId) {
+      setAgentCurrentSession(currentAgentId, null);
+      useAgentStore.getState().setCurrentAgent(agentId);
+    }
+    onSessionTypeFilterChange('all');
+    onSessionSelect?.();
+    onItemClick();
+  };
+
+  const openChatDialog = (agentId: string, agentName: string) => {
+    setChatTargetAgent({ id: agentId, name: agentName });
+    setChatDraft('');
+    setChatStatus(null);
+    setChatDialogOpen(true);
+  };
+
+  const handleStartChatWithContact = async () => {
+    if (isCreatingChatForAgentId) return;
+    if (!chatTargetAgent) return;
+
+    const trimmed = chatDraft.trim();
+    if (!trimmed) return;
+
+    setIsCreatingChatForAgentId(chatTargetAgent.id);
+    setChatStatus(null);
+
+    try {
+      await runChatConversation(chatTargetAgent.name, trimmed, {
+        sourceSessionId: currentSession?.id || 'sidebar-chat-trigger',
+        llmConfig,
+        enabledToolIds: enabledTools,
+        sessionSkillIds: enabledSkills,
+        currentAgentId,
+        onSourceSessionReady: (sourceSessionId) => {
+          setAgentCurrentSession(currentAgentId, sourceSessionId);
+          onSessionSelect?.();
+          onItemClick();
+        },
+      });
+      setChatStatus(t('sidebar.agent.contactChatFinished', { name: chatTargetAgent.name }));
+      setChatDialogOpen(false);
+      setChatDraft('');
+    } catch (error) {
+      setChatStatus(t('sidebar.agent.contactChatError', { error: error instanceof Error ? error.message : String(error) }));
+    } finally {
+      setIsCreatingChatForAgentId(null);
+    }
+  };
+
+  const renderContactSection = () => {
+    if (!currentAgent || currentAgentId === DEFAULT_AGENT_ID || sessionTypeFilter !== 'agent' || showTrash) return null;
+
+    return (
+      <div className="mx-2 mt-2 rounded-md border border-border bg-muted/30 shrink-0">
+        <button
+          onClick={() => setContactsExpanded((prev) => !prev)}
+          className="flex w-full items-center gap-2 px-3 py-2 text-left"
+        >
+          <Users className="h-4 w-4 text-muted-foreground" />
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-medium">{t('sidebar.agent.contacts')}</div>
+            <div className="text-xs text-muted-foreground truncate">{currentAgent.name}</div>
+          </div>
+          <span className="text-xs text-muted-foreground">{contactAgents.length}</span>
+          <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${contactsExpanded ? 'rotate-90' : ''}`} />
+        </button>
+
+        {contactsExpanded && (
+          <div className="border-t border-border px-2 py-2">
+            {contactAgents.length > 0 ? (
+              <div className="space-y-1">
+                {contactAgents.map(({ agent, reasons, sessionCount }) => (
+                  <div
+                    key={agent.id}
+                    className="flex items-center gap-2 rounded-lg px-2 py-1 transition-colors hover:bg-muted/60"
+                  >
+                    <button
+                      onClick={() => handleContactClick(agent.id)}
+                      className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-1 py-1 text-left"
+                      title={t('sidebar.agent.openAgentSessions')}
+                    >
+                    <div
+                      className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full text-base"
+                      style={agent.isDefault ? {
+                        backgroundColor: 'hsl(var(--foreground))',
+                        color: 'hsl(var(--background))',
+                      } : {
+                        backgroundColor: `${agent.color}20`,
+                        color: agent.color,
+                      }}
+                    >
+                      {isImageAvatar(agent.avatar)
+                        ? <img src={agent.avatar} alt="avatar" className="h-full w-full object-cover" draggable={false} />
+                        : agent.avatar}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate text-sm font-medium">{agent.name}</span>
+                        {reasons.includes('group') ? (
+                          <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
+                            {t('sidebar.agent.contactSameGroup')}
+                          </span>
+                        ) : reasons.includes('relationship') ? (
+                          <span className="rounded bg-foreground/5 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                            {t('sidebar.agent.contactNetworkConnected')}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {t('sidebar.agent.sessions', { count: sessionCount })}
+                      </div>
+                    </div>
+                    </button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0"
+                      onClick={() => openChatDialog(agent.id, agent.name)}
+                      title={t('sidebar.agent.contactChat')}
+                      disabled={isCreatingChatForAgentId !== null}
+                    >
+                      {isCreatingChatForAgentId === agent.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="px-2 py-3 text-xs text-muted-foreground">
+                {t('sidebar.agent.noContacts')}
+              </div>
+            )}
+            {chatStatus && (
+              <div className="px-2 pt-2 text-xs text-muted-foreground whitespace-pre-wrap break-words">
+                {chatStatus}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Delete current session via keyboard
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target instanceof HTMLElement && e.target.isContentEditable)
+      ) return;
       if (showTrash || editingId) return;
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;
       if (!currentSession || currentSession.deletedAt) return;
-      if (currentSession.sessionType === 'agent') return;
+
       e.preventDefault();
+
+      const isLinkedAgentSession = currentSession.sessionType === 'agent' && !!currentSession.chatSession?.peerSessionId;
+      if (isLinkedAgentSession) {
+        deleteChatSessionPair(currentAgentId, currentSession.id);
+        return;
+      }
+
       if (isDefaultAgent) {
         deleteSession(currentSession.id);
       } else {
@@ -99,15 +330,6 @@ export function SessionList({ onItemClick, onSessionSelect, onEditProject, sessi
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showTrash, editingId, currentSession, currentAgentId, deleteAgentSession, deleteSession, isDefaultAgent]);
-
-  useEffect(() => {
-    if (!activeMindSessionId) return;
-    const activeMindSession = allSessions.find((session) => session.id === activeMindSessionId);
-    if (activeMindSession?.isStreaming) return;
-
-    setIsMindRunning(false);
-    setActiveMindSessionId(null);
-  }, [activeMindSessionId, allSessions]);
 
   const toggleProjectsListVisible = () => {
     const next = !projectsListVisible;
@@ -165,15 +387,16 @@ export function SessionList({ onItemClick, onSessionSelect, onEditProject, sessi
 
   const handleRunMind = async () => {
     const text = mindInput.trim();
-    if (!text || isMindRunning) return;
+    if (!text || isCreatingMindSession) return;
 
     if (!llmConfig.apiKey) {
       setMindStatus(t('chat.configRequired'));
       return;
     }
 
-    setIsMindRunning(true);
-    setActiveMindSessionId(null);
+    let sessionReady = false;
+    setIsCreatingMindSession(true);
+    setMindInput('');
     setMindStatus(null);
 
     try {
@@ -184,7 +407,8 @@ export function SessionList({ onItemClick, onSessionSelect, onEditProject, sessi
         sessionSkillIds: enabledSkills,
         currentAgentId,
         onSessionReady: (mindSessionId) => {
-          setActiveMindSessionId(mindSessionId);
+          sessionReady = true;
+          setIsCreatingMindSession(false);
 
           if (isDefaultAgent) {
             if (enableSessionTabs) {
@@ -200,13 +424,15 @@ export function SessionList({ onItemClick, onSessionSelect, onEditProject, sessi
           onItemClick();
         },
       });
-
-      setMindInput('');
-      setMindStatus(t('sidebar.mind.finished'));
     } catch (error) {
+      if (!sessionReady) {
+        setMindInput(text);
+      }
       setMindStatus(t('sidebar.mind.error', { error: error instanceof Error ? error.message : String(error) }));
     } finally {
-      setIsMindRunning(false);
+      if (!sessionReady) {
+        setIsCreatingMindSession(false);
+      }
     }
   };
 
@@ -230,11 +456,50 @@ export function SessionList({ onItemClick, onSessionSelect, onEditProject, sessi
       : sessions.filter(s => (s.sessionType || 'user') === sessionTypeFilter);
 
   return (
-    <div className="h-full flex flex-col">
+    <>
+      <Dialog open={chatDialogOpen} onOpenChange={(open) => {
+        setChatDialogOpen(open);
+        if (!open) {
+          setChatDraft('');
+          setChatTargetAgent(null);
+        }
+      }}>
+        <DialogContent aria-describedby={undefined} className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('sidebar.agent.contactChat')}</DialogTitle>
+            <DialogDescription>
+              {chatTargetAgent ? t('sidebar.agent.contactChatPrompt', { name: chatTargetAgent.name }) : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={chatDraft}
+            onChange={(event) => setChatDraft(event.target.value)}
+            placeholder={chatTargetAgent ? t('sidebar.agent.contactChatPrompt', { name: chatTargetAgent.name }) : ''}
+            rows={5}
+            autoFocus
+          />
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setChatDialogOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void handleStartChatWithContact()}
+              disabled={!chatDraft.trim() || isCreatingChatForAgentId !== null}
+            >
+              {isCreatingChatForAgentId ? t('sidebar.agent.contactChatRunning') : t('sidebar.agent.contactChat')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <div className="h-full flex flex-col">
       {/* Session Type Filter */}
       {!showTrash && (
         <SessionTypeFilterBar value={sessionTypeFilter} onChange={onSessionTypeFilterChange} />
       )}
+
+      {renderContactSection()}
 
       {!showTrash && sessionTypeFilter === 'mind' && (
         <div className="mx-2 mt-2 rounded-md border border-border bg-muted/30 p-2 space-y-2 shrink-0">
@@ -248,15 +513,15 @@ export function SessionList({ onItemClick, onSessionSelect, onEditProject, sessi
               }
             }}
             placeholder={t('sidebar.mind.placeholder')}
-            disabled={isMindRunning}
+            disabled={isCreatingMindSession}
           />
           <Button
             onClick={() => void handleRunMind()}
             size="sm"
             className="w-full"
-            disabled={isMindRunning || !mindInput.trim()}
+            disabled={isCreatingMindSession || !mindInput.trim()}
           >
-            {isMindRunning ? t('sidebar.mind.running') : t('sidebar.mind.run')}
+            {isCreatingMindSession ? t('sidebar.mind.running') : t('sidebar.mind.run')}
           </Button>
           {mindStatus && (
             <div className="text-xs text-muted-foreground whitespace-pre-wrap break-words">
@@ -455,6 +720,7 @@ export function SessionList({ onItemClick, onSessionSelect, onEditProject, sessi
           )}
         </Button>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

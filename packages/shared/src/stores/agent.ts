@@ -6,7 +6,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Agent, LLMConfig, Session, Message, SessionType, AgentRelationship, AgentGroup, MindSessionMeta } from '../types';
+import type { Agent, LLMConfig, Session, Message, SessionType, AgentRelationship, AgentGroup, MindSessionMeta, ChatSessionMeta } from '../types';
 import { messageStorage } from '../services/storage/messageStorage';
 
 const DEFAULT_AGENT_ID = 'default';
@@ -29,7 +29,7 @@ const DEFAULT_LLM_CONFIG: LLMConfig = {
   maxTokens: 4096,
 };
 
-const DEFAULT_TOOLS = ['python', 'web_search', 'file_manager', 'memory', 'mind'];
+const DEFAULT_TOOLS = ['python', 'web_search', 'file_manager', 'memory', 'mind', 'chat'];
 
 function createDefaultAgent(): Agent {
   return {
@@ -38,6 +38,8 @@ function createDefaultAgent(): Agent {
     avatar: '🐰',
     description: '',
     systemPrompt: '',
+    mindUserPrompt: '',
+    chatActiveAssistantPrompt: '',
     color: '#3b82f6',
     isDefault: true,
     llmConfig: { ...DEFAULT_LLM_CONFIG },
@@ -49,12 +51,31 @@ function createDefaultAgent(): Agent {
   };
 }
 
+function stripTransientSessionState<T extends Session>(session: T): T {
+  const { isStreaming: _isStreaming, ...rest } = session;
+  return rest as T;
+}
+
+function clearStreamingMessageFlags(messages: Message[]): Message[] {
+  return messages.map((message) => (
+    message.metadata?.streaming
+      ? {
+          ...message,
+          metadata: {
+            ...message.metadata,
+            streaming: false,
+          },
+        }
+      : message
+  ));
+}
+
 interface AgentState {
   agents: Agent[];
   currentAgentId: string;
 
   // Agent CRUD
-  createAgent: (data: Pick<Agent, 'name' | 'avatar' | 'description' | 'systemPrompt' | 'color'>) => Agent;
+  createAgent: (data: Pick<Agent, 'name' | 'avatar' | 'description' | 'systemPrompt' | 'mindUserPrompt' | 'chatActiveAssistantPrompt' | 'color'>) => Agent;
   updateAgent: (id: string, updates: Partial<Omit<Agent, 'id' | 'createdAt' | 'isDefault'>>) => void;
   deleteAgent: (id: string) => void;
   setCurrentAgent: (id: string) => void;
@@ -81,10 +102,12 @@ interface AgentState {
   addAgentMessage: (agentId: string, sessionId: string, message: Message) => void;
   updateAgentMessage: (agentId: string, sessionId: string, messageId: string, updates: Partial<Message>) => void;
   setAgentSessionStreaming: (agentId: string, sessionId: string, isStreaming: boolean) => void;
+  markStreamingAgentSessionsInterrupted: () => void;
   setAgentSessionSystemPrompt: (agentId: string, sessionId: string, systemPrompt: string) => void;
   setAgentSessionTools: (agentId: string, sessionId: string, tools: string[] | undefined) => void;
   setAgentSessionSkills: (agentId: string, sessionId: string, skills: string[] | undefined) => void;
   setAgentSessionMindMeta: (agentId: string, sessionId: string, mindSession: MindSessionMeta) => void;
+  setAgentSessionChatMeta: (agentId: string, sessionId: string, chatSession: ChatSessionMeta) => void;
   loadAgentSessionMessages: (agentId: string, sessionId: string) => Promise<void>;
   flushAgentMessages: (agentId: string, sessionId: string) => Promise<void>;
   moveAgentSessionToProject: (agentId: string, sessionId: string, projectId: string | null) => void;
@@ -119,6 +142,8 @@ export const useAgentStore = create<AgentState>()(
         const agent: Agent = {
           ...data,
           id,
+          mindUserPrompt: data.mindUserPrompt || '',
+          chatActiveAssistantPrompt: data.chatActiveAssistantPrompt || '',
           llmConfig: { ...DEFAULT_LLM_CONFIG },
           enabledTools: [...DEFAULT_TOOLS],
           enabledSkills: [],
@@ -368,10 +393,39 @@ export const useAgentStore = create<AgentState>()(
           agentSessions: {
             ...state.agentSessions,
             [agentId]: (state.agentSessions[agentId] || []).map((s) =>
-              s.id === sessionId ? { ...s, isStreaming } : s
+              s.id === sessionId
+                ? { ...s, isStreaming, interruptedAt: isStreaming ? undefined : s.interruptedAt }
+                : s
             ),
           },
         }));
+      },
+
+      markStreamingAgentSessionsInterrupted: () => {
+        const now = Date.now();
+        set((state) => {
+          let changed = false;
+          const agentSessions = Object.fromEntries(
+            Object.entries(state.agentSessions).map(([agentId, sessions]) => [
+              agentId,
+              sessions.map((session) => {
+                if (!session.isStreaming) return session;
+                changed = true;
+                const messages = clearStreamingMessageFlags(session.messages);
+                messageStorage.save(session.id, messages);
+                return {
+                  ...session,
+                  messages,
+                  isStreaming: false,
+                  interruptedAt: now,
+                  updatedAt: now,
+                };
+              }),
+            ])
+          );
+
+          return changed ? { agentSessions } : state;
+        });
       },
 
       setAgentSessionSystemPrompt: (agentId, sessionId, systemPrompt) => {
@@ -420,6 +474,19 @@ export const useAgentStore = create<AgentState>()(
             [agentId]: (state.agentSessions[agentId] || []).map((session) =>
               session.id === sessionId
                 ? { ...session, mindSession: { ...session.mindSession, ...mindSession }, updatedAt: Date.now() }
+                : session
+            ),
+          },
+        }));
+      },
+
+      setAgentSessionChatMeta: (agentId, sessionId, chatSession) => {
+        set((state) => ({
+          agentSessions: {
+            ...state.agentSessions,
+            [agentId]: (state.agentSessions[agentId] || []).map((session) =>
+              session.id === sessionId
+                ? { ...session, chatSession: { ...session.chatSession, ...chatSession }, updatedAt: Date.now() }
                 : session
             ),
           },
@@ -543,7 +610,7 @@ export const useAgentStore = create<AgentState>()(
         agentSessions: Object.fromEntries(
           Object.entries(state.agentSessions).map(([agentId, sessions]) => [
             agentId,
-            sessions.map((s) => ({ ...s, messages: [] })),
+            sessions.map((s) => ({ ...stripTransientSessionState(s), messages: [] })),
           ])
         ),
         agentCurrentSessionId: state.agentCurrentSessionId,
@@ -565,12 +632,26 @@ export const useAgentStore = create<AgentState>()(
             if (!defaultAgent.name || defaultAgent.name === 'CyberBunny') {
               defaultAgent.name = 'OpenBunny';
             }
+            defaultAgent.mindUserPrompt = defaultAgent.mindUserPrompt || '';
+            defaultAgent.chatActiveAssistantPrompt = defaultAgent.chatActiveAssistantPrompt || '';
           }
+
+          state.agents = state.agents.map((agent) => ({
+            ...agent,
+            mindUserPrompt: agent.mindUserPrompt || '',
+            chatActiveAssistantPrompt: agent.chatActiveAssistantPrompt || '',
+          }));
 
           // Ensure default agent has sessions entry
           if (!state.agentSessions[DEFAULT_AGENT_ID]) {
             state.agentSessions[DEFAULT_AGENT_ID] = [];
           }
+          state.agentSessions = Object.fromEntries(
+            Object.entries(state.agentSessions).map(([agentId, sessions]) => [
+              agentId,
+              sessions.map((session) => stripTransientSessionState(session)),
+            ])
+          );
           if (state.agentCurrentSessionId[DEFAULT_AGENT_ID] === undefined) {
             state.agentCurrentSessionId[DEFAULT_AGENT_ID] = null;
           }
@@ -583,3 +664,11 @@ export const useAgentStore = create<AgentState>()(
     }
   )
 );
+
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    useAgentStore.getState().markStreamingAgentSessionsInterrupted();
+    messageStorage.flushAll();
+  });
+}

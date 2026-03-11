@@ -205,7 +205,7 @@ export function MemoryViewer({ isOpen, onClose }: MemoryViewerProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[1100px] h-[750px] max-w-[90vw] max-h-[90vh] flex flex-col">
+      <DialogContent aria-describedby={undefined} className="w-[1100px] h-[750px] max-w-[90vw] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MemoryIcon className="w-5 h-5" />

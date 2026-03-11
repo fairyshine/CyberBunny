@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerActions } from '@react-navigation/native';
 import { Appbar, List, FAB, IconButton, Text } from 'react-native-paper';
+import { deleteChatSessionPair } from '@shared/services/ai/chat';
+import { DEFAULT_AGENT_ID } from '@shared/stores/agent';
 import { useSessionStore, selectActiveSessions } from '@shared/stores/session';
 import type { SessionListScreenNavigationProp } from '../navigation/types';
 
@@ -23,6 +25,11 @@ export default function SessionListScreen() {
   };
 
   const handleDeleteSession = (sessionId: string) => {
+    const session = sessions.find((item) => item.id === sessionId);
+    if (session?.sessionType === 'agent' && session.chatSession?.peerSessionId) {
+      deleteChatSessionPair(DEFAULT_AGENT_ID, sessionId);
+      return;
+    }
     deleteSession(sessionId);
   };
 

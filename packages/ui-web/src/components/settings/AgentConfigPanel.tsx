@@ -41,6 +41,8 @@ export function AgentConfigPanel({ agentId }: AgentConfigPanelProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
+  const [mindUserPrompt, setMindUserPrompt] = useState('');
+  const [chatActiveAssistantPrompt, setChatActiveAssistantPrompt] = useState('');
   const [avatar, setAvatar] = useState('🤖');
   const [color, setColor] = useState('#3b82f6');
 
@@ -49,12 +51,14 @@ export function AgentConfigPanel({ agentId }: AgentConfigPanelProps) {
       setName(agent.name);
       setDescription(agent.description);
       setSystemPrompt(agent.systemPrompt);
+      setMindUserPrompt(agent.mindUserPrompt || '');
+      setChatActiveAssistantPrompt(agent.chatActiveAssistantPrompt || '');
       setAvatar(agent.avatar);
       setColor(agent.color);
     }
   }, [agent?.id]);
 
-  const saveBasicInfo = (patch: Partial<{ name: string; description: string; systemPrompt: string; avatar: string; color: string }>) => {
+  const saveBasicInfo = (patch: Partial<{ name: string; description: string; systemPrompt: string; mindUserPrompt: string; chatActiveAssistantPrompt: string; avatar: string; color: string }>) => {
     if (!agent) return;
     updateAgent(agent.id, patch);
   };
@@ -156,6 +160,28 @@ export function AgentConfigPanel({ agentId }: AgentConfigPanelProps) {
               onChange={(e) => setSystemPrompt(e.target.value)}
               onBlur={() => saveBasicInfo({ systemPrompt })}
               placeholder={t('sidebar.agent.systemPromptPlaceholder')}
+              className="w-full px-3 py-2 bg-background rounded-md focus:outline-none focus:ring-1 focus:ring-primary resize-none text-sm"
+              rows={6}
+            />
+          </CollapsibleSection>
+
+          <CollapsibleSection title={t('sidebar.agent.mindUserPrompt')} defaultOpen={false}>
+            <textarea
+              value={mindUserPrompt}
+              onChange={(e) => setMindUserPrompt(e.target.value)}
+              onBlur={() => saveBasicInfo({ mindUserPrompt })}
+              placeholder={t('sidebar.agent.mindUserPromptPlaceholder')}
+              className="w-full px-3 py-2 bg-background rounded-md focus:outline-none focus:ring-1 focus:ring-primary resize-none text-sm"
+              rows={6}
+            />
+          </CollapsibleSection>
+
+          <CollapsibleSection title={t('sidebar.agent.chatActiveAssistantPrompt')} defaultOpen={false}>
+            <textarea
+              value={chatActiveAssistantPrompt}
+              onChange={(e) => setChatActiveAssistantPrompt(e.target.value)}
+              onBlur={() => saveBasicInfo({ chatActiveAssistantPrompt })}
+              placeholder={t('sidebar.agent.chatActiveAssistantPromptPlaceholder')}
               className="w-full px-3 py-2 bg-background rounded-md focus:outline-none focus:ring-1 focus:ring-primary resize-none text-sm"
               rows={6}
             />

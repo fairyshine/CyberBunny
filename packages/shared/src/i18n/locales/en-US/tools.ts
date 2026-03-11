@@ -23,6 +23,7 @@ export default {
   'tools.mcp.removeConfirm': 'Remove MCP server "{{name}}"?',
   'tools.memory.name': 'Memory Storage',
   'tools.mind.name': 'Mind',
+  'tools.chat.name': 'Chat',
   'tools.memory.viewContent': 'View Content',
   'tools.memory.memoryContent': 'Long-term Memory',
   'tools.memory.noMemoryYet': 'No memories yet',

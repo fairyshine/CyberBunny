@@ -12,6 +12,7 @@ export default {
   'chat.input.processing': 'Processing...',
   'chat.input.stop': 'Stop',
   'chat.stopped': 'Generation stopped',
+  'chat.interrupted': 'Last generation was interrupted by refresh or page close',
   'chat.executing': 'Executing: {{toolName}}',
   'chat.error': 'Error: {{error}}',
   'chat.configRequired': 'Please configure your LLM API key first. Click the settings button in the top right corner.',

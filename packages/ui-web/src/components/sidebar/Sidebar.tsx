@@ -116,6 +116,8 @@ export default function Sidebar({ selectedFilePath, onSelectFile, isOpen, onClos
     }
   };
 
+
+
   const handleCreateSession = () => {
     const type: SessionType = sessionTypeFilter === 'agent' ? 'user' : (sessionTypeFilter === 'all' ? 'user' : sessionTypeFilter);
     const isDefaultAgent = currentAgentId === DEFAULT_AGENT_ID;

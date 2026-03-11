@@ -57,7 +57,7 @@ export default function SettingsModal({ isOpen, onClose, initialSection = 'profi
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="!flex !flex-row w-[860px] h-[620px] max-w-[92vw] max-h-[85vh] p-0 gap-0 overflow-hidden">
+      <DialogContent aria-describedby={undefined} className="!flex !flex-row w-[860px] h-[620px] max-w-[92vw] max-h-[85vh] p-0 gap-0 overflow-hidden">
         <DialogHeader className="sr-only">
           <DialogTitle>{t('settings.title')}</DialogTitle>
         </DialogHeader>

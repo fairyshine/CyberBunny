@@ -8,7 +8,8 @@ import { getEnabledTools } from './tools';
 import { loadEnabledMCPTools } from './mcp';
 import { useAgentStore } from '../../stores/agent';
 import { useToolStore } from '../../stores/tools';
-import { generateSkillsSystemPrompt, getActivateSkillTool } from './skills';
+import { getActivateSkillTool } from './skills';
+import { buildAgentAssistantSystemPrompt } from './prompts';
 import { logLLM, logTool } from '../console/logger';
 import { statsStorage } from '../storage/statsStorage';
 import type { StatsRecord } from '../storage/statsTypes';
@@ -24,6 +25,16 @@ export interface AgentCallbacks {
   setStatus(status: string): void;
   generateId(): string;
   streamToolOutput?(sessionId: string, msgId: string, chunk: string): void;
+}
+
+function markErrorHandled(error: unknown): void {
+  if (error && typeof error === 'object') {
+    (error as { __openbunnyHandled?: boolean }).__openbunnyHandled = true;
+  }
+}
+
+function isHandledError(error: unknown): boolean {
+  return !!(error && typeof error === 'object' && (error as { __openbunnyHandled?: boolean }).__openbunnyHandled);
 }
 
 /**
@@ -80,6 +91,8 @@ export async function runAgentLoop(
     useToolStore.getState().mcpConnections,
     {
       proxyUrl,
+      timeoutMs: timeout,
+      abortSignal,
       reservedToolNames: [...Object.keys(builtinToolSet), ...Object.keys(skillActivationTool)],
       onConnectionStatusChange: (connectionId, status, error) => {
         const toolStore = useToolStore.getState();
@@ -97,8 +110,8 @@ export async function runAgentLoop(
   });
 
   // Build system prompt (tool schemas are passed via the tools parameter, no need to duplicate in prompt)
-  let systemPrompt = t('systemPrompt.assistant');
-  systemPrompt += generateSkillsSystemPrompt(sessionSkillIds);
+  const currentAgentId = useAgentStore.getState().currentAgentId;
+  const systemPrompt = buildAgentAssistantSystemPrompt(currentAgentId, sessionSkillIds);
 
   console.log('[Agent] Starting agent loop with config:', {
     provider: llmConfig.provider,
@@ -118,12 +131,50 @@ export async function runAgentLoop(
   let lastChunkLogTime = 0;
   let totalChunks = 0;
   let lastResponseMessageId: string | null = null; // Track the last response message for token info
+  let errorRendered = false;
 
   // Track tool calls for streaming display
   const toolCallMessages = new Map<string, string>(); // toolCallId -> messageId
   const toolCallInputs = new Map<string, string>(); // toolCallId -> accumulated raw input text
   const toolCallNames = new Map<string, string>(); // toolCallId -> toolName (from delta)
   const allToolCallNames: string[] = []; // all tool names invoked (for stats)
+
+  const renderPendingToolErrors = (error: unknown) => {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (toolCallMessages.size === 0) return false;
+
+    for (const [toolCallId, toolCallMsgId] of toolCallMessages.entries()) {
+      const toolName = toolCallNames.get(toolCallId) || 'unknown';
+      const currentToolInput = toolCallInputs.get(toolCallId) || '';
+
+      callbacks.updateMessage(sessionId, toolCallMsgId, {
+        toolInput: currentToolInput,
+        metadata: { streaming: false },
+      });
+
+      callbacks.addMessage(sessionId, {
+        id: callbacks.generateId(),
+        role: 'tool',
+        content: `❌ ${errorMessage}`,
+        timestamp: Date.now(),
+        type: 'tool_result',
+        toolName,
+        toolOutput: `❌ ${errorMessage}`,
+        toolCallId,
+        groupId,
+      });
+
+      interactionMessageCount++;
+      logTool('error', `Tool ${toolName} failed`, errorMessage, { toolCallId });
+    }
+
+    toolCallMessages.clear();
+    toolCallInputs.clear();
+    toolCallNames.clear();
+    callbacks.setStatus('');
+    errorRendered = true;
+    return true;
+  };
 
   try {
     console.log('[Agent] Creating streamText with:', {
@@ -347,6 +398,8 @@ export async function runAgentLoop(
       hasError = true;
       console.error('[Agent] Error consuming textStream:', streamError);
       logLLM('error', `Stream consumption error: ${streamError instanceof Error ? streamError.message : String(streamError)}`);
+      renderPendingToolErrors(streamError);
+      throw streamError;
     }
 
     console.log('[Agent] Stream consumed, total chunks:', chunkCount, 'hasError:', hasError);
@@ -465,13 +518,19 @@ export async function runAgentLoop(
     }
 
     // Add error message to UI
-    callbacks.addMessage(sessionId, {
-      id: callbacks.generateId(),
-      role: 'assistant',
-      content: `❌ 错误\n\n${userMessage}`,
-      timestamp: Date.now(),
-    });
+    if (!errorRendered && !isHandledError(error)) {
+      callbacks.addMessage(sessionId, {
+        id: callbacks.generateId(),
+        role: 'assistant',
+        content: `❌ 错误
 
+${userMessage}`,
+        timestamp: Date.now(),
+      });
+      errorRendered = true;
+    }
+
+    markErrorHandled(error);
     throw error;
   } finally {
     callbacks.setStatus('');

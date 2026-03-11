@@ -4,7 +4,7 @@ import { useSessionStore } from '@shared/stores/session';
 import { isImageAvatar } from '@shared/utils/imageUtils';
 import { Button } from '../ui/button';
 import { MoreHorizontal, Edit2, Trash2, Network, FolderOpen } from '../icons';
-import { useCallback, useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { Agent } from '@shared/types';
 import { ChevronRight, Pencil, ArrowRightLeft, Star, Settings } from 'lucide-react';
 import {
@@ -117,7 +117,7 @@ export function AgentList({ onItemClick, onOpenGraph, onOpenGroupFiles, onAgentS
     onItemClick?.();
   };
 
-  const handleAgentKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>, agentId: string) => {
+  const handleAgentKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, agentId: string) => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     event.preventDefault();
     handleAgentClick(agentId);

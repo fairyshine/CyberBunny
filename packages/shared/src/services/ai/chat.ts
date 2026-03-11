@@ -1,0 +1,462 @@
+import type { ModelMessage, Tool } from 'ai';
+import type { ChatSessionMeta, LLMConfig, MindDialogueSnapshot, Session } from '../../types';
+import { useAgentStore, DEFAULT_AGENT_ID } from '../../stores/agent';
+import { useSessionStore } from '../../stores/session';
+import { useSettingsStore } from '../../stores/settings';
+import { useToolStore } from '../../stores/tools';
+import { useSkillStore } from '../../stores/skills';
+import { isAbortError } from '../../utils/errors';
+import { END_SESSION_TOKEN, createSessionMessage, createSnapshotMessage, runDialogueTurn, type DialogueVisibleCallbacks } from './dialogue';
+import { getEnabledTools } from './tools';
+import { loadEnabledMCPTools } from './mcp';
+import { getActivateSkillTool } from './skills';
+import { buildAgentAssistantSystemPrompt, buildBaseAssistantSystemPrompt } from './prompts';
+import { appendSessionMessage, createDetachedSession, flushSession, setSessionPrompt, setSessionStreaming, updateSessionMessage } from './sessionOps';
+
+const MAX_CHAT_TURNS = 8;
+const chatAbortControllers = new Map<string, AbortController>();
+
+export interface ChatToolContext {
+  sourceSessionId: string;
+  llmConfig: LLMConfig;
+  enabledToolIds?: string[];
+  sessionSkillIds?: string[];
+  projectId?: string;
+  currentAgentId?: string;
+  onSourceSessionReady?: (sessionId: string) => void;
+}
+
+export interface ChatConversationResult {
+  sourceSessionId: string;
+  targetSessionId: string;
+  finalTargetReply: string;
+  activeAssistantSystemPrompt: string;
+  passiveAssistantSystemPrompt: string;
+  targetAgentName: string;
+}
+
+export function stopChatConversation(sessionId: string): boolean {
+  const controller = chatAbortControllers.get(sessionId);
+  if (!controller) return false;
+  controller.abort();
+  return true;
+}
+
+export function deleteChatSessionPair(agentId: string, sessionId: string): void {
+  const session = getSessionByOwner(agentId, sessionId);
+  if (!session) return;
+
+  const targets = [
+    { agentId, sessionId },
+    ...(session.chatSession?.peerSessionId && session.chatSession?.peerAgentId
+      ? [{ agentId: session.chatSession.peerAgentId, sessionId: session.chatSession.peerSessionId }]
+      : []),
+  ];
+
+  const seen = new Set<string>();
+  for (const target of targets) {
+    const key = `${target.agentId}:${target.sessionId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    stopChatConversation(target.sessionId);
+    removeSessionByOwner(target.agentId, target.sessionId);
+  }
+}
+
+export async function runChatConversation(agentName: string, input: string, context: ChatToolContext): Promise<ChatConversationResult> {
+  const sourceTask = input.trim();
+  if (!sourceTask) {
+    throw new Error('Chat text is required.');
+  }
+
+  const sourceAgentId = context.currentAgentId || useAgentStore.getState().currentAgentId || DEFAULT_AGENT_ID;
+  const sourceAgent = getAgentById(sourceAgentId);
+  if (!sourceAgent) {
+    throw new Error(`Source agent not found: ${sourceAgentId}`);
+  }
+
+  const targetAgent = resolveTargetAgent(agentName, sourceAgentId);
+  validateRuntimeConfig(context.llmConfig, sourceAgent.name);
+  const targetScope = 'local';
+  const targetRuntime = getAgentRuntime(targetAgent.id);
+  validateRuntimeConfig(targetRuntime.llmConfig, targetAgent.name);
+  const activeAssistantSystemPrompt = buildChatActiveAssistantSystemPrompt(
+    sourceAgentId,
+    targetAgent.id,
+    sourceTask,
+    targetScope,
+    context.sessionSkillIds,
+  );
+  const passiveAssistantSystemPrompt = buildPassiveAssistantSystemPrompt(targetAgent.id, sourceAgentId, targetScope, targetRuntime.skillIds);
+
+  const sourceSession = await createChatSession(
+    sourceAgentId,
+    buildSourceChatSessionName(targetAgent.name, sourceTask),
+    context.projectId,
+  );
+  const targetSession = await createChatSession(
+    targetAgent.id,
+    buildTargetChatSessionName(sourceAgent.name, sourceTask),
+  );
+
+  const abortController = new AbortController();
+  const activeTranscript: ModelMessage[] = [];
+  const passiveTranscript: ModelMessage[] = [{ role: 'user', content: sourceTask }];
+  const activeHistory: MindDialogueSnapshot = {
+    systemPrompt: activeAssistantSystemPrompt,
+    messages: [],
+  };
+  const passiveHistory: MindDialogueSnapshot = {
+    systemPrompt: passiveAssistantSystemPrompt,
+    messages: [createSnapshotMessage({ role: 'user', content: sourceTask, type: 'normal' })],
+  };
+
+  const sourceCallbacks = createVisibleCallbacks(sourceAgentId, sourceSession.id, sourceAgentId, sourceAgent.name);
+  const targetCallbacks = createVisibleCallbacks(targetAgent.id, targetSession.id, targetAgent.id, targetAgent.name);
+
+  const activeToolIds = (context.enabledToolIds || []).filter((toolId) => toolId !== 'chat');
+  const activeToolContext = {
+    ...context,
+    sourceSessionId: sourceSession.id,
+    currentAgentId: sourceAgentId,
+    enabledToolIds: activeToolIds,
+  };
+  const activeTools = await buildToolSet(activeToolIds, context.sessionSkillIds, activeToolContext, abortController.signal);
+
+  const passiveToolIds = targetRuntime.enabledToolIds.filter((toolId) => toolId !== 'chat');
+  const passiveToolContext = {
+    sourceSessionId: targetSession.id,
+    llmConfig: targetRuntime.llmConfig,
+    enabledToolIds: passiveToolIds,
+    sessionSkillIds: targetRuntime.skillIds,
+    currentAgentId: targetAgent.id,
+  };
+  const passiveTools = await buildToolSet(passiveToolIds, targetRuntime.skillIds, passiveToolContext, abortController.signal);
+
+  chatAbortControllers.set(sourceSession.id, abortController);
+  chatAbortControllers.set(targetSession.id, abortController);
+
+  syncChatMeta(sourceAgentId, sourceSession.id, {
+    role: 'source',
+    peerSessionId: targetSession.id,
+    peerAgentId: targetAgent.id,
+    sourceSessionId: sourceSession.id,
+    targetSessionId: targetSession.id,
+    sourceTask,
+    counterpartAgentId: targetAgent.id,
+    counterpartAgentName: targetAgent.name,
+    updatedAt: Date.now(),
+  });
+  syncChatMeta(targetAgent.id, targetSession.id, {
+    role: 'target',
+    peerSessionId: sourceSession.id,
+    peerAgentId: sourceAgentId,
+    sourceSessionId: sourceSession.id,
+    targetSessionId: targetSession.id,
+    sourceTask,
+    counterpartAgentId: sourceAgentId,
+    counterpartAgentName: sourceAgent.name,
+    updatedAt: Date.now(),
+  });
+  setSessionPrompt(sourceAgentId, sourceSession.id, activeAssistantSystemPrompt);
+  setSessionPrompt(targetAgent.id, targetSession.id, passiveAssistantSystemPrompt);
+  setSessionStreaming(sourceAgentId, sourceSession.id, true);
+  setSessionStreaming(targetAgent.id, targetSession.id, true);
+  context.onSourceSessionReady?.(sourceSession.id);
+
+  let finalTargetReply = '';
+
+  try {
+    const initialTaskMessage = createAgentSpokenMessage(sourceAgentId, sourceAgent.name, sourceTask);
+    appendSessionMessage(sourceAgentId, sourceSession.id, initialTaskMessage);
+    appendSessionMessage(targetAgent.id, targetSession.id, createAgentSpokenMessage(sourceAgentId, sourceAgent.name, sourceTask));
+
+    for (let turn = 0; turn < MAX_CHAT_TURNS; turn += 1) {
+      const passiveReply = await runDialogueTurn({
+        llmConfig: targetRuntime.llmConfig,
+        systemPrompt: passiveAssistantSystemPrompt,
+        transcript: passiveTranscript,
+        history: passiveHistory,
+        tools: passiveTools,
+        abortSignal: abortController.signal,
+        visibleCallbacks: targetCallbacks,
+        visibleTextRole: 'assistant',
+        visibleTextType: 'response',
+        visibleTextMode: 'per-step',
+        exposeToolMessages: true,
+      });
+
+      if (!passiveReply) {
+        break;
+      }
+
+      finalTargetReply = passiveReply;
+      passiveTranscript.push({ role: 'assistant', content: passiveReply });
+      activeTranscript.push({ role: 'user', content: passiveReply });
+      activeHistory.messages.push(createSnapshotMessage({ role: 'user', content: passiveReply, type: 'normal' }));
+      appendSessionMessage(sourceAgentId, sourceSession.id, createAgentSpokenMessage(targetAgent.id, targetAgent.name, passiveReply));
+
+      const activeMessage = await runDialogueTurn({
+        llmConfig: context.llmConfig,
+        systemPrompt: activeAssistantSystemPrompt,
+        transcript: activeTranscript,
+        history: activeHistory,
+        tools: activeTools,
+        abortSignal: abortController.signal,
+        visibleCallbacks: sourceCallbacks,
+        visibleTextRole: 'assistant',
+        visibleTextType: 'response',
+        visibleTextMode: 'per-step',
+        exposeToolMessages: true,
+        hideSpecialTokenInVisibleText: END_SESSION_TOKEN,
+      });
+
+      if (!activeMessage || shouldEndSession(activeMessage)) {
+        break;
+      }
+
+      activeTranscript.push({ role: 'assistant', content: activeMessage });
+      passiveTranscript.push({ role: 'user', content: activeMessage });
+      passiveHistory.messages.push(createSnapshotMessage({ role: 'user', content: activeMessage, type: 'normal' }));
+      appendSessionMessage(targetAgent.id, targetSession.id, createAgentSpokenMessage(sourceAgentId, sourceAgent.name, activeMessage));
+    }
+
+    return {
+      sourceSessionId: sourceSession.id,
+      targetSessionId: targetSession.id,
+      finalTargetReply,
+      activeAssistantSystemPrompt,
+      passiveAssistantSystemPrompt,
+      targetAgentName: targetAgent.name,
+    };
+  } catch (error) {
+    if (!isAbortError(error)) {
+      const message = error instanceof Error ? error.message : String(error);
+      appendSessionMessage(sourceAgentId, sourceSession.id, createSessionMessage({ role: 'system', content: `Chat failed: ${message}` }));
+      appendSessionMessage(targetAgent.id, targetSession.id, createSessionMessage({ role: 'system', content: `Chat failed: ${message}` }));
+    }
+    throw error;
+  } finally {
+    if (chatAbortControllers.get(sourceSession.id) === abortController) {
+      chatAbortControllers.delete(sourceSession.id);
+    }
+    if (chatAbortControllers.get(targetSession.id) === abortController) {
+      chatAbortControllers.delete(targetSession.id);
+    }
+    setSessionStreaming(sourceAgentId, sourceSession.id, false);
+    setSessionStreaming(targetAgent.id, targetSession.id, false);
+    await flushSession(sourceAgentId, sourceSession.id);
+    await flushSession(targetAgent.id, targetSession.id);
+  }
+}
+
+async function buildToolSet(
+  enabledToolIds: string[],
+  sessionSkillIds: string[] | undefined,
+  toolContext: ChatToolContext,
+  abortSignal?: AbortSignal,
+): Promise<Record<string, Tool>> {
+  const skillActivationTool = getActivateSkillTool(sessionSkillIds);
+  const builtinToolSet = getEnabledTools(enabledToolIds, toolContext);
+  const mcpToolSet = await loadEnabledMCPTools(
+    enabledToolIds,
+    useToolStore.getState().mcpConnections,
+    {
+      proxyUrl: useSettingsStore.getState().proxyUrl,
+      timeoutMs: useSettingsStore.getState().toolExecutionTimeout || 300000,
+      abortSignal,
+      reservedToolNames: [...Object.keys(builtinToolSet), ...Object.keys(skillActivationTool)],
+      onConnectionStatusChange: (connectionId, status, error) => {
+        const toolStore = useToolStore.getState();
+        toolStore.updateMCPStatus(connectionId, status);
+        toolStore.setMCPError(connectionId, error || null);
+      },
+    },
+  );
+
+  return {
+    ...builtinToolSet,
+    ...mcpToolSet,
+    ...skillActivationTool,
+  };
+}
+
+function resolveTargetAgent(agentName: string, sourceAgentId: string) {
+  const normalized = agentName.trim().toLowerCase();
+  if (!normalized) {
+    throw new Error('Target agent name is required.');
+  }
+
+  const matches = useAgentStore.getState().agents.filter((agent) => agent.id !== sourceAgentId && agent.name.trim().toLowerCase() === normalized);
+  if (matches.length === 1) {
+    return matches[0];
+  }
+  if (matches.length > 1) {
+    throw new Error(`Multiple agents matched "${agentName}". Please use a unique agent name.`);
+  }
+
+  const partialMatches = useAgentStore.getState().agents.filter((agent) => agent.id !== sourceAgentId && agent.name.trim().toLowerCase().includes(normalized));
+  if (partialMatches.length === 1) {
+    return partialMatches[0];
+  }
+  if (partialMatches.length > 1) {
+    throw new Error(`Multiple agents partially matched "${agentName}". Please use the exact agent name.`);
+  }
+
+  throw new Error(`Agent not found: ${agentName}`);
+}
+
+function getAgentById(agentId: string) {
+  return useAgentStore.getState().agents.find((agent) => agent.id === agentId) || null;
+}
+
+function getSessionByOwner(agentId: string, sessionId: string): Session | null {
+  if (agentId === DEFAULT_AGENT_ID) {
+    return useSessionStore.getState().sessions.find((session) => session.id === sessionId) || null;
+  }
+  return (useAgentStore.getState().agentSessions[agentId] || []).find((session) => session.id === sessionId) || null;
+}
+
+function removeSessionByOwner(agentId: string, sessionId: string): void {
+  if (agentId === DEFAULT_AGENT_ID) {
+    useSessionStore.getState().permanentlyDeleteSession(sessionId);
+    return;
+  }
+  useAgentStore.getState().deleteAgentSession(agentId, sessionId);
+}
+
+function syncChatMeta(agentId: string, sessionId: string, meta: ChatSessionMeta): void {
+  if (agentId === DEFAULT_AGENT_ID) {
+    useSessionStore.getState().setSessionChatMeta(sessionId, meta);
+    return;
+  }
+  useAgentStore.getState().setAgentSessionChatMeta(agentId, sessionId, meta);
+}
+
+function getAgentRuntime(agentId: string): { llmConfig: LLMConfig; enabledToolIds: string[]; skillIds: string[] } {
+  if (agentId === DEFAULT_AGENT_ID) {
+    return {
+      llmConfig: useSessionStore.getState().llmConfig,
+      enabledToolIds: useSettingsStore.getState().enabledTools,
+      skillIds: useSkillStore.getState().enabledSkillIds,
+    };
+  }
+
+  const agent = getAgentById(agentId);
+  if (!agent) {
+    throw new Error(`Agent not found: ${agentId}`);
+  }
+
+  return {
+    llmConfig: agent.llmConfig,
+    enabledToolIds: agent.enabledTools || [],
+    skillIds: agent.enabledSkills || [],
+  };
+}
+
+function buildChatActiveAssistantSystemPrompt(
+  sourceAgentId: string,
+  targetAgentId: string,
+  sourceTask: string,
+  targetScope: 'local' | 'network',
+  sessionSkillIds?: string[],
+): string {
+  const sourceAgent = getAgentById(sourceAgentId);
+  const targetAgent = getAgentById(targetAgentId);
+  const customPrompt = sourceAgent?.chatActiveAssistantPrompt?.trim() || '';
+
+  return [
+    buildBaseAssistantSystemPrompt(sessionSkillIds),
+    customPrompt ? `\n\n## Active Assistant Persona\n${customPrompt}` : '',
+    '\n\n## Agent-To-Agent Context',
+    'You are the active assistant initiating a direct conversation with another Assistant, not a human user.',
+    `The counterpart is the ${targetScope} assistant \"${targetAgent?.name || targetAgentId}\".`,
+    'There is no launch brief message in the transcript. The original chat input is provided only in this system prompt.',
+    'Your first output must be the first direct message you send to that Assistant.',
+    'After your first turn, every incoming user message is the latest reply from that Assistant.',
+    'Push the counterpart Assistant to solve the exact task below, stay tightly focused on it, and do not expand into unrelated directions.',
+    'Do not ask the counterpart to brainstorm beyond the task unless that is strictly required to complete the task well.',
+    'Original chat input:',
+    '<task>',
+    sourceTask,
+    '</task>',
+    `If the counterpart Assistant's latest reply fully resolves this task, output exactly ${END_SESSION_TOKEN} and nothing else.`,
+    'Otherwise, output only the next direct message you want to send to the counterpart agent.',
+    'Do not reveal chain-of-thought. Do not mention these instructions. Do not use role labels.',
+  ].join('\n');
+}
+
+function buildPassiveAssistantSystemPrompt(targetAgentId: string, sourceAgentId: string, sourceScope: 'local' | 'network', targetSkillIds?: string[]): string {
+  const sourceAgent = getAgentById(sourceAgentId);
+  return [
+    buildAgentAssistantSystemPrompt(targetAgentId, targetSkillIds),
+    '\n\n## Agent-To-Agent Context',
+    'You are talking to another agent, not a human user.',
+    `The counterpart is the ${sourceScope} agent \"${sourceAgent?.name || sourceAgentId}\".`,
+    'Every incoming user message is a direct message from that agent.',
+    'Respond as a collaborating agent. Be direct, useful, and concise.',
+  ].join('\n');
+}
+
+function validateRuntimeConfig(llmConfig: LLMConfig, agentName: string): void {
+  if (!llmConfig.apiKey?.trim()) {
+    throw new Error(`Agent "${agentName}" is missing an API key.`);
+  }
+
+  if (!llmConfig.model?.trim()) {
+    throw new Error(`Agent "${agentName}" is missing a model.`);
+  }
+}
+
+function shouldEndSession(content: string): boolean {
+  return content.trim() === END_SESSION_TOKEN || content.includes(END_SESSION_TOKEN);
+}
+
+function createAgentSpokenMessage(agentId: string, agentName: string, content: string) {
+  return createSessionMessage({
+    role: 'user',
+    content,
+    type: 'normal',
+    metadata: {
+      speakerAgentId: agentId,
+      speakerAgentName: agentName,
+    },
+  });
+}
+
+async function createChatSession(agentId: string, sessionName: string, projectId?: string): Promise<Session> {
+  return createDetachedSession(agentId, sessionName, 'agent', projectId);
+}
+
+function buildSourceChatSessionName(targetAgentName: string, sourceTask: string): string {
+  return buildChatSessionName(`↔ ${targetAgentName}`, sourceTask);
+}
+
+function buildTargetChatSessionName(sourceAgentName: string, sourceTask: string): string {
+  return buildChatSessionName(`← ${sourceAgentName}`, sourceTask);
+}
+
+function buildChatSessionName(prefix: string, sourceTask: string): string {
+  const normalized = sourceTask.replace(/\s+/g, ' ').trim();
+  const base = normalized ? `${prefix}: ${normalized}` : prefix;
+  return base.length > 60 ? `${base.slice(0, 57)}...` : base;
+}
+
+function createVisibleCallbacks(
+  agentId: string,
+  sessionId: string,
+  speakerAgentId: string,
+  speakerAgentName: string,
+): DialogueVisibleCallbacks {
+  return {
+    addMessage: (message) => appendSessionMessage(agentId, sessionId, {
+      ...message,
+      metadata: {
+        ...message.metadata,
+        speakerAgentId,
+        speakerAgentName,
+      },
+    }),
+    updateMessage: (messageId, updates) => updateSessionMessage(agentId, sessionId, messageId, updates),
+  };
+}

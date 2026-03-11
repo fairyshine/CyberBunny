@@ -7,6 +7,7 @@ import { heartbeatManager } from '../heartbeat';
 import { logPython, logFile, logTool } from '../console/logger';
 import type { LLMConfig } from '../../types';
 import { runMindConversation, type MindToolContext } from './mind';
+import { runChatConversation, type ChatToolContext } from './chat';
 import { getErrorMessage } from '../../utils/errors';
 import { useSettingsStore } from '../../stores/settings';
 import i18n from '../../i18n';
@@ -440,6 +441,37 @@ export function createMindTool(context?: ToolExecutionContext) {
   });
 }
 
+export function createChatTool(context?: ToolExecutionContext) {
+  return tool({
+    description: 'Start an agent-to-agent conversation. Creates a read-only chat session for both agents and returns the counterpart agent\'s final reply.',
+    inputSchema: z.object({
+      agentName: z.string().describe('Target agent name'),
+      text: z.string().describe('Initial conversation objective or opening message'),
+    }),
+    execute: async ({ agentName, text }) => {
+      if (!context) {
+        return 'Error: chat tool requires runtime context.';
+      }
+
+      try {
+        const result = await runChatConversation(agentName, text, context as ChatToolContext);
+        const finalReply = result.finalTargetReply || '[chat] Session ended without a final reply.';
+        return [
+          `Agent: ${result.targetAgentName}`,
+          `Source Session: ${result.sourceSessionId}`,
+          `Target Session: ${result.targetSessionId}`,
+          '',
+          finalReply,
+        ].join('\n');
+      } catch (error) {
+        const msg = getErrorMessage(error);
+        logTool('error', 'Chat session failed', msg);
+        return `Error:\n${msg}`;
+      }
+    },
+  });
+}
+
 export const execTool = tool({
   description: 'Execute shell commands in a persistent session (Desktop only: macOS/Linux). Maintains shell state across commands.',
   inputSchema: z.object({
@@ -591,6 +623,7 @@ export const builtinTools = {
   file_manager: fileManagerTool,
   memory: memoryTool,
   mind: createMindTool(),
+  chat: createChatTool(),
   exec: execTool,
   cron: cronTool,
   heartbeat: heartbeatTool,
@@ -604,6 +637,10 @@ export function getEnabledTools(enabledToolIds: string[], context?: ToolExecutio
   for (const id of enabledToolIds) {
     if (id === 'mind') {
       tools[id] = createMindTool(context);
+      continue;
+    }
+    if (id === 'chat') {
+      tools[id] = createChatTool(context);
       continue;
     }
     if (id in builtinTools) {

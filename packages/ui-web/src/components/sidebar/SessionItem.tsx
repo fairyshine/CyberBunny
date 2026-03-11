@@ -5,10 +5,12 @@ import { useAgentStore, DEFAULT_AGENT_ID } from '@shared/stores/agent';
 import { useSettingsStore } from '@shared/stores/settings';
 import type { Session } from '@shared/types';
 import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
 import { SessionContextMenu } from './SessionContextMenu';
 import { SESSION_TYPE_ICONS } from './SessionTypeFilterBar';
 import { formatDate } from './utils';
 import { useWorkspaceSession } from '../../hooks/useWorkspaceSession';
+import { deleteChatSessionPair } from '@shared/services/ai/chat';
 
 interface SessionItemProps {
   session: Session;
@@ -53,6 +55,7 @@ export function SessionItem({
   const isAgentSession = session.sessionType === 'agent';
   const isMindSession = session.sessionType === 'mind';
   const readOnly = isAgentSession || isMindSession;
+  const isLinkedAgentSession = isAgentSession && !!session.chatSession?.peerSessionId;
   const displayName = isMindSession
     ? (session.mindSession?.sourceTask || session.name).replace(/\s+/g, ' ').trim() || session.name
     : session.name;
@@ -141,6 +144,11 @@ export function SessionItem({
               return <TypeIcon className="w-3 h-3 shrink-0 text-muted-foreground" />;
             })()}
             <p className="font-medium truncate text-sm flex-1 min-w-0">{displayName}</p>
+            {session.interruptedAt && !session.isStreaming && (
+              <Badge variant="outline" className="shrink-0 border-amber-500/40 px-1 py-0 text-[10px] leading-none text-amber-700 dark:text-amber-300">
+                {t('sidebar.interrupted')}
+              </Badge>
+            )}
             {isAgentSession && (
               <span className="shrink-0 text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground leading-none">
                 {t('sidebar.readOnly')}
@@ -153,20 +161,22 @@ export function SessionItem({
         </p>
       </div>
 
-      {!isAgentSession && !isEditing && (
+      {!isEditing && (
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <SessionContextMenu
             session={session}
             onRename={isMindSession ? undefined : () => onStartRename(session.id, session.name)}
             onDelete={() => {
-              if (isDefaultAgent) {
+              if (isLinkedAgentSession) {
+                deleteChatSessionPair(currentAgentId, session.id);
+              } else if (isDefaultAgent) {
                 deleteSession(session.id);
               } else {
                 deleteAgentSession(currentAgentId, session.id);
               }
             }}
-            allowRename={!isMindSession}
-            allowMoveToProject={!isMindSession}
+            allowRename={!readOnly}
+            allowMoveToProject={!readOnly}
           >
             <Button
               onClick={(e) => e.stopPropagation()}

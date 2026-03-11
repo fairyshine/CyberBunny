@@ -8,6 +8,7 @@ import { useSettingsStore } from '@shared/stores/settings';
 import { useAgentConfig } from '../hooks/useAgentConfig';
 import { logLLM } from '@shared/services/console/logger';
 import { runAgentLoop } from '@shared/services/ai/agent';
+import { isAbortError } from '@shared/utils/errors';
 import type { AgentCallbacks } from '@shared/services/ai/agent';
 import type { Message } from '@shared/types';
 import MessageList from '../components/chat/MessageList';
@@ -100,6 +101,9 @@ export default function ChatScreen() {
     useSessionStore.getState().setSessionStreaming(sessionId, true);
     logLLM('info', `User message: ${content.trim().slice(0, 100)}${content.length > 100 ? '...' : ''}`);
 
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     try {
       // Use session-level tools/skills if configured, otherwise fall back to agent config
       const effectiveTools = session.sessionTools ?? enabledTools;
@@ -114,21 +118,25 @@ export default function ChatScreen() {
         t,
         proxyUrl,
         toolExecutionTimeout,
-        undefined,
+        abortController.signal,
         session.projectId,
         effectiveSkills,
       );
       // Save system prompt to session
       useSessionStore.getState().setSessionSystemPrompt(sessionId, systemPrompt);
     } catch (error) {
+      if (isAbortError(error)) return;
       console.error('[Chat] Agent loop error:', error);
-      addMessage(sessionId, {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: t('chat.error', { error: error instanceof Error ? error.message : String(error) }),
-        timestamp: Date.now(),
-      });
+      if (!(error && typeof error === 'object' && '__openbunnyHandled' in error)) {
+        addMessage(sessionId, {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: t('chat.error', { error: error instanceof Error ? error.message : String(error) }),
+          timestamp: Date.now(),
+        });
+      }
     } finally {
+      abortControllerRef.current = null;
       setIsLoading(false);
       setCurrentStatus('');
       useSessionStore.getState().setSessionStreaming(sessionId, false);

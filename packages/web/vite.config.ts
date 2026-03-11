@@ -36,6 +36,8 @@ function corsProxyPlugin(): Plugin {
 
           const targetUrl = new URL(decodeURIComponent(target));
           console.log(`[CORS Proxy] ${req.method} → ${targetUrl.href}`);
+          const acceptHeader = String(req.headers.accept || '').toLowerCase();
+          const isSseRequest = req.method === 'GET' && acceptHeader.includes('text/event-stream');
 
           // Collect request body
           const chunks: Buffer[] = [];
@@ -66,6 +68,22 @@ function corsProxyPlugin(): Plugin {
             duplex: 'half',
           });
 
+          if (isSseRequest && [400, 404, 405].includes(fetchRes.status)) {
+            res.writeHead(200, {
+              'access-control-allow-origin': '*',
+              'access-control-allow-methods': '*',
+              'access-control-allow-headers': '*',
+              'cache-control': 'no-cache, no-transform',
+              'content-type': 'text/event-stream; charset=utf-8',
+            });
+            if (typeof res.flushHeaders === 'function') {
+              res.flushHeaders();
+            }
+            res.write(': upstream MCP server does not support inbound SSE\n\n');
+            res.end();
+            return;
+          }
+
           // Forward response status and headers with CORS headers
           const responseHeaders: Record<string, string> = {
             'access-control-allow-origin': '*',
@@ -81,6 +99,13 @@ function corsProxyPlugin(): Plugin {
           });
 
           res.writeHead(fetchRes.status, responseHeaders);
+
+          const isSseResponse = (responseHeaders['content-type'] || responseHeaders['Content-Type'] || '')
+            .toLowerCase()
+            .includes('text/event-stream');
+          if (isSseResponse && typeof res.flushHeaders === 'function') {
+            res.flushHeaders();
+          }
 
           if (fetchRes.body) {
             // Stream the response body

@@ -83,7 +83,7 @@ export default function ExportDialog({ messages, systemPrompt, sessionId, sessio
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[85vh]">
+      <DialogContent aria-describedby={undefined} className="max-w-3xl max-h-[85vh]">
         <DialogHeader>
           <DialogTitle>{t('export.title')}</DialogTitle>
         </DialogHeader>

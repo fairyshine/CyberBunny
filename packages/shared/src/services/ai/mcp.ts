@@ -3,7 +3,7 @@
  */
 
 import { createMCPClient } from '@ai-sdk/mcp';
-import type { Tool } from 'ai';
+import type { Tool, ToolExecutionOptions } from 'ai';
 import { logMCP } from '../console/logger';
 import { getErrorMessage } from '../../utils/errors';
 import type { MCPConnection, MCPToolDescriptor, MCPTransportType } from '../../stores/tools';
@@ -25,11 +25,58 @@ interface MCPConnectionOptions {
 
 interface LoadEnabledMCPToolsOptions extends MCPConnectionOptions {
   reservedToolNames?: string[];
+  timeoutMs?: number;
+  abortSignal?: AbortSignal;
   onConnectionStatusChange?: (
     connectionId: string,
     status: MCPConnection['status'],
     error?: string | null,
   ) => void;
+}
+
+function raceWithAbort<T>(promise: Promise<T>, abortSignal?: AbortSignal): Promise<T> {
+  if (!abortSignal) return promise;
+  if (abortSignal.aborted) {
+    return Promise.reject(new DOMException('The operation was aborted.', 'AbortError'));
+  }
+
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      abortSignal.addEventListener('abort', () => {
+        reject(new DOMException('The operation was aborted.', 'AbortError'));
+      }, { once: true });
+    }),
+  ]);
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs?: number, message = 'MCP operation timed out'): Promise<T> {
+  if (!timeoutMs || timeoutMs === -1) return promise;
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(message)), timeoutMs)),
+  ]);
+}
+
+function withAbortAndTimeout<T>(promise: Promise<T>, abortSignal?: AbortSignal, timeoutMs?: number, timeoutMessage?: string): Promise<T> {
+  return raceWithAbort(withTimeout(promise, timeoutMs, timeoutMessage), abortSignal);
+}
+
+function wrapMCPTool(tool: Tool, timeoutMs?: number): Tool {
+  if (!tool.execute) return tool;
+
+  return {
+    ...tool,
+    execute: async (input: unknown, options: ToolExecutionOptions) => {
+      options?.abortSignal?.throwIfAborted?.();
+      return withAbortAndTimeout(
+        Promise.resolve(tool.execute!(input as never, options)),
+        options?.abortSignal,
+        timeoutMs,
+        `MCP tool execution timed out after ${timeoutMs}ms`,
+      );
+    },
+  };
 }
 
 function isBrowser(): boolean {
@@ -136,7 +183,12 @@ export async function connectMCPServer(connection: string | MCPConnectionInput, 
       url: resolveConnectionUrl(normalized, options?.proxyUrl),
     },
     onUncaughtError: (error) => {
-      logMCP('error', `MCP uncaught error: ${normalized.name}`, getErrorMessage(error));
+      const message = getErrorMessage(error);
+      if (message.includes('GET SSE failed: 400') || message.includes('GET SSE failed: 405')) {
+        logMCP('warning', `MCP inbound SSE unavailable: ${normalized.name}`, message);
+        return;
+      }
+      logMCP('error', `MCP uncaught error: ${normalized.name}`, message);
     },
   });
 
@@ -199,7 +251,12 @@ export async function loadEnabledMCPTools(
     options?.onConnectionStatusChange?.(connection.id, 'connecting', null);
 
     try {
-      const { tools } = await discoverMCPConnection(connection, options);
+      const { tools } = await withAbortAndTimeout(
+        discoverMCPConnection(connection, options),
+        options?.abortSignal,
+        options?.timeoutMs,
+        `MCP discovery timed out after ${options?.timeoutMs}ms`,
+      );
 
       for (const toolName of selectedToolNames) {
         const tool = tools[toolName];
@@ -210,7 +267,7 @@ export async function loadEnabledMCPTools(
 
         const uniqueToolName = makeUniqueToolName(toolName, connection.name, usedNames);
         usedNames.add(uniqueToolName);
-        resolvedTools[uniqueToolName] = tool;
+        resolvedTools[uniqueToolName] = wrapMCPTool(tool, options?.timeoutMs);
       }
 
       options?.onConnectionStatusChange?.(connection.id, 'connected', null);

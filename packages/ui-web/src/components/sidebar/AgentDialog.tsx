@@ -23,6 +23,8 @@ export function AgentDialog({ isOpen, onClose, agent }: AgentDialogProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
+  const [mindUserPrompt, setMindUserPrompt] = useState('');
+  const [chatActiveAssistantPrompt, setChatActiveAssistantPrompt] = useState('');
   const [avatar, setAvatar] = useState('🤖');
   const [color, setColor] = useState('#3b82f6');
 
@@ -31,12 +33,16 @@ export function AgentDialog({ isOpen, onClose, agent }: AgentDialogProps) {
       setName(agent.name);
       setDescription(agent.description);
       setSystemPrompt(agent.systemPrompt);
+      setMindUserPrompt(agent.mindUserPrompt || '');
+      setChatActiveAssistantPrompt(agent.chatActiveAssistantPrompt || '');
       setAvatar(agent.avatar);
       setColor(agent.color);
     } else {
       setName('');
       setDescription('');
       setSystemPrompt('');
+      setMindUserPrompt('');
+      setChatActiveAssistantPrompt('');
       setAvatar('🤖');
       setColor('#3b82f6');
     }
@@ -48,9 +54,9 @@ export function AgentDialog({ isOpen, onClose, agent }: AgentDialogProps) {
     if (!trimmedName) return;
 
     if (agent) {
-      updateAgent(agent.id, { name: trimmedName, description, systemPrompt, avatar, color });
+      updateAgent(agent.id, { name: trimmedName, description, systemPrompt, mindUserPrompt, chatActiveAssistantPrompt, avatar, color });
     } else {
-      createAgent({ name: trimmedName, description, systemPrompt, avatar, color });
+      createAgent({ name: trimmedName, description, systemPrompt, mindUserPrompt, chatActiveAssistantPrompt, avatar, color });
     }
     onClose();
   };
@@ -133,6 +139,28 @@ export function AgentDialog({ isOpen, onClose, agent }: AgentDialogProps) {
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
               placeholder={t('sidebar.agent.systemPromptPlaceholder')}
+              className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              rows={4}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">{t('sidebar.agent.mindUserPrompt')}</label>
+            <textarea
+              value={mindUserPrompt}
+              onChange={(e) => setMindUserPrompt(e.target.value)}
+              placeholder={t('sidebar.agent.mindUserPromptPlaceholder')}
+              className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              rows={4}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">{t('sidebar.agent.chatActiveAssistantPrompt')}</label>
+            <textarea
+              value={chatActiveAssistantPrompt}
+              onChange={(e) => setChatActiveAssistantPrompt(e.target.value)}
+              placeholder={t('sidebar.agent.chatActiveAssistantPromptPlaceholder')}
               className="w-full px-3 py-2 bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary resize-none"
               rows={4}
             />

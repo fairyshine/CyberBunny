@@ -12,6 +12,7 @@ export default {
   'chat.input.processing': '处理中...',
   'chat.input.stop': '停止',
   'chat.stopped': '已停止生成',
+  'chat.interrupted': '上次生成因页面刷新或关闭而中断',
   'chat.executing': '正在执行: {{toolName}}',
   'chat.error': '出错了: {{error}}',
   'chat.configRequired': '请先配置 LLM API 密钥。点击右上角的设置按钮进行配置。',

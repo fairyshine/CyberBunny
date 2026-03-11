@@ -1,8 +1,11 @@
 import { useSessionStore } from '@shared/stores/session';
+import { useTranslation } from 'react-i18next';
 import { X } from '../icons';
 import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
 
 export default function SessionTabs() {
+  const { t } = useTranslation();
   const { sessions, openSessionIds, currentSessionId, setCurrentSession, closeSession } = useSessionStore();
 
   const openSessions = sessions.filter(s => openSessionIds.includes(s.id) && !s.deletedAt);
@@ -24,6 +27,11 @@ export default function SessionTabs() {
           >
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{session.name}</p>
+              {session.interruptedAt && !session.isStreaming && (
+                <Badge variant="outline" className="mt-1 border-amber-500/40 px-1 py-0 text-[10px] leading-none text-amber-700 dark:text-amber-300">
+                  {t('sidebar.interrupted')}
+                </Badge>
+              )}
             </div>
             <Button
               onClick={(e) => {

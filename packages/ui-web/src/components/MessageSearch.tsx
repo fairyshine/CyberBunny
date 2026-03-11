@@ -73,7 +73,7 @@ export default function MessageSearch({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
+      <DialogContent aria-describedby={undefined} className="max-w-3xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{t('search.title')}</DialogTitle>
         </DialogHeader>

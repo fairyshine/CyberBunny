@@ -140,7 +140,7 @@ export function SkillManager() {
 
       {/* Create Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent aria-describedby={undefined} className="max-w-md">
           <DialogHeader>
             <DialogTitle>{t('skills.createNew')}</DialogTitle>
           </DialogHeader>
@@ -179,7 +179,7 @@ export function SkillManager() {
 
       {/* Edit Dialog */}
       <Dialog open={!!editSkill} onOpenChange={() => setEditSkill(null)}>
-        <DialogContent className="max-w-4xl max-h-[85vh]">
+        <DialogContent aria-describedby={undefined} className="max-w-4xl max-h-[85vh]">
           <DialogHeader>
             <DialogTitle>
               {t('skills.editSkill')}: {editSkill?.name}

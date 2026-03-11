@@ -65,7 +65,7 @@ export function ProjectDialog({ isOpen, onClose, project }: ProjectDialogProps) 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent aria-describedby={undefined} className="max-w-md">
         <DialogHeader>
           <DialogTitle>
             {project ? t('sidebar.editProject') : t('sidebar.createProject')}

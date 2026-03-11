@@ -23,6 +23,7 @@ export default {
   'tools.mcp.removeConfirm': '确认移除 MCP 服务“{{name}}”？',
   'tools.memory.name': '记忆存储',
   'tools.mind.name': 'Mind',
+  'tools.chat.name': 'Chat',
   'tools.memory.viewContent': '查看内容',
   'tools.memory.memoryContent': '长期记忆',
   'tools.memory.noMemoryYet': '暂无记忆',

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Session, Message, LLMConfig, SessionType, Project, MindSessionMeta } from '../types';
+import { Session, Message, LLMConfig, SessionType, Project, MindSessionMeta, ChatSessionMeta } from '../types';
 import { logSettings } from '../services/console/logger';
 import { messageStorage } from '../services/storage/messageStorage';
 import { statsStorage } from '../services/storage/statsStorage';
@@ -33,6 +33,7 @@ interface SessionState {
   setLLMConfig: (config: Partial<LLMConfig>) => void;
   clearAllSessions: () => void;
   setSessionStreaming: (sessionId: string, isStreaming: boolean) => void;
+  markStreamingSessionsInterrupted: () => void;
   setSessionSystemPrompt: (sessionId: string, systemPrompt: string) => void;
   openSession: (id: string) => void;
   closeSession: (id: string) => void;
@@ -44,6 +45,7 @@ interface SessionState {
   /** Set per-session skill overrides (undefined to clear) */
   setSessionSkills: (sessionId: string, skills: string[] | undefined) => void;
   setSessionMindMeta: (sessionId: string, mindSession: MindSessionMeta) => void;
+  setSessionChatMeta: (sessionId: string, chatSession: ChatSessionMeta) => void;
   /** Recalculate stats from scratch (e.g. after migration or loadSessionMessages) */
   recalcStats: () => void;
 
@@ -85,6 +87,25 @@ function computeStats(sessions: Session[]): SessionStats {
 /** Get token count from a single message */
 function msgTokens(m: Message): number {
   return m.metadata?.tokens ?? 0;
+}
+
+function stripTransientSessionState<T extends Session>(session: T): T {
+  const { isStreaming: _isStreaming, ...rest } = session;
+  return rest as T;
+}
+
+function clearStreamingMessageFlags(messages: Message[]): Message[] {
+  return messages.map((message) => (
+    message.metadata?.streaming
+      ? {
+          ...message,
+          metadata: {
+            ...message.metadata,
+            streaming: false,
+          },
+        }
+      : message
+  ));
 }
 
 export const useSessionStore = create<SessionState>()(
@@ -330,9 +351,32 @@ export const useSessionStore = create<SessionState>()(
       setSessionStreaming: (sessionId: string, isStreaming: boolean) => {
         set((state) => ({
           sessions: state.sessions.map((s) =>
-            s.id === sessionId ? { ...s, isStreaming } : s
+            s.id === sessionId
+              ? { ...s, isStreaming, interruptedAt: isStreaming ? undefined : s.interruptedAt }
+              : s
           ),
         }));
+      },
+
+      markStreamingSessionsInterrupted: () => {
+        const now = Date.now();
+        set((state) => {
+          let changed = false;
+          const sessions = state.sessions.map((session) => {
+            if (!session.isStreaming) return session;
+            changed = true;
+            const messages = clearStreamingMessageFlags(session.messages);
+            messageStorage.save(session.id, messages);
+            return {
+              ...session,
+              messages,
+              isStreaming: false,
+              interruptedAt: now,
+              updatedAt: now,
+            };
+          });
+          return changed ? { sessions } : state;
+        });
       },
 
       setSessionSystemPrompt: (sessionId: string, systemPrompt: string) => {
@@ -435,6 +479,14 @@ export const useSessionStore = create<SessionState>()(
         }));
       },
 
+      setSessionChatMeta: (sessionId: string, chatSession: ChatSessionMeta) => {
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId ? { ...s, chatSession: { ...s.chatSession, ...chatSession }, updatedAt: Date.now() } : s
+          ),
+        }));
+      },
+
       // Project Actions
       createProject: (name: string, description?: string, color?: string, icon?: string) => {
         const project: Project = {
@@ -477,7 +529,7 @@ export const useSessionStore = create<SessionState>()(
       // Exclude messages from localStorage persistence — they live in IndexedDB
       partialize: (state) => ({
         sessions: state.sessions.map((s) => ({
-          ...s,
+          ...stripTransientSessionState(s),
           messages: [], // never persist messages to localStorage
         })),
         projects: state.projects,
@@ -489,6 +541,7 @@ export const useSessionStore = create<SessionState>()(
       onRehydrateStorage: () => {
         return (state) => {
           if (!state) return;
+          state.sessions = state.sessions.map((session) => stripTransientSessionState(session));
           // Recalc stats from rehydrated sessions (messages are empty at this point,
           // but sessionCount is correct; tokens/messages will update as sessions load)
           state.recalcStats();
@@ -552,6 +605,7 @@ async function migrateMessagesToIndexedDB(): Promise<void> {
 // Flush all dirty messages on page unload
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
+    useSessionStore.getState().markStreamingSessionsInterrupted();
     messageStorage.flushAll();
   });
 }

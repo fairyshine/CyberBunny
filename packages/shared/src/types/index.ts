@@ -15,6 +15,8 @@ export interface AgentProfile {
   avatar: string; // emoji or data URL
   description: string;
   systemPrompt: string;
+  mindUserPrompt?: string;
+  chatActiveAssistantPrompt?: string;
   isActive: boolean;
   createdAt: number;
 }
@@ -49,6 +51,8 @@ export interface Message {
     duration?: number;
     streaming?: boolean;
     toolDescription?: string;
+    speakerAgentId?: string;
+    speakerAgentName?: string;
     [key: string]: unknown;
   };
 }
@@ -115,6 +119,8 @@ export interface Agent {
   avatar: string; // emoji or data URL
   description: string;
   systemPrompt: string;
+  mindUserPrompt?: string;
+  chatActiveAssistantPrompt?: string;
   color: string;
   isDefault?: boolean; // 默认智能体，不可删除
   // 独立配置
@@ -149,6 +155,18 @@ export interface MindSessionMeta {
   updatedAt?: number;
 }
 
+export interface ChatSessionMeta {
+  role?: 'source' | 'target';
+  peerSessionId: string;
+  peerAgentId: string;
+  sourceSessionId?: string;
+  targetSessionId?: string;
+  sourceTask?: string;
+  counterpartAgentId?: string;
+  counterpartAgentName?: string;
+  updatedAt?: number;
+}
+
 // 项目分组
 export interface Project {
   id: string;
@@ -170,6 +188,7 @@ export interface Session {
   updatedAt: number;
   deletedAt?: number;
   isStreaming?: boolean; // 是否正在进行对话
+  interruptedAt?: number; // 刷新/关闭页面时中断的时间戳
   systemPrompt?: string; // 系统提示词
   sessionType?: SessionType; // 会话类型：user=用户对话, agent=外部Agent对话(只读), mind=Agent内心计划
   projectId?: string; // 所属项目ID
@@ -179,4 +198,6 @@ export interface Session {
   sessionSkills?: string[];
   /** Internal metadata for mind sessions */
   mindSession?: MindSessionMeta;
+  /** Internal metadata for agent-to-agent chat sessions */
+  chatSession?: ChatSessionMeta;
 }

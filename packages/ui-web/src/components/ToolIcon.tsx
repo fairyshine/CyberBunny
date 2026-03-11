@@ -9,6 +9,7 @@ import {
   Clock,
   Heart,
   MessagesSquare,
+  MessageCircle,
 } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 
@@ -22,6 +23,7 @@ const iconMap: Record<string, React.ComponentType<LucideProps>> = {
   clock: Clock,
   heart: Heart,
   mind: MessagesSquare,
+  chat: MessageCircle,
 };
 
 // Centralized tool display metadata — single source of truth
@@ -34,6 +36,7 @@ export const toolDisplayInfo: Record<string, { name: string; description: string
   cron: { name: 'Cron', description: 'Schedule periodic tasks', icon: 'clock' },
   heartbeat: { name: 'Heartbeat', description: 'Periodic watchlist', icon: 'heart' },
   mind: { name: 'Mind', description: 'Internal self-dialogue', icon: 'mind' },
+  chat: { name: 'Chat', description: 'Agent-to-agent conversation', icon: 'chat' },
 };
 
 export function getToolIcon(toolId: string): React.ComponentType<LucideProps> {

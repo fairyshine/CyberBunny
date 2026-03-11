@@ -1,7 +1,7 @@
-import { useState, useMemo, memo } from 'react';
+import { useState, useMemo, memo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Virtuoso } from 'react-virtuoso';
-import { Message } from '@shared/types';
+import { Message, Session } from '@shared/types';
 import ReactMarkdown from '../ReactMarkdown';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -28,11 +28,12 @@ SyntaxHighlighter.registerLanguage('json', json);
 
 interface MessageListProps {
   messages: Message[];
+  session?: Session;
 }
 
 const VIRTUALIZATION_THRESHOLD = 50;
 
-export default function MessageList({ messages }: MessageListProps) {
+export default function MessageList({ messages, session }: MessageListProps) {
   const shouldVirtualize = messages.length > VIRTUALIZATION_THRESHOLD;
 
   if (messages.length === 0) {
@@ -47,9 +48,9 @@ export default function MessageList({ messages }: MessageListProps) {
     return (
       <Virtuoso
         data={messages}
-        itemContent={(_index, message) => (
+        itemContent={(index, message) => (
           <div className="max-w-4xl mx-auto px-4 md:px-6 py-2 md:py-3">
-            <MessageItem message={message} />
+            <MessageItem message={message} index={index} session={session} />
           </div>
         )}
         className="h-full"
@@ -61,8 +62,8 @@ export default function MessageList({ messages }: MessageListProps) {
 
   return (
     <div className="max-w-4xl mx-auto py-6 md:py-8 px-4 md:px-6 space-y-4 md:space-y-6">
-      {messages.map((message) => (
-        <MessageItem key={message.id} message={message} />
+      {messages.map((message, index) => (
+        <MessageItem key={message.id} message={message} index={index} session={session} />
       ))}
     </div>
   );
@@ -97,9 +98,112 @@ const EmptyState = memo(function EmptyState() {
   );
 });
 
-const MessageItem = memo(function MessageItem({ message }: { message: Message }) {
-  const isUser = message.role === 'user';
+interface BubbleAppearance {
+  align: 'left' | 'right';
+  avatar: string;
+  accent: 'self' | 'other';
+}
+
+function getAgentAvatar(agentId: string | undefined, agents: ReturnType<typeof useAgentStore.getState>['agents']): string | null {
+  if (!agentId) return null;
+  return agents.find((agent) => agent.id === agentId)?.avatar || null;
+}
+
+function getSpeakerAgentId(message: Message, session: Session | undefined, currentAgentId: string, index: number): string | undefined {
+  const taggedSpeakerId = typeof message.metadata?.speakerAgentId === 'string' ? message.metadata.speakerAgentId : undefined;
+  if (taggedSpeakerId) return taggedSpeakerId;
+  if (session?.sessionType !== 'agent') return undefined;
+
+  const counterpartAgentId = session.chatSession?.counterpartAgentId || session.chatSession?.peerAgentId;
+
+  if (message.role === 'assistant' || message.role === 'tool') {
+    return currentAgentId;
+  }
+
+  if (message.role === 'user') {
+    if (session.chatSession?.role === 'source') {
+      if (index === 0 && session.chatSession?.sourceTask && message.content === session.chatSession.sourceTask) {
+        return currentAgentId;
+      }
+      return counterpartAgentId || currentAgentId;
+    }
+
+    if (session.chatSession?.role === 'target') {
+      return counterpartAgentId || currentAgentId;
+    }
+  }
+
+  return undefined;
+}
+
+function getBubbleAppearance(
+  message: Message,
+  session: Session | undefined,
+  currentAgentId: string,
+  agents: ReturnType<typeof useAgentStore.getState>['agents'],
+  userAvatar: string,
+  index: number,
+): BubbleAppearance {
+  if (session?.sessionType === 'agent') {
+    const speakerAgentId = getSpeakerAgentId(message, session, currentAgentId, index);
+    const isSelf = speakerAgentId === currentAgentId;
+    const avatar = getAgentAvatar(speakerAgentId || currentAgentId, agents) || '🐰';
+
+    return {
+      align: isSelf ? 'right' : 'left',
+      avatar,
+      accent: isSelf ? 'self' : 'other',
+    };
+  }
+
+  if (message.role === 'user') {
+    return {
+      align: 'right',
+      avatar: userAvatar || 'U',
+      accent: 'self',
+    };
+  }
+
+  return {
+    align: 'left',
+    avatar: getAgentAvatar(currentAgentId, agents) || '🐰',
+    accent: 'other',
+  };
+}
+
+function MessageAvatar({ avatar, accent }: { avatar: string; accent: BubbleAppearance['accent'] }) {
+  return (
+    <div className={`flex-shrink-0 w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center text-sm shadow-elegant overflow-hidden ${accent === 'self' ? 'bg-foreground text-background text-xs font-medium' : 'bg-muted'}`}>
+      {isImageAvatar(avatar)
+        ? <img src={avatar} alt="avatar" className="w-full h-full object-cover" draggable={false} />
+        : avatar}
+    </div>
+  );
+}
+
+function BubbleRow({ appearance, children }: { appearance: BubbleAppearance; children: ReactNode }) {
+  return (
+    <div className={`flex gap-3 md:gap-4 animate-fade-in ${appearance.align === 'right' ? 'flex-row-reverse' : ''}`}>
+      <MessageAvatar avatar={appearance.avatar} accent={appearance.accent} />
+      {children}
+    </div>
+  );
+}
+
+function SideSpacer({ appearance }: { appearance: BubbleAppearance }) {
+  if (appearance.align === 'left') {
+    return <div className="w-8 md:w-9 flex-shrink-0" />;
+  }
+
+  return <div className="w-8 md:w-9 flex-shrink-0 order-2" />;
+}
+
+const MessageItem = memo(function MessageItem({ message, session, index }: { message: Message; session?: Session; index: number }) {
+  const agents = useAgentStore(s => s.agents);
+  const currentAgentId = useAgentStore(s => s.currentAgentId);
+  const userAvatar = useSettingsStore(s => s.userProfile.avatar);
   const msgType = message.type || 'normal';
+  const appearance = getBubbleAppearance(message, session, currentAgentId, agents, userAvatar, index);
 
   if (message.role === 'system') {
     return (
@@ -112,64 +216,46 @@ const MessageItem = memo(function MessageItem({ message }: { message: Message })
   // Intercept activate_skill tool calls and results
   if (message.toolName === 'activate_skill') {
     if (msgType === 'tool_call') {
-      return <SkillActivationBubble message={message} />;
+      return <SkillActivationBubble message={message} appearance={appearance} />;
     }
     if (msgType === 'tool_result') {
-      return <SkillResultBubble message={message} />;
+      return <SkillResultBubble message={message} appearance={appearance} />;
     }
   }
 
   if (msgType === 'thought' || msgType === 'tool_call') {
-    return <ProcessBubble message={message} />;
+    return <ProcessBubble message={message} appearance={appearance} />;
   }
 
   if (msgType === 'tool_result') {
-    return <ToolResultBubble message={message} />;
+    return <ToolResultBubble message={message} appearance={appearance} />;
   }
 
-  if (isUser) {
-    return <UserBubble message={message} />;
+  if (appearance.align === 'right') {
+    return <UserBubble message={message} appearance={appearance} />;
   }
 
-  return <ResponseBubble message={message} />;
+  return <ResponseBubble message={message} appearance={appearance} />;
 });
 
-const UserBubble = memo(function UserBubble({ message }: { message: Message }) {
-  const avatar = useSettingsStore(s => s.userProfile.avatar);
+const UserBubble = memo(function UserBubble({ message, appearance }: { message: Message; appearance: BubbleAppearance }) {
   return (
-    <div className="flex gap-3 md:gap-4 flex-row-reverse animate-fade-in">
-      <div className="flex-shrink-0 w-8 h-8 md:w-9 md:h-9 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-medium shadow-elegant overflow-hidden">
-        {avatar ? (
-          isImageAvatar(avatar)
-            ? <img src={avatar} alt="avatar" className="w-full h-full object-cover" draggable={false} />
-            : avatar
-        ) : 'U'}
-      </div>
-      <div className="flex-1 max-w-[85%] md:max-w-[75%] text-right">
+    <BubbleRow appearance={appearance}>
+      <div className={`flex-1 max-w-[85%] md:max-w-[75%] ${appearance.align === 'right' ? 'text-right' : ''}`}>
         <div className="inline-block text-left rounded-2xl px-4 py-3 bg-foreground text-background shadow-elegant border-elegant selection:bg-background/30 selection:text-background">
           <ReactMarkdown content={message.content || ''} />
         </div>
-        <Timestamp time={message.timestamp} align="right" />
+        <Timestamp time={message.timestamp} align={appearance.align} />
       </div>
-    </div>
+    </BubbleRow>
   );
 });
 
-const ResponseBubble = memo(function ResponseBubble({ message }: { message: Message }) {
+const ResponseBubble = memo(function ResponseBubble({ message, appearance }: { message: Message; appearance: BubbleAppearance }) {
   if (!message.content) return null;
-  const agents = useAgentStore(s => s.agents);
-  const currentAgentId = useAgentStore(s => s.currentAgentId);
-  const currentAgent = agents.find(a => a.id === currentAgentId);
-  const agentAvatar = currentAgent?.avatar || '🐰';
-  const hasImage = isImageAvatar(agentAvatar);
   return (
-    <div className="flex gap-3 md:gap-4 animate-fade-in">
-      <div className="flex-shrink-0 w-8 h-8 md:w-9 md:h-9 rounded-full bg-muted flex items-center justify-center text-sm shadow-elegant overflow-hidden">
-        {hasImage
-          ? <img src={agentAvatar} alt="avatar" className="w-full h-full object-cover" draggable={false} />
-          : agentAvatar}
-      </div>
-      <div className="flex-1 max-w-[95%] md:max-w-[85%]">
+    <BubbleRow appearance={appearance}>
+      <div className={`flex-1 max-w-[95%] md:max-w-[85%] ${appearance.align === 'right' ? 'text-right' : ''}`}>
         <Card className="rounded-2xl px-4 py-3 shadow-elegant border-elegant hover-lift">
           <ReactMarkdown content={message.content} />
           {message.metadata?.plots && Array.isArray(message.metadata.plots) && (
@@ -185,13 +271,13 @@ const ResponseBubble = memo(function ResponseBubble({ message }: { message: Mess
             </div>
           )}
         </Card>
-        <Timestamp time={message.timestamp} />
+        <Timestamp time={message.timestamp} align={appearance.align} />
       </div>
-    </div>
+    </BubbleRow>
   );
 });
 
-const ProcessBubble = memo(function ProcessBubble({ message }: { message: Message }) {
+const ProcessBubble = memo(function ProcessBubble({ message, appearance }: { message: Message; appearance: BubbleAppearance }) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(true);
   const isStreaming = message.metadata?.streaming === true;
@@ -200,11 +286,8 @@ const ProcessBubble = memo(function ProcessBubble({ message }: { message: Messag
 
   if (!message.content && !message.toolInput) {
     return (
-      <div className="flex gap-3 md:gap-4 animate-fade-in">
-        <div className="flex-shrink-0 w-8 h-8 md:w-9 md:h-9 rounded-full bg-muted flex items-center justify-center text-sm shadow-elegant">
-          <ToolIconComponent className="w-4 h-4" />
-        </div>
-        <div className="flex-1 max-w-[95%] md:max-w-[85%]">
+      <BubbleRow appearance={appearance}>
+        <div className={`flex-1 max-w-[95%] md:max-w-[85%] ${appearance.align === 'right' ? 'text-right' : ''}`}>
           <div className="inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-muted border-elegant">
             <div className="flex gap-1">
               <span className="w-1.5 h-1.5 bg-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -214,16 +297,13 @@ const ProcessBubble = memo(function ProcessBubble({ message }: { message: Messag
             <span className="text-xs text-muted-foreground font-medium">{t('chat.processing')}</span>
           </div>
         </div>
-      </div>
+      </BubbleRow>
     );
   }
 
   return (
-    <div className="flex gap-3 md:gap-4 animate-fade-in">
-      <div className="flex-shrink-0 w-8 h-8 md:w-9 md:h-9 rounded-full bg-muted flex items-center justify-center text-sm shadow-elegant">
-        <ToolIconComponent className="w-4 h-4" />
-      </div>
-      <div className="flex-1 max-w-[95%] md:max-w-[85%]">
+    <BubbleRow appearance={appearance}>
+      <div className={`flex-1 max-w-[95%] md:max-w-[85%] ${appearance.align === 'right' ? 'text-right' : ''}`}>
         <button
           onClick={() => setExpanded(!expanded)}
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-muted border-elegant hover:bg-accent transition-all duration-200"
@@ -287,11 +367,11 @@ const ProcessBubble = memo(function ProcessBubble({ message }: { message: Messag
           </div>
         )}
       </div>
-    </div>
+    </BubbleRow>
   );
 });
 
-const ToolResultBubble = memo(function ToolResultBubble({ message }: { message: Message }) {
+const ToolResultBubble = memo(function ToolResultBubble({ message, appearance }: { message: Message; appearance: BubbleAppearance }) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const rawContent = message.content || '';
@@ -306,9 +386,9 @@ const ToolResultBubble = memo(function ToolResultBubble({ message }: { message: 
   const previewText = content.split('\n')[0].slice(0, 80);
 
   return (
-    <div className="flex gap-3 md:gap-4 animate-fade-in">
-      <div className="w-8 md:w-9 flex-shrink-0" />
-      <div className="flex-1 max-w-[95%] md:max-w-[85%]">
+    <div className={`flex gap-3 md:gap-4 animate-fade-in ${appearance.align === 'right' ? 'flex-row-reverse' : ''}`}>
+      <SideSpacer appearance={appearance} />
+      <div className={`flex-1 max-w-[95%] md:max-w-[85%] ${appearance.align === 'right' ? 'text-right' : ''}`}>
         <div className={`rounded-2xl border overflow-hidden shadow-elegant ${
           isError ? 'border-destructive/30 bg-destructive/5' : 'border-foreground/10 bg-muted/30'
         }`}>
@@ -364,7 +444,7 @@ const ToolResultBubble = memo(function ToolResultBubble({ message }: { message: 
             </div>
           )}
         </div>
-        <Timestamp time={message.timestamp} />
+        <Timestamp time={message.timestamp} align={appearance.align} />
       </div>
     </div>
   );
@@ -423,7 +503,7 @@ function formatFileSize(bytes: number): string {
  * Skill Activation Bubble — renders activate_skill tool_call messages.
  * Compact card with grayscale accent instead of generic tool call chrome.
  */
-const SkillActivationBubble = memo(function SkillActivationBubble({ message }: { message: Message }) {
+const SkillActivationBubble = memo(function SkillActivationBubble({ message, appearance }: { message: Message; appearance: BubbleAppearance }) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const isStreaming = message.metadata?.streaming === true;
@@ -434,15 +514,11 @@ const SkillActivationBubble = memo(function SkillActivationBubble({ message }: {
   const skillDescription = useSkillStore(s => s.skills.find(sk => sk.name === skillName)?.description || '');
 
   const isResource = !!resourcePath;
-  const Icon = isResource ? FileCode : Sparkles;
   const label = isResource ? t('chat.skill.readingResource') : t('chat.skill.activating');
 
   return (
-    <div className="flex gap-3 md:gap-4 animate-fade-in">
-      <div className="flex-shrink-0 w-8 h-8 md:w-9 md:h-9 rounded-full bg-muted flex items-center justify-center shadow-elegant">
-        <Icon className="w-4 h-4 text-foreground/50" />
-      </div>
-      <div className="flex-1 max-w-[95%] md:max-w-[85%]">
+    <BubbleRow appearance={appearance}>
+      <div className={`flex-1 max-w-[95%] md:max-w-[85%] ${appearance.align === 'right' ? 'text-right' : ''}`}>
         <div className="rounded-2xl bg-muted/50 border border-border overflow-hidden">
           <button
             onClick={() => setExpanded(!expanded)}
@@ -482,7 +558,7 @@ const SkillActivationBubble = memo(function SkillActivationBubble({ message }: {
           )}
         </div>
       </div>
-    </div>
+    </BubbleRow>
   );
 });
 
@@ -491,7 +567,7 @@ const SkillActivationBubble = memo(function SkillActivationBubble({ message }: {
  * Activation: shows confirmed badge + resource file listing.
  * Resource read: shows file content in collapsible block.
  */
-const SkillResultBubble = memo(function SkillResultBubble({ message }: { message: Message }) {
+const SkillResultBubble = memo(function SkillResultBubble({ message, appearance }: { message: Message; appearance: BubbleAppearance }) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const content = message.content || '';
@@ -513,13 +589,13 @@ const SkillResultBubble = memo(function SkillResultBubble({ message }: { message
 
   if (isError) {
     return (
-      <div className="flex gap-3 md:gap-4 animate-fade-in">
-        <div className="w-8 md:w-9 flex-shrink-0" />
-        <div className="flex-1 max-w-[95%] md:max-w-[85%]">
+      <div className={`flex gap-3 md:gap-4 animate-fade-in ${appearance.align === 'right' ? 'flex-row-reverse' : ''}`}>
+        <SideSpacer appearance={appearance} />
+        <div className={`flex-1 max-w-[95%] md:max-w-[85%] ${appearance.align === 'right' ? 'text-right' : ''}`}>
           <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3">
             <span className="text-xs text-destructive">{content}</span>
           </div>
-          <Timestamp time={message.timestamp} />
+          <Timestamp time={message.timestamp} align={appearance.align} />
         </div>
       </div>
     );
@@ -537,9 +613,9 @@ const SkillResultBubble = memo(function SkillResultBubble({ message }: { message
     const isImageResource = imageFiles.length > 0 || content.includes('type="image"');
 
     return (
-      <div className="flex gap-3 md:gap-4 animate-fade-in">
-        <div className="w-8 md:w-9 flex-shrink-0" />
-        <div className="flex-1 max-w-[95%] md:max-w-[85%]">
+      <div className={`flex gap-3 md:gap-4 animate-fade-in ${appearance.align === 'right' ? 'flex-row-reverse' : ''}`}>
+        <SideSpacer appearance={appearance} />
+        <div className={`flex-1 max-w-[95%] md:max-w-[85%] ${appearance.align === 'right' ? 'text-right' : ''}`}>
           <div className="rounded-2xl border border-border bg-muted/30 overflow-hidden">
             <button
               onClick={() => setExpanded(!expanded)}
@@ -582,7 +658,7 @@ const SkillResultBubble = memo(function SkillResultBubble({ message }: { message
               </div>
             )}
           </div>
-          <Timestamp time={message.timestamp} />
+          <Timestamp time={message.timestamp} align={appearance.align} />
         </div>
       </div>
     );
@@ -594,9 +670,9 @@ const SkillResultBubble = memo(function SkillResultBubble({ message }: { message
   const skillBody = skillBodyMatch?.[1]?.trim() || '';
 
   return (
-    <div className="flex gap-3 md:gap-4 animate-fade-in">
-      <div className="w-8 md:w-9 flex-shrink-0" />
-      <div className="flex-1 max-w-[95%] md:max-w-[85%]">
+    <div className={`flex gap-3 md:gap-4 animate-fade-in ${appearance.align === 'right' ? 'flex-row-reverse' : ''}`}>
+      <SideSpacer appearance={appearance} />
+      <div className={`flex-1 max-w-[95%] md:max-w-[85%] ${appearance.align === 'right' ? 'text-right' : ''}`}>
         <div className="rounded-2xl border border-border bg-muted/30 overflow-hidden">
           <button
             onClick={() => setExpanded(!expanded)}
@@ -657,7 +733,7 @@ const SkillResultBubble = memo(function SkillResultBubble({ message }: { message
             </div>
           )}
         </div>
-        <Timestamp time={message.timestamp} />
+        <Timestamp time={message.timestamp} align={appearance.align} />
       </div>
     </div>
   );
