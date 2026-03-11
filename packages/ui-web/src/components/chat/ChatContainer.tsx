@@ -34,6 +34,7 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
   const addMessage = useSessionStore((s) => s.addMessage);
   const updateMessage = useSessionStore((s) => s.updateMessage);
   const loadSessionMessages = useSessionStore((s) => s.loadSessionMessages);
+  const setSessionStreaming = useSessionStore((s) => s.setSessionStreaming);
   const addAgentMessage = useAgentStore((s) => s.addAgentMessage);
   const updateAgentMessage = useAgentStore((s) => s.updateAgentMessage);
   const loadAgentSessionMessages = useAgentStore((s) => s.loadAgentSessionMessages);
@@ -158,8 +159,15 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
 
   const handleStopMind = useCallback(() => {
     if (session?.sessionType !== 'mind' || !session.isStreaming) return;
+
+    if (isDefaultAgent) {
+      setSessionStreaming(session.id, false);
+    } else {
+      setAgentSessionStreaming(currentAgentId, session.id, false);
+    }
+
     stopMindConversation(session.id);
-  }, [session]);
+  }, [currentAgentId, isDefaultAgent, session, setAgentSessionStreaming, setSessionStreaming]);
 
   const appendMessage = useCallback((targetSessionId: string, message: Message) => {
     if (isDefaultAgent) {

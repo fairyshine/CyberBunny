@@ -4,7 +4,7 @@ import { useSessionStore } from '@shared/stores/session';
 import { isImageAvatar } from '@shared/utils/imageUtils';
 import { Button } from '../ui/button';
 import { MoreHorizontal, Edit2, Trash2, Network, FolderOpen } from '../icons';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import type { Agent } from '@shared/types';
 import { ChevronRight, Pencil, ArrowRightLeft, Star, Settings } from 'lucide-react';
 import {
@@ -115,6 +115,12 @@ export function AgentList({ onItemClick, onOpenGraph, onOpenGroupFiles, onAgentS
     setCurrentAgent(agentId);
     onAgentSelect?.(agentId, reselected);
     onItemClick?.();
+  };
+
+  const handleAgentKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>, agentId: string) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    handleAgentClick(agentId);
   };
 
   const handleDeleteAgent = (agentId: string) => {
@@ -238,47 +244,55 @@ export function AgentList({ onItemClick, onOpenGraph, onOpenGroupFiles, onAgentS
 
     return (
       <div key={agent.id} className="relative">
-        <button
-          onClick={() => handleAgentClick(agent.id)}
+        <div
           className={`
-            w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left
+            w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors
             ${isActive ? 'bg-accent text-accent-foreground' : 'hover:bg-muted/50'}
             ${isStreaming ? 'streaming-border' : ''}
           `}
         >
           <div
-            className="w-7 h-7 rounded-full flex items-center justify-center text-base shrink-0 overflow-hidden"
-            style={agent.isDefault ? {
-              backgroundColor: 'hsl(var(--foreground))',
-              color: 'hsl(var(--background))'
-            } : {
-              backgroundColor: agent.color + '20',
-              color: agent.color
-            }}
+            role="button"
+            tabIndex={0}
+            aria-pressed={isActive}
+            onClick={() => handleAgentClick(agent.id)}
+            onKeyDown={(event) => handleAgentKeyDown(event, agent.id)}
+            className="flex min-w-0 flex-1 items-center gap-3 text-left outline-none"
           >
-            {isImageAvatar(agent.avatar)
-              ? <img src={agent.avatar} alt="avatar" className="w-full h-full object-cover" draggable={false} />
-              : agent.avatar}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium truncate">{agent.name}</span>
-              {agent.isDefault && (
-                <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary">
-                  {t('sidebar.agent.default')}
-                </span>
-              )}
-              {isCore && (
-                <span className="text-xs px-1.5 py-0.5 rounded bg-foreground/5 text-muted-foreground">
-                  {t('sidebar.agent.core')}
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center text-base shrink-0 overflow-hidden"
+              style={agent.isDefault ? {
+                backgroundColor: 'hsl(var(--foreground))',
+                color: 'hsl(var(--background))'
+              } : {
+                backgroundColor: agent.color + '20',
+                color: agent.color
+              }}
+            >
+              {isImageAvatar(agent.avatar)
+                ? <img src={agent.avatar} alt="avatar" className="w-full h-full object-cover" draggable={false} />
+                : agent.avatar}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium truncate">{agent.name}</span>
+                {agent.isDefault && (
+                  <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                    {t('sidebar.agent.default')}
+                  </span>
+                )}
+                {isCore && (
+                  <span className="text-xs px-1.5 py-0.5 rounded bg-foreground/5 text-muted-foreground">
+                    {t('sidebar.agent.core')}
+                  </span>
+                )}
+              </div>
+              {sessionCount > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  {t('sidebar.agent.sessions', { count: sessionCount })}
                 </span>
               )}
             </div>
-            {sessionCount > 0 && (
-              <span className="text-xs text-muted-foreground">
-                {t('sidebar.agent.sessions', { count: sessionCount })}
-              </span>
-            )}
           </div>
           {!agent.isDefault && (
             <Button
@@ -298,7 +312,7 @@ export function AgentList({ onItemClick, onOpenGraph, onOpenGroupFiles, onAgentS
           >
             <MoreHorizontal className="w-3.5 h-3.5" />
           </Button>
-        </button>
+        </div>
 
         {showCtx && (
           <>

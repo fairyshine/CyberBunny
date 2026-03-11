@@ -55,6 +55,7 @@ export function SessionList({ onItemClick, onSessionSelect, onEditProject, sessi
   const [dropTargetProjectId, setDropTargetProjectId] = useState<string | null>(null);
   const [mindInput, setMindInput] = useState('');
   const [isMindRunning, setIsMindRunning] = useState(false);
+  const [activeMindSessionId, setActiveMindSessionId] = useState<string | null>(null);
   const [mindStatus, setMindStatus] = useState<string | null>(null);
 
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(() => {
@@ -98,6 +99,15 @@ export function SessionList({ onItemClick, onSessionSelect, onEditProject, sessi
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showTrash, editingId, currentSession, currentAgentId, deleteAgentSession, deleteSession, isDefaultAgent]);
+
+  useEffect(() => {
+    if (!activeMindSessionId) return;
+    const activeMindSession = allSessions.find((session) => session.id === activeMindSessionId);
+    if (activeMindSession?.isStreaming) return;
+
+    setIsMindRunning(false);
+    setActiveMindSessionId(null);
+  }, [activeMindSessionId, allSessions]);
 
   const toggleProjectsListVisible = () => {
     const next = !projectsListVisible;
@@ -163,6 +173,7 @@ export function SessionList({ onItemClick, onSessionSelect, onEditProject, sessi
     }
 
     setIsMindRunning(true);
+    setActiveMindSessionId(null);
     setMindStatus(null);
 
     try {
@@ -173,6 +184,8 @@ export function SessionList({ onItemClick, onSessionSelect, onEditProject, sessi
         sessionSkillIds: enabledSkills,
         currentAgentId,
         onSessionReady: (mindSessionId) => {
+          setActiveMindSessionId(mindSessionId);
+
           if (isDefaultAgent) {
             if (enableSessionTabs) {
               openSession(mindSessionId);
