@@ -11,9 +11,9 @@ import { useSessionStore } from '@shared/stores/session';
 import { useAgentStore } from '@shared/stores/agent';
 import { useToolStore } from '@shared/stores/tools';
 import { builtinTools } from '@shared/services/ai/tools';
-import { isMCPToolId } from '@shared/services/ai/mcp';
 import { detectPlatform } from '@shared/platform/detect';
-import { ToolIcon, toolDisplayInfo } from '../ToolIcon';
+import { ToolIcon } from '../ToolIcon';
+import { resolveToolDisplay } from '../../lib/toolDisplay';
 
 const skillIconMap: Record<string, string> = {
   'data-analysis': 'python',
@@ -50,20 +50,6 @@ export default function ChatInput({ onSend, onStop, isLoading, disabled, placeho
   const setAgentSessionSkills = useAgentStore((s) => s.setAgentSessionSkills);
   const mcpConnections = useToolStore((s) => s.mcpConnections);
   const builtinToolIds = useMemo(() => Object.keys(builtinTools), []);
-  const mcpToolMap = useMemo(() => {
-    return new Map(
-      mcpConnections.flatMap((connection) =>
-        connection.tools.map((tool) => [
-          tool.id,
-          {
-            name: tool.title || tool.name,
-            description: tool.description || `${connection.name} / ${tool.name}`,
-            icon: 'plug',
-          },
-        ] as const),
-      ),
-    );
-  }, [mcpConnections]);
   const allToolIds = useMemo(
     () => [...builtinToolIds, ...mcpConnections.flatMap((connection) => connection.tools.map((tool) => tool.id))],
     [builtinToolIds, mcpConnections],
@@ -209,6 +195,11 @@ export default function ChatInput({ onSend, onStop, isLoading, disabled, placeho
   const displayTools = scopeMode === 'session' ? effectiveTools : enabledTools;
   const displaySkills = scopeMode === 'session' ? effectiveSkills : enabledSkills;
 
+  const toolInfoMap = useMemo(
+    () => new Map(allToolIds.map((toolId) => [toolId, resolveToolDisplay(toolId, mcpConnections)])),
+    [allToolIds, mcpConnections],
+  );
+
   const enabledToolCount = allToolIds.filter((id) => displayTools.includes(id)).length;
   const enabledSkillCount = skills.filter((s) => displaySkills.includes(s.id)).length;
   const enabledCount = enabledToolCount + enabledSkillCount;
@@ -261,10 +252,9 @@ export default function ChatInput({ onSend, onStop, isLoading, disabled, placeho
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   {allToolIds.map((toolId) => {
-                    const info = toolDisplayInfo[toolId] || mcpToolMap.get(toolId) || { name: toolId, description: '', icon: 'wrench' };
+                    const info = toolInfoMap.get(toolId) || { name: toolId, description: '', icon: 'wrench', isMCP: false, rawId: toolId };
                     const isEnabled = displayTools.includes(toolId);
                     const isExecDisabled = toolId === 'exec' && !execAvailable;
-                    const isMCPTool = isMCPToolId(toolId);
                     const isLocked = isSessionStarted;
                     return (
                       <button
@@ -285,7 +275,6 @@ export default function ChatInput({ onSend, onStop, isLoading, disabled, placeho
                       >
                         <ToolIcon icon={info.icon} className="w-3.5 h-3.5" />
                         <span>{info.name}</span>
-                        {isMCPTool && <span className="text-[10px] opacity-70">MCP</span>}
                       </button>
                     );
                   })}
