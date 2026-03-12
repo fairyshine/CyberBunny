@@ -375,3 +375,19 @@ code {
     0 2px 8px hsl(var(--foreground) / 0.08);
   border-radius: var(--radius);
 }
+
+
+.math-content mjx-container {
+  margin: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.math-content mjx-container[jax='SVG'][display='true'] {
+  margin: 0.75rem 0;
+}
+
+.math-content mjx-container[jax='SVG'] > svg {
+  max-width: 100%;
+}

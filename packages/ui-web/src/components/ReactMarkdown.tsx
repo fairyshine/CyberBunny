@@ -1,9 +1,52 @@
+import { useEffect, useRef } from 'react';
+
+
+declare global {
+  interface Window {
+    MathJax?: {
+      typesetPromise?: (elements?: HTMLElement[]) => Promise<void>;
+      typesetClear?: (elements?: HTMLElement[]) => void;
+    };
+  }
+}
+
 interface ReactMarkdownProps {
   content: string;
 }
 
 // 简单的 Markdown 渲染器
 export default function ReactMarkdown({ content }: ReactMarkdownProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+
+    let cancelled = false;
+    let attempts = 0;
+
+    const tryTypeset = () => {
+      if (cancelled) return;
+      if (!window.MathJax?.typesetPromise) {
+        if (attempts < 20) {
+          attempts += 1;
+          window.setTimeout(tryTypeset, 250);
+        }
+        return;
+      }
+
+      window.MathJax.typesetClear?.([element]);
+      window.MathJax.typesetPromise([element]).catch((error) => {
+        console.error('MathJax typeset failed:', error);
+      });
+    };
+
+    tryTypeset();
+    return () => {
+      cancelled = true;
+    };
+  }, [content]);
+
   // 渲染代码块
   const renderCodeBlock = (code: string, language?: string) => {
     return (
@@ -175,7 +218,7 @@ export default function ReactMarkdown({ content }: ReactMarkdownProps) {
   const parts = parseContent(content);
 
   return (
-    <div className="prose prose-sm max-w-none">
+    <div ref={containerRef} className="prose prose-sm max-w-none math-content">
       {parts.map((part, index) => (
         part.type === 'code' ? (
           <div key={index}>{renderCodeBlock(part.content, part.language)}</div>

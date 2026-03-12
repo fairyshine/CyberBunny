@@ -1,5 +1,5 @@
 import type { ModelMessage, Tool } from 'ai';
-import type { ChatSessionMeta, LLMConfig, MindDialogueSnapshot, Session } from '../../types';
+import type { ChatSessionMeta, LLMConfig, Message, MindDialogueSnapshot, Session } from '../../types';
 import { useAgentStore, DEFAULT_AGENT_ID } from '../../stores/agent';
 import { useSessionStore } from '../../stores/session';
 import { useSettingsStore } from '../../stores/settings';
@@ -113,8 +113,30 @@ export async function runChatConversation(agentName: string, input: string, cont
     messages: [createSnapshotMessage({ role: 'user', content: sourceTask, type: 'normal' })],
   };
 
-  const sourceCallbacks = createVisibleCallbacks(sourceAgentId, sourceSession.id, sourceAgentId, sourceAgent.name);
-  const targetCallbacks = createVisibleCallbacks(targetAgent.id, targetSession.id, targetAgent.id, targetAgent.name);
+  const sourceCallbacks = createVisibleCallbacks(
+    sourceAgentId,
+    sourceSession.id,
+    sourceAgentId,
+    sourceAgent.name,
+    {
+      agentId: targetAgent.id,
+      sessionId: targetSession.id,
+      speakerAgentId: sourceAgentId,
+      speakerAgentName: sourceAgent.name,
+    },
+  );
+  const targetCallbacks = createVisibleCallbacks(
+    targetAgent.id,
+    targetSession.id,
+    targetAgent.id,
+    targetAgent.name,
+    {
+      agentId: sourceAgentId,
+      sessionId: sourceSession.id,
+      speakerAgentId: targetAgent.id,
+      speakerAgentName: targetAgent.name,
+    },
+  );
 
   const activeToolIds = (context.enabledToolIds || []).filter((toolId) => toolId !== 'chat');
   const activeToolContext = {
@@ -187,9 +209,6 @@ export async function runChatConversation(agentName: string, input: string, cont
       visibleTextType: 'response',
       visibleTextMode: 'per-step',
       exposeToolMessages: true,
-      onPeerMessage: (content) => {
-        appendSessionMessage(targetAgent.id, targetSession.id, createAgentSpokenMessage(sourceAgentId, sourceAgent.name, content));
-      },
     };
     const activeTrack: PairedDialogueTrack = {
       llmConfig: context.llmConfig,
@@ -204,9 +223,6 @@ export async function runChatConversation(agentName: string, input: string, cont
       exposeToolMessages: true,
       hideSpecialTokenInVisibleText: END_SESSION_TOKEN,
       visibleTextSanitizer: (content) => sanitizeTerminalVisibleText(content, END_SESSION_TOKEN),
-      onPeerMessage: (content) => {
-        appendSessionMessage(sourceAgentId, sourceSession.id, createAgentSpokenMessage(targetAgent.id, targetAgent.name, content));
-      },
       shouldStop: shouldEndSession,
     };
 
@@ -480,21 +496,76 @@ function buildChatSessionName(prefix: string, sourceTask: string): string {
   return base.length > 60 ? `${base.slice(0, 57)}...` : base;
 }
 
+interface MirroredVisibleSession {
+  agentId: string;
+  sessionId: string;
+  speakerAgentId: string;
+  speakerAgentName: string;
+}
+
+function shouldMirrorVisibleMessage(message: Message): boolean {
+  return message.role === 'assistant' && (message.type === 'response' || message.type === 'normal');
+}
+
+function createMirroredVisibleMessage(message: Message, mirror: MirroredVisibleSession): Message {
+  return {
+    ...message,
+    role: 'user',
+    metadata: {
+      ...message.metadata,
+      speakerAgentId: mirror.speakerAgentId,
+      speakerAgentName: mirror.speakerAgentName,
+    },
+  };
+}
+
 function createVisibleCallbacks(
   agentId: string,
   sessionId: string,
   speakerAgentId: string,
   speakerAgentName: string,
+  mirroredVisibleSession?: MirroredVisibleSession,
 ): DialogueVisibleCallbacks {
   return {
-    addMessage: (message) => appendSessionMessage(agentId, sessionId, {
-      ...message,
-      metadata: {
-        ...message.metadata,
-        speakerAgentId,
-        speakerAgentName,
-      },
-    }),
-    updateMessage: (messageId, updates) => updateSessionMessage(agentId, sessionId, messageId, updates),
+    addMessage: (message) => {
+      const taggedMessage = {
+        ...message,
+        metadata: {
+          ...message.metadata,
+          speakerAgentId,
+          speakerAgentName,
+        },
+      };
+      appendSessionMessage(agentId, sessionId, taggedMessage);
+
+      if (mirroredVisibleSession && shouldMirrorVisibleMessage(taggedMessage)) {
+        appendSessionMessage(
+          mirroredVisibleSession.agentId,
+          mirroredVisibleSession.sessionId,
+          createMirroredVisibleMessage(taggedMessage, mirroredVisibleSession),
+        );
+      }
+    },
+    updateMessage: (messageId, updates) => {
+      updateSessionMessage(agentId, sessionId, messageId, updates);
+
+      if (mirroredVisibleSession) {
+        updateSessionMessage(
+          mirroredVisibleSession.agentId,
+          mirroredVisibleSession.sessionId,
+          messageId,
+          {
+            ...updates,
+            metadata: updates.metadata
+              ? {
+                  ...updates.metadata,
+                  speakerAgentId: mirroredVisibleSession.speakerAgentId,
+                  speakerAgentName: mirroredVisibleSession.speakerAgentName,
+                }
+              : updates.metadata,
+          },
+        );
+      }
+    },
   };
 }
