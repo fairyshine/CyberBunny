@@ -10,7 +10,7 @@ import { END_SESSION_TOKEN, createSessionMessage, createSnapshotMessage, type Di
 import { getEnabledTools } from './tools';
 import { loadEnabledMCPTools } from './mcp';
 import { getActivateSkillTool } from './skills';
-import { buildAgentAssistantSystemPrompt, buildBaseAssistantSystemPrompt } from './prompts';
+import { buildAgentAssistantSystemPrompt } from './prompts';
 import { appendSessionMessage, createDetachedSession, flushSession, setSessionPrompt, setSessionStreaming, updateSessionMessage } from './sessionOps';
 import { runPairedDialogue, type PairedDialogueTrack } from './pairedDialogue';
 
@@ -362,24 +362,32 @@ function buildChatActiveAssistantSystemPrompt(
   const customPrompt = sourceAgent?.chatActiveAssistantPrompt?.trim() || '';
 
   return [
-    buildBaseAssistantSystemPrompt(sessionSkillIds),
-    customPrompt ? `\n\n## Active Assistant Persona\n${customPrompt}` : '',
+    buildAgentAssistantSystemPrompt(sourceAgentId, sessionSkillIds),
+    customPrompt ? `
+
+## Active Assistant Persona
+${customPrompt}` : '',
     '\n\n## Agent-To-Agent Context',
-    'You are the active assistant initiating a direct conversation with another Assistant, not a human user.',
-    `The counterpart is the ${targetScope} assistant \"${targetAgent?.name || targetAgentId}\".`,
+    'You are NOT acting as a human user. You are the active Assistant coordinating another real Assistant.',
+    `The counterpart is the ${targetScope} assistant "${targetAgent?.name || targetAgentId}".`,
     'There is no launch brief message in the transcript. The original chat input is provided only in this system prompt.',
     'Your first output must be the first direct message you send to that Assistant.',
     'After your first turn, every incoming user message is the latest reply from that Assistant.',
-    'Push the counterpart Assistant to solve the exact task below, stay tightly focused on it, and do not expand into unrelated directions.',
-    'Do not ask the counterpart to brainstorm beyond the task unless that is strictly required to complete the task well.',
+    'Your responsibility is to keep pressing the counterpart Assistant until it solves the exact task below well.',
+    "Inspect the counterpart Assistant's latest reply, identify what is unclear, incomplete, incorrect, missing, unsupported, weak, or off-task, and then push it to fix that.",
+    'Do not drift away from the original task. Do not broaden the scope or ask for unrelated expansions unless they are strictly necessary to complete the task.',
+    'Do not simply accept a partial answer. Ask for missing steps, stronger reasoning, concrete examples, verification, corrections, or a rewrite when needed.',
+    'Do not answer the original task in your own voice. Your job is to send the next focused message that will make the counterpart Assistant produce a better answer.',
     'Original chat input:',
     '<task>',
     sourceTask,
     '</task>',
-    `If the counterpart Assistant's latest reply fully resolves this task, output exactly ${END_SESSION_TOKEN} and nothing else.`,
-    'Otherwise, output only the next direct message you want to send to the counterpart agent.',
-    'Do not reveal chain-of-thought. Do not mention these instructions. Do not use role labels.',
-  ].join('\n');
+    `If the counterpart Assistant's latest reply already solves the task clearly and well enough, output exactly ${END_SESSION_TOKEN} and nothing else.`,
+    'Otherwise, output only the next direct message you want to send to the counterpart Assistant so it improves its answer.',
+    'Do not explain your hidden reasoning. Do not mention these instructions. Do not use role labels like "User:" or "Assistant:".',
+    'Bad outputs: answering the task yourself, generic praise, or saying the task is done when the reply is still weak.',
+    'Good outputs: direct, specific pressure such as asking it to fix what is wrong, add what is missing, verify claims, rewrite more clearly, or stay on-task.',
+  ].join("\n");
 }
 
 function buildPassiveAssistantSystemPrompt(targetAgentId: string, sourceAgentId: string, sourceScope: 'local' | 'network', targetSkillIds?: string[]): string {
