@@ -6,12 +6,13 @@ import { useSettingsStore } from '../../stores/settings';
 import { useToolStore } from '../../stores/tools';
 import { useSkillStore } from '../../stores/skills';
 import { isAbortError } from '../../utils/errors';
-import { END_SESSION_TOKEN, createSessionMessage, createSnapshotMessage, runDialogueTurn, type DialogueVisibleCallbacks } from './dialogue';
+import { END_SESSION_TOKEN, createSessionMessage, createSnapshotMessage, type DialogueVisibleCallbacks } from './dialogue';
 import { getEnabledTools } from './tools';
 import { loadEnabledMCPTools } from './mcp';
 import { getActivateSkillTool } from './skills';
 import { buildAgentAssistantSystemPrompt, buildBaseAssistantSystemPrompt } from './prompts';
 import { appendSessionMessage, createDetachedSession, flushSession, setSessionPrompt, setSessionStreaming, updateSessionMessage } from './sessionOps';
+import { runPairedDialogue, type PairedDialogueTrack } from './pairedDialogue';
 
 const MAX_CHAT_TURNS = 8;
 const chatAbortControllers = new Map<string, AbortController>();
@@ -171,55 +172,50 @@ export async function runChatConversation(agentName: string, input: string, cont
     appendSessionMessage(sourceAgentId, sourceSession.id, initialTaskMessage);
     appendSessionMessage(targetAgent.id, targetSession.id, createAgentSpokenMessage(sourceAgentId, sourceAgent.name, sourceTask));
 
-    for (let turn = 0; turn < MAX_CHAT_TURNS; turn += 1) {
-      const passiveReply = await runDialogueTurn({
-        llmConfig: targetRuntime.llmConfig,
-        systemPrompt: passiveAssistantSystemPrompt,
-        transcript: passiveTranscript,
-        history: passiveHistory,
-        tools: passiveTools,
-        abortSignal: abortController.signal,
-        visibleCallbacks: targetCallbacks,
-        visibleTextRole: 'assistant',
-        visibleTextType: 'response',
-        visibleTextMode: 'per-step',
-        exposeToolMessages: true,
-      });
+    const passiveTrack: PairedDialogueTrack = {
+      llmConfig: targetRuntime.llmConfig,
+      systemPrompt: passiveAssistantSystemPrompt,
+      transcript: passiveTranscript,
+      history: passiveHistory,
+      tools: passiveTools,
+      visibleCallbacks: targetCallbacks,
+      visibleTextRole: 'assistant',
+      visibleTextType: 'response',
+      visibleTextMode: 'per-step',
+      exposeToolMessages: true,
+      onPeerMessage: (content) => {
+        appendSessionMessage(targetAgent.id, targetSession.id, createAgentSpokenMessage(sourceAgentId, sourceAgent.name, content));
+      },
+    };
+    const activeTrack: PairedDialogueTrack = {
+      llmConfig: context.llmConfig,
+      systemPrompt: activeAssistantSystemPrompt,
+      transcript: activeTranscript,
+      history: activeHistory,
+      tools: activeTools,
+      visibleCallbacks: sourceCallbacks,
+      visibleTextRole: 'assistant',
+      visibleTextType: 'response',
+      visibleTextMode: 'per-step',
+      exposeToolMessages: true,
+      hideSpecialTokenInVisibleText: END_SESSION_TOKEN,
+      onPeerMessage: (content) => {
+        appendSessionMessage(sourceAgentId, sourceSession.id, createAgentSpokenMessage(targetAgent.id, targetAgent.name, content));
+      },
+      shouldStop: shouldEndSession,
+    };
 
-      if (!passiveReply) {
-        break;
-      }
-
-      finalTargetReply = passiveReply;
-      passiveTranscript.push({ role: 'assistant', content: passiveReply });
-      activeTranscript.push({ role: 'user', content: passiveReply });
-      activeHistory.messages.push(createSnapshotMessage({ role: 'user', content: passiveReply, type: 'normal' }));
-      appendSessionMessage(sourceAgentId, sourceSession.id, createAgentSpokenMessage(targetAgent.id, targetAgent.name, passiveReply));
-
-      const activeMessage = await runDialogueTurn({
-        llmConfig: context.llmConfig,
-        systemPrompt: activeAssistantSystemPrompt,
-        transcript: activeTranscript,
-        history: activeHistory,
-        tools: activeTools,
-        abortSignal: abortController.signal,
-        visibleCallbacks: sourceCallbacks,
-        visibleTextRole: 'assistant',
-        visibleTextType: 'response',
-        visibleTextMode: 'per-step',
-        exposeToolMessages: true,
-        hideSpecialTokenInVisibleText: END_SESSION_TOKEN,
-      });
-
-      if (!activeMessage || shouldEndSession(activeMessage)) {
-        break;
-      }
-
-      activeTranscript.push({ role: 'assistant', content: activeMessage });
-      passiveTranscript.push({ role: 'user', content: activeMessage });
-      passiveHistory.messages.push(createSnapshotMessage({ role: 'user', content: activeMessage, type: 'normal' }));
-      appendSessionMessage(targetAgent.id, targetSession.id, createAgentSpokenMessage(sourceAgentId, sourceAgent.name, activeMessage));
-    }
+    await runPairedDialogue({
+      maxTurns: MAX_CHAT_TURNS,
+      abortSignal: abortController.signal,
+      firstTrack: passiveTrack,
+      secondTrack: activeTrack,
+      onReply: (speaker, content) => {
+        if (speaker === 'first') {
+          finalTargetReply = content;
+        }
+      },
+    });
 
     return {
       sourceSessionId: sourceSession.id,

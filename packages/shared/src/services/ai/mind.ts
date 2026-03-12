@@ -6,12 +6,13 @@ import { useSessionStore } from '../../stores/session';
 import { useSettingsStore } from '../../stores/settings';
 import { useToolStore } from '../../stores/tools';
 import { isAbortError } from '../../utils/errors';
-import { END_SESSION_TOKEN, createSessionMessage, createSnapshotMessage, runDialogueTurn, type DialogueVisibleCallbacks } from './dialogue';
+import { END_SESSION_TOKEN, createSessionMessage, createSnapshotMessage, type DialogueVisibleCallbacks } from './dialogue';
 import { getEnabledTools } from './tools';
 import { loadEnabledMCPTools } from './mcp';
 import { getActivateSkillTool } from './skills';
 import { buildAgentAssistantSystemPrompt } from './prompts';
 import { appendSessionMessage, createDetachedSession, flushSession, setSessionPrompt, setSessionStreaming, updateSessionMessage } from './sessionOps';
+import { runPairedDialogue, type PairedDialogueTrack } from './pairedDialogue';
 
 export const MIND_SESSION_NAME = 'mind_session';
 const MAX_MIND_TURNS = 8;
@@ -114,69 +115,48 @@ export async function runMindConversation(input: string, context: MindToolContex
     syncMindState();
 
     let finalAssistantReply = '';
+    const assistantTrack: PairedDialogueTrack = {
+      llmConfig: context.llmConfig,
+      systemPrompt: assistantSystemPrompt,
+      transcript: assistantTranscript,
+      history: assistantHistory,
+      tools,
+      visibleCallbacks: sessionCallbacks,
+      visibleTextRole: 'assistant',
+      visibleTextType: 'response',
+      visibleTextMode: 'per-step',
+      exposeToolMessages: true,
+    };
+    const userTrack: PairedDialogueTrack = {
+      llmConfig: context.llmConfig,
+      systemPrompt: userSystemPrompt,
+      transcript: userTranscript,
+      history: userHistory,
+      tools,
+      visibleCallbacks: sessionCallbacks,
+      visibleTextRole: 'user',
+      visibleTextType: 'normal',
+      visibleTextMode: 'single',
+      exposeToolMessages: false,
+      hideSpecialTokenInVisibleText: END_SESSION_TOKEN,
+      shouldStop: shouldEndMindSession,
+    };
 
-    for (let turn = 0; turn < MAX_MIND_TURNS; turn += 1) {
-      const assistantReply = await runDialogueTurn({
-        llmConfig: context.llmConfig,
-        systemPrompt: assistantSystemPrompt,
-        transcript: assistantTranscript,
-        history: assistantHistory,
-        tools,
-        abortSignal: abortController.signal,
-        visibleCallbacks: sessionCallbacks,
-        visibleTextRole: 'assistant',
-        visibleTextType: 'response',
-        visibleTextMode: 'per-step',
-        exposeToolMessages: true,
-      });
-
-      syncMindState();
-      if (!assistantReply) break;
-
-      finalAssistantReply = assistantReply;
-      assistantTranscript.push({ role: 'assistant', content: assistantReply });
-
-      const assistantAsUserMessage = createSnapshotMessage({
-        role: 'user',
-        content: assistantReply,
-        type: 'normal',
-      });
-      userTranscript.push({ role: 'user', content: assistantReply });
-      userHistory.messages.push(assistantAsUserMessage);
-
-      const nextUserTurn = await runDialogueTurn({
-        llmConfig: context.llmConfig,
-        systemPrompt: userSystemPrompt,
-        transcript: userTranscript,
-        history: userHistory,
-        tools,
-        abortSignal: abortController.signal,
-        visibleCallbacks: sessionCallbacks,
-        visibleTextRole: 'user',
-        visibleTextType: 'normal',
-        visibleTextMode: 'single',
-        exposeToolMessages: false,
-        hideSpecialTokenInVisibleText: END_SESSION_TOKEN,
-      });
-
-      syncMindState();
-      if (!nextUserTurn) {
-        break;
-      }
-
-      userTranscript.push({ role: 'assistant', content: nextUserTurn });
-
-      if (shouldEndMindSession(nextUserTurn)) {
-        break;
-      }
-
-      assistantTranscript.push({ role: 'user', content: nextUserTurn });
-      assistantHistory.messages.push(createSnapshotMessage({
-        role: 'user',
-        content: nextUserTurn,
-        type: 'normal',
-      }));
-    }
+    await runPairedDialogue({
+      maxTurns: MAX_MIND_TURNS,
+      abortSignal: abortController.signal,
+      firstTrack: assistantTrack,
+      secondTrack: userTrack,
+      onReply: (speaker, content) => {
+        syncMindState();
+        if (speaker === 'first') {
+          finalAssistantReply = content;
+        }
+      },
+      onTransfer: () => {
+        syncMindState();
+      },
+    });
 
     return {
       sessionId: session.id,
