@@ -173,6 +173,7 @@ function GeneralSection() {
   const { t } = useTranslation();
   const {
     language, setLanguage,
+    codeThemePreset, setCodeThemePreset,
     enableSessionTabs, setEnableSessionTabs,
     masterVolume, setMasterVolume,
     masterMuted, setMasterMuted,
@@ -195,6 +196,24 @@ function GeneralSection() {
               <SelectItem value="system">{t('settings.language.system')}</SelectItem>
               <SelectItem value="zh-CN">{t('settings.language.zhCN')}</SelectItem>
               <SelectItem value="en-US">{t('settings.language.enUS')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </SettingsRow>
+
+        <Separator />
+
+        <SettingsRow label={t('settings.codeTheme')} hint={t('settings.codeThemeHint')}>
+          <Select value={codeThemePreset} onValueChange={(v) => setCodeThemePreset(v as any)}>
+            <SelectTrigger className="w-[220px] h-9 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="github">{t('settings.codeTheme.github')}</SelectItem>
+              <SelectItem value="vscode">{t('settings.codeTheme.vscode')}</SelectItem>
+              <SelectItem value="one">{t('settings.codeTheme.one')}</SelectItem>
+              <SelectItem value="rose-pine">{t('settings.codeTheme.rosePine')}</SelectItem>
+              <SelectItem value="kanagawa">{t('settings.codeTheme.kanagawa')}</SelectItem>
+              <SelectItem value="aurora">{t('settings.codeTheme.aurora')}</SelectItem>
             </SelectContent>
           </Select>
         </SettingsRow>

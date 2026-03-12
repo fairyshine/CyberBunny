@@ -391,3 +391,45 @@ code {
 .math-content mjx-container[jax='SVG'] > svg {
   max-width: 100%;
 }
+
+.shiki-block {
+  -webkit-overflow-scrolling: touch;
+}
+
+.shiki-block pre {
+  margin: 0 !important;
+  padding: 1rem 1.125rem !important;
+  min-width: max-content;
+  border: 0 !important;
+  border-radius: 0 !important;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Consolas', monospace !important;
+  font-size: 0.875rem !important;
+  line-height: 1.05 !important;
+  tab-size: 2;
+}
+
+.shiki-block code {
+  display: block;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  font-size: inherit !important;
+  color: inherit !important;
+}
+
+.shiki-block code::before,
+.shiki-block code::after {
+  content: none !important;
+}
+
+.shiki-block .line {
+  display: block;
+  line-height: 1.05 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.shiki-block .line:empty::before {
+  content: ' ';
+}

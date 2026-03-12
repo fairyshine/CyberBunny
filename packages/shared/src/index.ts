@@ -10,7 +10,7 @@ export * from './types';
 // Stores
 export { useSessionStore, selectCurrentSession, selectActiveSessions, selectDeletedSessions } from './stores/session';
 export { useSettingsStore, setThemeHandler, setLanguageHandler, resolveLanguage } from './stores/settings';
-export type { Theme, Language } from './stores/settings';
+export type { Theme, Language, CodeThemePreset } from './stores/settings';
 export { useToolStore, getBuiltinToolIds, getMCPToolIds } from './stores/tools';
 export type { MCPConnection, MCPToolDescriptor, MCPTransportType } from './stores/tools';
 export { useSkillStore } from './stores/skills';

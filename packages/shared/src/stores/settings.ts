@@ -6,6 +6,7 @@ import type { UserProfile, AgentProfile, LLMPreset } from '../types';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type Language = 'zh-CN' | 'en-US' | 'system';
+export type CodeThemePreset = 'github' | 'vscode' | 'one' | 'rose-pine' | 'kanagawa' | 'aurora';
 
 const SUPPORTED_TOOL_IDS = new Set(['python', 'web_search', 'file_manager', 'memory', 'mind', 'chat', 'exec', 'cron', 'heartbeat']);
 const DEFAULT_ENABLED_TOOLS = ['python', 'web_search', 'file_manager', 'memory', 'mind', 'chat'];
@@ -51,6 +52,8 @@ interface SettingsState {
   // UI settings
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  codeThemePreset: CodeThemePreset;
+  setCodeThemePreset: (preset: CodeThemePreset) => void;
 
   // Language settings
   language: Language;
@@ -137,6 +140,12 @@ export const useSettingsStore = create<SettingsState>()(
       setTheme: (theme) => {
         set({ theme });
         onThemeChange?.(theme);
+      },
+
+      codeThemePreset: 'github',
+      setCodeThemePreset: (preset) => {
+        logSettings('info', `Code theme preset: ${preset}`);
+        set({ codeThemePreset: preset });
       },
 
       language: 'system',
@@ -288,10 +297,13 @@ export const useSettingsStore = create<SettingsState>()(
               delete persisted.soundEnabled;
             }
           }
+          if (version < 3 && !persisted.codeThemePreset) {
+            persisted.codeThemePreset = 'github';
+          }
         }
         return persisted;
       },
-      version: 2,
+      version: 3,
     }
   )
 );

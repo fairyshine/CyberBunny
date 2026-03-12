@@ -7,24 +7,12 @@ import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Zap } from '../icons';
 import { Sparkles, FileCode, Folder, File } from 'lucide-react';
-import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
-import python from 'react-syntax-highlighter/dist/esm/languages/hljs/python';
-import javascript from 'react-syntax-highlighter/dist/esm/languages/hljs/javascript';
-import typescript from 'react-syntax-highlighter/dist/esm/languages/hljs/typescript';
-import bash from 'react-syntax-highlighter/dist/esm/languages/hljs/bash';
-import json from 'react-syntax-highlighter/dist/esm/languages/hljs/json';
-import { atomOneDark, atomOneLight } from 'react-syntax-highlighter/dist/esm/styles/hljs';
+import ShikiCodeBlock from '../ShikiCodeBlock';
 import { useSettingsStore } from '@shared/stores/settings';
 import { useSkillStore } from '@shared/stores/skills';
 import { useAgentStore } from '@shared/stores/agent';
 import { isImageAvatar } from '@shared/utils/imageUtils';
 import { getToolIcon } from '../ToolIcon';
-
-SyntaxHighlighter.registerLanguage('python', python);
-SyntaxHighlighter.registerLanguage('javascript', javascript);
-SyntaxHighlighter.registerLanguage('typescript', typescript);
-SyntaxHighlighter.registerLanguage('bash', bash);
-SyntaxHighlighter.registerLanguage('json', json);
 
 interface MessageListProps {
   messages: Message[];
@@ -391,7 +379,7 @@ const ProcessBubble = memo(function ProcessBubble({ message, appearance }: { mes
                   </pre>
                 ) : (
                   <>
-                    <div className="text-xs font-semibold text-muted-foreground mb-2">Parameters:</div>
+                    <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">Parameters</div>
                     <ToolInputDisplay input={message.toolInput} toolName={message.toolName} />
                   </>
                 )
@@ -419,23 +407,29 @@ const ToolResultBubble = memo(function ToolResultBubble({ message, appearance }:
     : rawContent;
 
   const previewText = content.split('\n')[0].slice(0, 80);
+  const resultBadgeClassName = isError
+    ? 'border-destructive/20 bg-destructive/10 text-destructive'
+    : 'border-primary/15 bg-primary/5 text-primary/85';
+  const resultPanelClassName = isError
+    ? 'rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-3 text-xs font-mono text-destructive/90 overflow-x-auto whitespace-pre-wrap break-all max-h-64 overflow-y-auto shadow-sm'
+    : 'rounded-xl border border-border/60 bg-background/50 px-3 py-3 text-xs font-mono text-foreground/80 overflow-x-auto whitespace-pre-wrap break-all max-h-64 overflow-y-auto shadow-sm';
 
   return (
     <div className={`flex gap-3 md:gap-4 animate-fade-in ${appearance.align === 'right' ? 'flex-row-reverse' : ''}`}>
       <SideSpacer appearance={appearance} />
       <div className={`flex-1 max-w-[95%] md:max-w-[85%] ${appearance.align === 'right' ? 'text-right' : ''}`}>
-        <div className={`rounded-2xl border overflow-hidden shadow-elegant ${
-          isError ? 'border-destructive/30 bg-destructive/5' : 'border-foreground/10 bg-muted/30'
+        <div className={`rounded-2xl border overflow-hidden shadow-elegant backdrop-blur-sm ${
+          isError ? 'border-destructive/20 bg-destructive/5' : 'border-border/60 bg-muted/35'
         }`}>
           <button
             onClick={() => setExpanded(!expanded)}
             className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
-              isError ? 'hover:bg-destructive/10' : 'hover:bg-muted/50'
+              isError ? 'hover:bg-destructive/10' : 'hover:bg-muted/55'
             }`}
           >
             <svg
               className={`w-3 h-3 transition-transform ${expanded ? 'rotate-90' : ''} ${
-                isError ? 'text-destructive' : 'text-foreground/60'
+                isError ? 'text-destructive/80' : 'text-foreground/50'
               }`}
               fill="none"
               viewBox="0 0 24 24"
@@ -443,16 +437,17 @@ const ToolResultBubble = memo(function ToolResultBubble({ message, appearance }:
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
-            <Badge
-              variant={isError ? 'destructive' : 'outline'}
-              className="text-[10px] px-2 py-0.5 font-medium"
-            >
+            <Badge variant="outline" className={`text-[10px] px-2 py-0.5 font-medium border ${resultBadgeClassName}`}>
               {isError ? t('chat.toolResult.error') : t('chat.toolResult.result')}
             </Badge>
             {message.toolName && (
-              <code className="text-xs font-mono text-muted-foreground">{message.toolName}</code>
+              <code className="inline-flex items-center rounded-md border border-border/60 bg-background/45 px-2 py-1 text-[11px] font-mono text-foreground/70">
+                {message.toolName}
+              </code>
             )}
-            <span className="text-xs text-muted-foreground truncate flex-1 text-left">{previewText}</span>
+            <span className={`text-xs truncate flex-1 text-left ${isError ? 'text-destructive/80' : 'text-muted-foreground'}`}>
+              {previewText}
+            </span>
             {isStreaming && (
               <div className="flex gap-1">
                 <span className="w-1 h-1 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -462,19 +457,26 @@ const ToolResultBubble = memo(function ToolResultBubble({ message, appearance }:
             )}
           </button>
           {expanded && (
-            <div className="px-4 pb-3 border-t border-border/30 animate-slide-in">
-              <pre className="mt-3 text-xs bg-background/50 rounded-md p-3 overflow-x-auto font-mono text-foreground/80 whitespace-pre-wrap break-all max-h-64 overflow-y-auto border-elegant">
+            <div className="border-t border-border/40 px-4 py-3 animate-slide-in">
+              <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">
+                Output
+              </div>
+              <pre className={resultPanelClassName}>
                 {content}
               </pre>
               {(message.metadata?.files as Array<{ data: string; mediaType: string }> | undefined)
                 ?.filter(f => f.mediaType?.startsWith('image/'))
                 .map((file, i) => (
-                  <img
-                    key={i}
-                    src={`data:${file.mediaType};base64,${file.data}`}
-                    alt={`${message.toolName} result ${i + 1}`}
-                    className="mt-3 max-w-full max-h-80 rounded-md border-elegant shadow-elegant object-contain"
-                  />
+                  <div key={i} className="mt-3 rounded-xl border border-border/60 bg-background/45 p-2 shadow-sm">
+                    <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">
+                      Image {i + 1}
+                    </div>
+                    <img
+                      src={`data:${file.mediaType};base64,${file.data}`}
+                      alt={`${message.toolName} result ${i + 1}`}
+                      className="max-w-full max-h-80 rounded-lg border border-border/50 object-contain"
+                    />
+                  </div>
                 ))}
             </div>
           )}
@@ -793,49 +795,105 @@ function getCodeLanguage(toolName?: string, paramKey?: string): string | undefin
   return undefined;
 }
 
+type ToolParamKind = 'string' | 'number' | 'boolean' | 'null' | 'array' | 'object' | 'unknown';
+
+function getToolParamKind(value: unknown): ToolParamKind {
+  if (typeof value === 'string') return 'string';
+  if (typeof value === 'number') return 'number';
+  if (typeof value === 'boolean') return 'boolean';
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'array';
+  if (typeof value === 'object') return 'object';
+  return 'unknown';
+}
+
+function getToolParamTypeClassName(kind: ToolParamKind): string {
+  switch (kind) {
+    case 'string':
+      return 'border-sky-500/20 bg-sky-500/10 text-sky-700 dark:text-sky-300';
+    case 'number':
+      return 'border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-300';
+    case 'boolean':
+      return 'border-violet-500/20 bg-violet-500/10 text-violet-700 dark:text-violet-300';
+    case 'null':
+      return 'border-border/60 bg-muted/60 text-muted-foreground';
+    case 'array':
+    case 'object':
+      return 'border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300';
+    default:
+      return 'border-border/60 bg-muted/60 text-muted-foreground';
+  }
+}
+
+function getToolParamValueClassName(kind: ToolParamKind, multiline: boolean): string {
+  const layoutClassName = multiline
+    ? 'block rounded-lg border px-3 py-2 whitespace-pre-wrap break-all'
+    : 'inline-flex items-center rounded-md px-2 py-1';
+
+  switch (kind) {
+    case 'string':
+      return `${layoutClassName} border-sky-500/15 bg-sky-500/5 text-sky-800 dark:text-sky-200`;
+    case 'number':
+      return `${layoutClassName} border-blue-500/15 bg-blue-500/5 text-blue-700 dark:text-blue-300`;
+    case 'boolean':
+      return `${layoutClassName} border-violet-500/15 bg-violet-500/5 text-violet-700 dark:text-violet-300`;
+    case 'null':
+      return `${layoutClassName} border-border/60 bg-muted/50 text-muted-foreground`;
+    default:
+      return `${layoutClassName} border-border/60 bg-background/60 text-foreground/80`;
+  }
+}
+
 const ToolInputDisplay = memo(function ToolInputDisplay({ input, toolName }: { input: string; toolName?: string }) {
-  const isDark = useSettingsStore(s => {
-    if (s.theme === 'dark') return true;
-    if (s.theme === 'light') return false;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  });
   try {
     const params = JSON.parse(input);
     return (
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {Object.entries(params).map(([key, value]) => {
-          const lang = typeof value === 'string' && value.includes('\n') ? getCodeLanguage(toolName, key) : undefined;
+          const kind = getToolParamKind(value);
+          const isMultilineString = typeof value === 'string' && value.includes('\n');
+          const lang = isMultilineString ? getCodeLanguage(toolName, key) : undefined;
+
           return (
-            <div key={key} className={lang ? '' : 'flex gap-3'}>
-              <div className="text-xs font-mono text-primary font-semibold min-w-[80px]">{key}:</div>
-              <div className="flex-1 text-xs font-mono text-foreground/80">
+            <div key={key} className="rounded-xl border border-border/50 bg-background/40 px-3 py-2.5 shadow-sm backdrop-blur-sm">
+              <div className="flex flex-wrap items-center gap-2 mb-2.5">
+                <div className="inline-flex items-center rounded-md border border-primary/15 bg-primary/5 px-2 py-1 text-[11px] font-mono font-semibold text-primary/90">
+                  {key}
+                </div>
+                <div className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${getToolParamTypeClassName(kind)}`}>
+                  {kind}
+                </div>
+              </div>
+              <div className="text-xs font-mono text-foreground/85">
                 {typeof value === 'string' ? (
                   lang ? (
-                    <SyntaxHighlighter
+                    <ShikiCodeBlock
+                      code={value}
                       language={lang}
-                      style={isDark ? atomOneDark : atomOneLight}
-                      customStyle={{ margin: 0, padding: '8px 10px', borderRadius: '6px', fontSize: '12px', maxHeight: '256px', overflow: 'auto' }}
-                      wrapLongLines
-                    >
-                      {value}
-                    </SyntaxHighlighter>
-                  ) : value.includes('\n') ? (
-                    <pre className="text-xs text-green-600 dark:text-green-400 bg-background/50 rounded px-2 py-1 whitespace-pre-wrap break-all">{value}</pre>
+                      compact
+                      maxHeightClassName="max-h-64"
+                    />
+                  ) : isMultilineString ? (
+                    <pre className={getToolParamValueClassName(kind, true)}>{value}</pre>
                   ) : (
-                    <span className="text-green-600 dark:text-green-400">"{value}"</span>
+                    <span className={getToolParamValueClassName(kind, false)}>
+                      <span className="opacity-60 mr-0.5">&quot;</span>
+                      {value}
+                      <span className="opacity-60 ml-0.5">&quot;</span>
+                    </span>
                   )
                 ) : typeof value === 'number' ? (
-                  <span className="text-blue-600 dark:text-blue-400">{value}</span>
+                  <span className={getToolParamValueClassName(kind, false)}>{value}</span>
                 ) : typeof value === 'boolean' ? (
-                  <span className="text-purple-600 dark:text-purple-400">{String(value)}</span>
+                  <span className={getToolParamValueClassName(kind, false)}>{String(value)}</span>
                 ) : value === null ? (
-                  <span className="text-muted-foreground">null</span>
+                  <span className={getToolParamValueClassName(kind, false)}>null</span>
                 ) : Array.isArray(value) ? (
-                  <pre className="text-xs bg-background/50 rounded px-2 py-1 overflow-x-auto whitespace-pre-wrap break-all">
+                  <pre className="rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-xs text-foreground/75 overflow-x-auto whitespace-pre-wrap break-all">
                     {JSON.stringify(value, null, 2)}
                   </pre>
                 ) : typeof value === 'object' ? (
-                  <pre className="text-xs bg-background/50 rounded px-2 py-1 overflow-x-auto whitespace-pre-wrap break-all">
+                  <pre className="rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-xs text-foreground/75 overflow-x-auto whitespace-pre-wrap break-all">
                     {JSON.stringify(value, null, 2)}
                   </pre>
                 ) : (
