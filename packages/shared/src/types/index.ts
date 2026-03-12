@@ -150,6 +150,7 @@ export interface MindSessionMeta {
   userSystemPrompt?: string;
   sourceSessionId?: string;
   sourceTask?: string;
+  summary?: string;
   assistantHistory?: MindDialogueSnapshot;
   userHistory?: MindDialogueSnapshot;
   updatedAt?: number;
@@ -162,6 +163,7 @@ export interface ChatSessionMeta {
   sourceSessionId?: string;
   targetSessionId?: string;
   sourceTask?: string;
+  summary?: string;
   counterpartAgentId?: string;
   counterpartAgentName?: string;
   updatedAt?: number;

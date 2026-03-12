@@ -35,8 +35,9 @@ const VIRTUALIZATION_THRESHOLD = 50;
 
 export default function MessageList({ messages, session }: MessageListProps) {
   const shouldVirtualize = messages.length > VIRTUALIZATION_THRESHOLD;
+  const sessionSummary = getSessionSummary(session);
 
-  if (messages.length === 0) {
+  if (messages.length === 0 && !sessionSummary) {
     return (
       <div className="max-w-4xl mx-auto py-6 md:py-8 px-4 md:px-6">
         <EmptyState />
@@ -53,6 +54,13 @@ export default function MessageList({ messages, session }: MessageListProps) {
             <MessageItem message={message} index={index} session={session} />
           </div>
         )}
+        components={sessionSummary ? {
+          Footer: () => (
+            <div className="max-w-4xl mx-auto px-4 md:px-6 py-4 md:py-6">
+              <SessionSummaryCard summary={sessionSummary} />
+            </div>
+          ),
+        } : undefined}
         className="h-full"
         initialTopMostItemIndex={messages.length - 1}
         followOutput="smooth"
@@ -65,9 +73,36 @@ export default function MessageList({ messages, session }: MessageListProps) {
       {messages.map((message, index) => (
         <MessageItem key={message.id} message={message} index={index} session={session} />
       ))}
+      {sessionSummary && <SessionSummaryCard summary={sessionSummary} />}
     </div>
   );
 }
+
+function getSessionSummary(session: Session | undefined): string {
+  if (!session) return '';
+  if (session.sessionType === 'mind') {
+    return session.mindSession?.summary?.trim() || '';
+  }
+  if (session.sessionType === 'agent') {
+    return session.chatSession?.summary?.trim() || '';
+  }
+  return '';
+}
+
+const SessionSummaryCard = memo(function SessionSummaryCard({ summary }: { summary: string }) {
+  if (!summary) return null;
+
+  return (
+    <div className="flex justify-center animate-fade-in">
+      <div className="w-full max-w-2xl rounded-2xl border border-border/60 bg-muted/40 px-5 py-4 text-center shadow-sm backdrop-blur-sm">
+        <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/80">Summary</div>
+        <div className="text-left text-sm">
+          <ReactMarkdown content={summary} />
+        </div>
+      </div>
+    </div>
+  );
+});
 
 const EmptyState = memo(function EmptyState() {
   const { t } = useTranslation();

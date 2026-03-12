@@ -95,12 +95,15 @@ export async function runMindConversation(input: string, context: MindToolContex
   setMindSessionStreaming(currentAgentId, session.id, true);
   context.onSessionReady?.(session.id);
 
+  let summary = '';
+
   const syncMindState = () => {
     syncMindMeta(currentAgentId, session.id, {
       assistantSystemPrompt,
       userSystemPrompt,
       sourceSessionId: context.sourceSessionId,
       sourceTask,
+      summary,
       assistantHistory,
       userHistory,
       updatedAt: Date.now(),
@@ -116,7 +119,6 @@ export async function runMindConversation(input: string, context: MindToolContex
     syncMindState();
 
     let finalAssistantReply = '';
-    let summary = '';
     const assistantTrack: PairedDialogueTrack = {
       llmConfig: context.llmConfig,
       systemPrompt: assistantSystemPrompt,

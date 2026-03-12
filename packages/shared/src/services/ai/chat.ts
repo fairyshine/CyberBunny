@@ -145,6 +145,7 @@ export async function runChatConversation(agentName: string, input: string, cont
     sourceSessionId: sourceSession.id,
     targetSessionId: targetSession.id,
     sourceTask,
+    summary: '',
     counterpartAgentId: targetAgent.id,
     counterpartAgentName: targetAgent.name,
     updatedAt: Date.now(),
@@ -156,6 +157,7 @@ export async function runChatConversation(agentName: string, input: string, cont
     sourceSessionId: sourceSession.id,
     targetSessionId: targetSession.id,
     sourceTask,
+    summary: '',
     counterpartAgentId: sourceAgentId,
     counterpartAgentName: sourceAgent.name,
     updatedAt: Date.now(),
@@ -219,6 +221,31 @@ export async function runChatConversation(agentName: string, input: string, cont
         }
         if (speaker === 'second' && shouldEndSession(content)) {
           summary = extractSummaryText(content);
+          const summaryValue = summary || finalTargetReply;
+          syncChatMeta(sourceAgentId, sourceSession.id, {
+            role: 'source',
+            peerSessionId: targetSession.id,
+            peerAgentId: targetAgent.id,
+            sourceSessionId: sourceSession.id,
+            targetSessionId: targetSession.id,
+            sourceTask,
+            summary: summaryValue,
+            counterpartAgentId: targetAgent.id,
+            counterpartAgentName: targetAgent.name,
+            updatedAt: Date.now(),
+          });
+          syncChatMeta(targetAgent.id, targetSession.id, {
+            role: 'target',
+            peerSessionId: sourceSession.id,
+            peerAgentId: sourceAgentId,
+            sourceSessionId: sourceSession.id,
+            targetSessionId: targetSession.id,
+            sourceTask,
+            summary: summaryValue,
+            counterpartAgentId: sourceAgentId,
+            counterpartAgentName: sourceAgent.name,
+            updatedAt: Date.now(),
+          });
         }
       },
     });
