@@ -49,6 +49,7 @@ export { connectMCPServer, discoverMCPConnection, getMCPToolId, isMCPToolId, par
 export type { MCPClient } from './services/ai/mcp';
 export { runAgentLoop } from './services/ai/agent';
 export type { AgentCallbacks } from './services/ai/agent';
+export { createMessage, createUserMessage, createAssistantMessage, createSystemMessage, createThoughtMessage, createResponseMessage, createToolCallMessage, createToolResultMessage, tagMessageSpeaker, cloneMessage, normalizeToolResultOutput } from './services/ai/messageFactory';
 export { providerRegistry, getProviderMeta } from './services/ai/providers';
 export type { ProviderMeta } from './services/ai/providers';
 
@@ -62,6 +63,7 @@ export type { SoundEffect, ISoundBackend } from './services/sound';
 
 // Utils
 export { getErrorMessage, isAbortError } from './utils/errors';
+export { deriveMessagePresentation, getMessageDisplayType, getMessagePresentation, getMessageSearchTexts, getMessageToolName, normalizeMessagePresentation, mergeMessageWithPresentation, formatFileSize } from './utils/messagePresentation';
 
 // Lib
 export { cn } from './lib/utils';

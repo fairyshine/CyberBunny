@@ -6,7 +6,8 @@ import { useSessionStore } from '../../stores/session';
 import { useSettingsStore } from '../../stores/settings';
 import { useToolStore } from '../../stores/tools';
 import { isAbortError } from '../../utils/errors';
-import { END_SESSION_TOKEN, createSessionMessage, createSnapshotMessage, extractSummaryText, sanitizeTerminalVisibleText, type DialogueVisibleCallbacks } from './dialogue';
+import { END_SESSION_TOKEN, createSnapshotMessage, extractSummaryText, sanitizeTerminalVisibleText, type DialogueVisibleCallbacks } from './dialogue';
+import { createResponseMessage, createUserMessage } from './messageFactory';
 import { getEnabledTools } from './tools';
 import { loadEnabledMCPTools } from './mcp';
 import { getActivateSkillTool } from './skills';
@@ -111,11 +112,7 @@ export async function runMindConversation(input: string, context: MindToolContex
   };
 
   try {
-    appendMindMessage(currentAgentId, session.id, createSessionMessage({
-      role: 'user',
-      content: sourceTask,
-      type: 'normal',
-    }));
+    appendMindMessage(currentAgentId, session.id, createUserMessage(sourceTask, { type: 'normal' }));
     syncMindState();
 
     let finalAssistantReply = '';
@@ -175,11 +172,7 @@ export async function runMindConversation(input: string, context: MindToolContex
     };
   } catch (error) {
     if (isAbortError(error)) {
-      appendMindMessage(currentAgentId, session.id, createSessionMessage({
-        role: 'assistant',
-        content: i18n.t('chat.stopped'),
-        type: 'response',
-      }));
+      appendMindMessage(currentAgentId, session.id, createResponseMessage(i18n.t('chat.stopped')));
       syncMindState();
 
       return {

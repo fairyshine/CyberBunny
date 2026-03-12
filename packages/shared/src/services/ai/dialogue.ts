@@ -2,6 +2,14 @@ import { streamText, stepCountIs, type ModelMessage, type Tool, type ToolSet } f
 import i18n from '../../i18n';
 import type { LLMConfig, Message } from '../../types';
 import { createModel } from './provider';
+import {
+  cloneMessage,
+  createMessage,
+  createResponseMessage,
+  createToolCallMessage,
+  createToolResultMessage,
+  normalizeToolResultOutput,
+} from './messageFactory';
 
 export const END_SESSION_TOKEN = '[END_SESSION]';
 const MAX_TOOL_STEPS_PER_TURN = 10;
@@ -108,10 +116,8 @@ export async function runDialogueTurn({
   const ensureVisibleTextMessage = () => {
     if (visibleTextMessageId) return visibleTextMessageId;
     visibleTextMessageId = crypto.randomUUID();
-    const visibleMessage = createSessionMessage({
+    const visibleMessage = createMessage(visibleTextRole, '', {
       id: visibleTextMessageId,
-      role: visibleTextRole,
-      content: '',
       type: visibleTextType,
       metadata: { streaming: true },
     });
@@ -139,15 +145,13 @@ export async function runDialogueTurn({
           const toolName = currentChunk.toolName || 'unknown';
           const toolDescription = (tools[toolName] as any)?.description || '';
           const toolCallMessageId = crypto.randomUUID();
-          const message = createSnapshotMessage({
+          const message = createToolCallMessage(i18n.t('chat.callTool', { toolName }), {
             id: toolCallMessageId,
-            role: 'assistant',
-            content: i18n.t('chat.callTool', { toolName }),
-            type: 'tool_call',
             toolName,
             toolInput: '',
             toolCallId,
-            metadata: { toolDescription, streaming: true },
+            toolDescription,
+            streaming: true,
           });
 
           rawToolMessageIds.set(toolCallId, toolCallMessageId);
@@ -158,7 +162,7 @@ export async function runDialogueTurn({
 
           if (exposeToolMessages) {
             visibleStreamingIds.add(toolCallMessageId);
-            addVisibleMessage({ ...message, metadata: { ...message.metadata } });
+            addVisibleMessage(cloneMessage(message));
           }
           return;
         }
@@ -192,11 +196,8 @@ export async function runDialogueTurn({
         if (!rawTextMessageId) {
           rawTextMessageId = crypto.randomUUID();
           rawTextContent = '';
-          const rawMessage = createSnapshotMessage({
+          const rawMessage = createResponseMessage('', {
             id: rawTextMessageId,
-            role: 'assistant',
-            content: '',
-            type: 'response',
             metadata: { streaming: true },
           });
           addRawMessage(rawMessage);
@@ -290,18 +291,16 @@ export async function runDialogueTurn({
                 visibleStreamingIds.delete(existingToolMessageId);
               }
             } else {
-              const toolMessage = createSnapshotMessage({
-                role: 'assistant',
-                content: i18n.t('chat.callTool', { toolName }),
-                type: 'tool_call',
+              const toolMessage = createToolCallMessage(i18n.t('chat.callTool', { toolName }), {
                 toolName,
                 toolInput: JSON.stringify(toolCall.input, null, 2),
                 toolCallId: toolCall.toolCallId,
-                metadata: { toolDescription, streaming: false },
+                toolDescription,
+                streaming: false,
               });
               addRawMessage(toolMessage);
               if (exposeToolMessages) {
-                addVisibleMessage({ ...toolMessage, metadata: { ...toolMessage.metadata } });
+                addVisibleMessage(cloneMessage(toolMessage));
               }
             }
 
@@ -309,19 +308,16 @@ export async function runDialogueTurn({
               continue;
             }
 
-            const { content, files } = normalizeToolResult(toolResult.output);
-            const resultMessage = createSnapshotMessage({
-              role: 'tool',
-              content,
-              type: 'tool_result',
+            const { content, files } = normalizeToolResultOutput(toolResult.output);
+            const resultMessage = createToolResultMessage(content, {
               toolName,
               toolOutput: content,
               toolCallId: toolCall.toolCallId,
-              metadata: files.length > 0 ? { files } : undefined,
+              files,
             });
             addRawMessage(resultMessage);
             if (exposeToolMessages) {
-              addVisibleMessage({ ...resultMessage, metadata: resultMessage.metadata ? { ...resultMessage.metadata } : undefined });
+              addVisibleMessage(cloneMessage(resultMessage));
             }
           }
         }
@@ -346,30 +342,6 @@ export async function runDialogueTurn({
   }
 }
 
-function normalizeToolResult(output: unknown): {
-  content: string;
-  files: Array<{ data: string; mediaType: string; filename?: string }>;
-} {
-  const files: Array<{ data: string; mediaType: string; filename?: string }> = [];
-
-  if (output && typeof output === 'object' && (output as any).type === 'content' && Array.isArray((output as any).value)) {
-    const textParts: string[] = [];
-    for (const part of (output as any).value) {
-      if (part.type === 'text') {
-        textParts.push(part.text);
-      } else if (part.type === 'file-data') {
-        files.push({ data: part.data, mediaType: part.mediaType, filename: part.filename });
-      }
-    }
-    return { content: textParts.join('\n'), files };
-  }
-
-  return {
-    content: typeof output === 'string' ? output : JSON.stringify(output),
-    files,
-  };
-}
-
 const SUMMARY_BLOCK_REGEX = /<SUMMARY>([\s\S]*?)<\/SUMMARY>/i;
 
 export function extractSummaryText(content: string): string {
@@ -386,20 +358,7 @@ export function sanitizeTerminalVisibleText(content: string, endToken = END_SESS
 }
 
 export function createSessionMessage(message: Partial<Message> & Pick<Message, 'role' | 'content'>): Message {
-  return {
-    id: message.id || crypto.randomUUID(),
-    role: message.role,
-    content: message.content,
-    timestamp: message.timestamp || Date.now(),
-    type: message.type,
-    toolName: message.toolName,
-    toolInput: message.toolInput,
-    toolOutput: message.toolOutput,
-    toolCallId: message.toolCallId,
-    groupId: message.groupId,
-    parentId: message.parentId,
-    metadata: message.metadata,
-  };
+  return createMessage(message.role, message.content, message);
 }
 
 export function createSnapshotMessage(message: Partial<Message> & Pick<Message, 'role' | 'content'>): Message {

@@ -6,7 +6,9 @@ import { useSettingsStore } from '../../stores/settings';
 import { useToolStore } from '../../stores/tools';
 import { useSkillStore } from '../../stores/skills';
 import { isAbortError } from '../../utils/errors';
-import { END_SESSION_TOKEN, createSessionMessage, createSnapshotMessage, extractSummaryText, sanitizeTerminalVisibleText, type DialogueVisibleCallbacks } from './dialogue';
+import { getMessageDisplayType } from '../../utils/messagePresentation';
+import { END_SESSION_TOKEN, createSnapshotMessage, extractSummaryText, sanitizeTerminalVisibleText, type DialogueVisibleCallbacks } from './dialogue';
+import { createSystemMessage, createUserMessage, tagMessageSpeaker } from './messageFactory';
 import { getEnabledTools } from './tools';
 import { loadEnabledMCPTools } from './mcp';
 import { getActivateSkillTool } from './skills';
@@ -278,8 +280,8 @@ export async function runChatConversation(agentName: string, input: string, cont
   } catch (error) {
     if (!isAbortError(error)) {
       const message = error instanceof Error ? error.message : String(error);
-      appendSessionMessage(sourceAgentId, sourceSession.id, createSessionMessage({ role: 'system', content: `Chat failed: ${message}` }));
-      appendSessionMessage(targetAgent.id, targetSession.id, createSessionMessage({ role: 'system', content: `Chat failed: ${message}` }));
+      appendSessionMessage(sourceAgentId, sourceSession.id, createSystemMessage(`Chat failed: ${message}`));
+      appendSessionMessage(targetAgent.id, targetSession.id, createSystemMessage(`Chat failed: ${message}`));
     }
     throw error;
   } finally {
@@ -467,15 +469,7 @@ function shouldEndSession(content: string): boolean {
 }
 
 function createAgentSpokenMessage(agentId: string, agentName: string, content: string) {
-  return createSessionMessage({
-    role: 'user',
-    content,
-    type: 'normal',
-    metadata: {
-      speakerAgentId: agentId,
-      speakerAgentName: agentName,
-    },
-  });
+  return tagMessageSpeaker(createUserMessage(content, { type: 'normal' }), agentId, agentName);
 }
 
 async function createChatSession(agentId: string, sessionName: string, projectId?: string): Promise<Session> {
@@ -504,19 +498,15 @@ interface MirroredVisibleSession {
 }
 
 function shouldMirrorVisibleMessage(message: Message): boolean {
-  return message.role === 'assistant' && (message.type === 'response' || message.type === 'normal');
+  const messageType = getMessageDisplayType(message);
+  return message.role === 'assistant' && (messageType === 'response' || messageType === 'normal');
 }
 
 function createMirroredVisibleMessage(message: Message, mirror: MirroredVisibleSession): Message {
-  return {
+  return tagMessageSpeaker({
     ...message,
     role: 'user',
-    metadata: {
-      ...message.metadata,
-      speakerAgentId: mirror.speakerAgentId,
-      speakerAgentName: mirror.speakerAgentName,
-    },
-  };
+  }, mirror.speakerAgentId, mirror.speakerAgentName);
 }
 
 function createVisibleCallbacks(
@@ -528,14 +518,7 @@ function createVisibleCallbacks(
 ): DialogueVisibleCallbacks {
   return {
     addMessage: (message) => {
-      const taggedMessage = {
-        ...message,
-        metadata: {
-          ...message.metadata,
-          speakerAgentId,
-          speakerAgentName,
-        },
-      };
+      const taggedMessage = tagMessageSpeaker(message, speakerAgentId, speakerAgentName);
       appendSessionMessage(agentId, sessionId, taggedMessage);
 
       if (mirroredVisibleSession && shouldMirrorVisibleMessage(taggedMessage)) {

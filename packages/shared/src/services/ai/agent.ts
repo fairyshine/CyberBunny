@@ -14,6 +14,13 @@ import { logLLM, logTool } from '../console/logger';
 import { statsStorage } from '../storage/statsStorage';
 import type { StatsRecord } from '../storage/statsTypes';
 import type { Message, LLMConfig } from '../../types';
+import {
+  createAssistantMessage,
+  createThoughtMessage,
+  createToolCallMessage,
+  createToolResultMessage,
+  normalizeToolResultOutput,
+} from './messageFactory';
 import type { TFunction } from 'i18next';
 
 /**
@@ -55,22 +62,16 @@ export async function runAgentLoop(
 ): Promise<string> {
   // Validate configuration
   if (!llmConfig.apiKey) {
-    callbacks.addMessage(sessionId, {
+    callbacks.addMessage(sessionId, createAssistantMessage(t('chat.configRequired'), {
       id: callbacks.generateId(),
-      role: 'assistant',
-      content: t('chat.configRequired'),
-      timestamp: Date.now(),
-    });
+    }));
     return '';
   }
 
   if (!llmConfig.model || !llmConfig.model.trim()) {
-    callbacks.addMessage(sessionId, {
+    callbacks.addMessage(sessionId, createAssistantMessage(t('chat.modelRequired'), {
       id: callbacks.generateId(),
-      role: 'assistant',
-      content: t('chat.modelRequired'),
-      timestamp: Date.now(),
-    });
+    }));
     return '';
   }
 
@@ -152,17 +153,13 @@ export async function runAgentLoop(
         metadata: { streaming: false },
       });
 
-      callbacks.addMessage(sessionId, {
+      callbacks.addMessage(sessionId, createToolResultMessage(`❌ ${errorMessage}`, {
         id: callbacks.generateId(),
-        role: 'tool',
-        content: `❌ ${errorMessage}`,
-        timestamp: Date.now(),
-        type: 'tool_result',
         toolName,
         toolOutput: `❌ ${errorMessage}`,
         toolCallId,
         groupId,
-      });
+      }));
 
       interactionMessageCount++;
       logTool('error', `Tool ${toolName} failed`, errorMessage, { toolCallId });
@@ -220,18 +217,15 @@ export async function runAgentLoop(
             toolCallInputs.set(toolCallId, '');
 
             const toolDescription = (tools[toolName] as any)?.description || '';
-            callbacks.addMessage(sessionId, {
+            callbacks.addMessage(sessionId, createToolCallMessage(t('chat.callTool', { toolName }), {
               id: toolCallMsgId,
-              role: 'assistant',
-              content: t('chat.callTool', { toolName }),
-              timestamp: Date.now(),
-              type: 'tool_call',
               toolName,
               toolInput: '',
               toolCallId,
               groupId,
-              metadata: { toolDescription, streaming: true },
-            });
+              toolDescription,
+              streaming: true,
+            }));
 
             callbacks.setStatus(t('chat.executing', { toolName }));
             logTool('info', `Tool call started: ${toolName}`, { toolCallId });
@@ -265,14 +259,10 @@ export async function runAgentLoop(
             stepCount++;
             currentStepMessageId = callbacks.generateId();
             currentStepContent = '';
-            callbacks.addMessage(sessionId, {
+            callbacks.addMessage(sessionId, createThoughtMessage('', {
               id: currentStepMessageId,
-              role: 'assistant',
-              content: '',
-              timestamp: Date.now(),
-              type: 'thought',
               groupId,
-            });
+            }));
           }
           currentStepContent += (c.text || '');
           callbacks.updateMessage(sessionId, currentStepMessageId, {
@@ -312,57 +302,32 @@ export async function runAgentLoop(
               // Provider skipped deltas — create the full message now
               const toolCallMsgId = callbacks.generateId();
               const toolDescription = (tools[toolName] as any)?.description || '';
-              callbacks.addMessage(sessionId, {
+              callbacks.addMessage(sessionId, createToolCallMessage(t('chat.callTool', { toolName }), {
                 id: toolCallMsgId,
-                role: 'assistant',
-                content: t('chat.callTool', { toolName }),
-                timestamp: Date.now(),
-                type: 'tool_call',
                 toolName,
                 toolInput: JSON.stringify(tc.input, null, 2),
                 toolCallId: tc.toolCallId,
                 groupId,
-                metadata: { toolDescription, streaming: false },
-              });
+                toolDescription,
+                streaming: false,
+              }));
             }
             interactionMessageCount++; // tool_call
             allToolCallNames.push(toolName);
 
             // --- tool_result message ---
             if (tr) {
-              const output = tr.output as any;
-              let resultContent: string;
-              const files: Array<{ data: string; mediaType: string; filename?: string }> = [];
-
-              // AI SDK v6 ToolResultOutput: extract file-data parts from 'content' type
-              if (output && typeof output === 'object' && output.type === 'content' && Array.isArray(output.value)) {
-                const textParts: string[] = [];
-                for (const part of output.value) {
-                  if (part.type === 'text') {
-                    textParts.push(part.text);
-                  } else if (part.type === 'file-data') {
-                    files.push({ data: part.data, mediaType: part.mediaType, filename: part.filename });
-                  }
-                }
-                resultContent = textParts.join('\n');
-              } else {
-                resultContent = typeof output === 'string' ? output : JSON.stringify(output);
-              }
-
+              const { content: resultContent, files } = normalizeToolResultOutput(tr.output);
               const toolResultMsgId = callbacks.generateId();
 
-              callbacks.addMessage(sessionId, {
+              callbacks.addMessage(sessionId, createToolResultMessage(resultContent, {
                 id: toolResultMsgId,
-                role: 'tool',
-                content: resultContent,
-                timestamp: Date.now(),
-                type: 'tool_result',
                 toolName,
                 toolOutput: resultContent,
                 toolCallId: tc.toolCallId,
                 groupId,
-                ...(files.length > 0 ? { metadata: { files } } : {}),
-              });
+                files,
+              }));
 
               interactionMessageCount++; // tool_result
               logTool('success', `Tool ${toolName} completed`, { resultLength: resultContent.length, fileCount: files.length });

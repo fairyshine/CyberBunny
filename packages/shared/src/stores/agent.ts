@@ -8,6 +8,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Agent, LLMConfig, Session, Message, SessionType, AgentRelationship, AgentGroup, MindSessionMeta, ChatSessionMeta } from '../types';
 import { messageStorage } from '../services/storage/messageStorage';
+import { mergeMessageWithPresentation, normalizeMessagePresentation } from '../utils/messagePresentation';
 
 const DEFAULT_AGENT_ID = 'default';
 const AGENT_FILES_BASE = '/root/.agents';
@@ -59,14 +60,13 @@ function stripTransientSessionState<T extends Session>(session: T): T {
 function clearStreamingMessageFlags(messages: Message[]): Message[] {
   return messages.map((message) => (
     message.metadata?.streaming
-      ? {
-          ...message,
+      ? mergeMessageWithPresentation(message, {
           metadata: {
             ...message.metadata,
             streaming: false,
           },
-        }
-      : message
+        })
+      : normalizeMessagePresentation(message)
   ));
 }
 
@@ -355,7 +355,7 @@ export const useAgentStore = create<AgentState>()(
         set((state) => {
           const sessions = (state.agentSessions[agentId] || []).map((s) =>
             s.id === sessionId
-              ? { ...s, messages: [...s.messages, message], updatedAt: Date.now() }
+              ? { ...s, messages: [...s.messages, normalizeMessagePresentation(message)], updatedAt: Date.now() }
               : s
           );
           const updated = sessions.find((s) => s.id === sessionId);
@@ -374,7 +374,7 @@ export const useAgentStore = create<AgentState>()(
                   ...s,
                   messages: s.messages.map((m) =>
                     m.id === messageId
-                      ? { ...m, ...updates, metadata: updates.metadata ? { ...m.metadata, ...updates.metadata } : m.metadata }
+                      ? mergeMessageWithPresentation(m, updates)
                       : m
                   ),
                 }
@@ -497,7 +497,7 @@ export const useAgentStore = create<AgentState>()(
         const session = (get().agentSessions[agentId] || []).find((s) => s.id === sessionId);
         if (!session || session.messages.length > 0) return;
 
-        const messages = await messageStorage.load(sessionId);
+        const messages = (await messageStorage.load(sessionId)).map((message) => normalizeMessagePresentation(message));
         if (messages.length === 0) return;
 
         set((state) => ({

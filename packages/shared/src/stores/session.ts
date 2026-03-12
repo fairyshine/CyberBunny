@@ -4,6 +4,7 @@ import { Session, Message, LLMConfig, SessionType, Project, MindSessionMeta, Cha
 import { logSettings } from '../services/console/logger';
 import { messageStorage } from '../services/storage/messageStorage';
 import { statsStorage } from '../services/storage/statsStorage';
+import { mergeMessageWithPresentation, normalizeMessagePresentation } from '../utils/messagePresentation';
 
 /** Cached session statistics — updated incrementally to avoid full recalculation */
 export interface SessionStats {
@@ -97,14 +98,13 @@ function stripTransientSessionState<T extends Session>(session: T): T {
 function clearStreamingMessageFlags(messages: Message[]): Message[] {
   return messages.map((message) => (
     message.metadata?.streaming
-      ? {
-          ...message,
+      ? mergeMessageWithPresentation(message, {
           metadata: {
             ...message.metadata,
             streaming: false,
           },
-        }
-      : message
+        })
+      : normalizeMessagePresentation(message)
   ));
 }
 
@@ -261,7 +261,7 @@ export const useSessionStore = create<SessionState>()(
             session.id === sessionId && !session.deletedAt
               ? {
                   ...session,
-                  messages: [...session.messages, message],
+                  messages: [...session.messages, normalizeMessagePresentation(message)],
                   updatedAt: Date.now(),
                 }
               : session
@@ -296,14 +296,7 @@ export const useSessionStore = create<SessionState>()(
                   ...session,
                   messages: session.messages.map((msg) =>
                     msg.id === messageId
-                      ? {
-                          ...msg,
-                          ...updates,
-                          // Merge metadata instead of replacing it
-                          metadata: updates.metadata
-                            ? { ...msg.metadata, ...updates.metadata }
-                            : msg.metadata
-                        }
+                      ? mergeMessageWithPresentation(msg, updates)
                       : msg
                   ),
                 }
@@ -427,7 +420,7 @@ export const useSessionStore = create<SessionState>()(
         // Skip if messages are already loaded
         if (session.messages.length > 0) return;
 
-        const messages = await messageStorage.load(sessionId);
+        const messages = (await messageStorage.load(sessionId)).map((message) => normalizeMessagePresentation(message));
         if (messages.length === 0) return;
 
         set((state) => {

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Message } from '@shared/types';
 import { MessageHistoryManager } from '@shared/utils/messageHistory';
+import { getMessageDisplayType, getMessageToolName } from '@shared/utils/messagePresentation';
 import { Search, X } from './icons';
 import { Brain, Wrench, CircleCheck, MessageCircle } from './icons';
 import { Input } from './ui/input';
@@ -142,27 +143,31 @@ export default function MessageSearch({
             </div>
           ) : (
             <div className="space-y-2">
-              {results.map((msg) => (
-                <div
-                  key={msg.id}
-                  onClick={() => handleSelectMessage(msg.id)}
-                  className="p-3 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
-                >
-                  <div className="flex items-center gap-2 mb-2">
+              {results.map((msg) => {
+                const messageType = getMessageDisplayType(msg);
+                const toolName = getMessageToolName(msg);
+                const summary = MessageHistoryManager.getMessageSummary(msg);
+                return (
+                  <div
+                    key={msg.id}
+                    onClick={() => handleSelectMessage(msg.id)}
+                    className="p-3 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
                     <Badge variant={msg.role === 'user' ? 'default' : 'secondary'}>
                       {msg.role === 'user' ? t('search.user') : t('search.ai')}
                     </Badge>
-                    {msg.type && (
+                    {messageType && (
                       <Badge variant="outline" className="text-xs flex items-center gap-1">
-                        {msg.type === 'thought' && <><Brain className="w-3 h-3" />{t('search.thought')}</>}
-                        {msg.type === 'tool_call' && <><Wrench className="w-3 h-3" />{t('search.toolCallBadge')}</>}
-                        {msg.type === 'tool_result' && <><CircleCheck className="w-3 h-3" />{t('search.resultBadge')}</>}
-                        {msg.type === 'response' && <><MessageCircle className="w-3 h-3" />{t('search.responseBadge')}</>}
+                        {messageType === 'thought' && <><Brain className="w-3 h-3" />{t('search.thought')}</>}
+                        {messageType === 'tool_call' && <><Wrench className="w-3 h-3" />{t('search.toolCallBadge')}</>}
+                        {messageType === 'tool_result' && <><CircleCheck className="w-3 h-3" />{t('search.resultBadge')}</>}
+                        {messageType === 'response' && <><MessageCircle className="w-3 h-3" />{t('search.responseBadge')}</>}
                       </Badge>
                     )}
-                    {msg.toolName && (
+                    {toolName && (
                       <Badge variant="outline" className="text-xs">
-                        {msg.toolName}
+                        {toolName}
                       </Badge>
                     )}
                     <span className="text-xs text-muted-foreground ml-auto">
@@ -174,16 +179,17 @@ export default function MessageSearch({
                     {highlightText(msg.content, query)}
                   </div>
 
-                  {msg.toolOutput && searchInToolOutput && (
-                    <div className="mt-2 text-xs text-muted-foreground border-t pt-2">
-                      <span className="font-medium">{t('search.toolOutput')}</span>
-                      <span className="line-clamp-2">
-                        {highlightText(msg.toolOutput, query)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              ))}
+                    {summary.searchableToolOutput && searchInToolOutput && (
+                      <div className="mt-2 text-xs text-muted-foreground border-t pt-2">
+                        <span className="font-medium">{t('search.toolOutput')}</span>
+                        <span className="line-clamp-2">
+                          {highlightText(summary.searchableToolOutput, query)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </ScrollArea>

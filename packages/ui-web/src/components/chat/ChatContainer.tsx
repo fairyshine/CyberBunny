@@ -8,6 +8,7 @@ import { useWorkspaceSession } from '../../hooks/useWorkspaceSession';
 import { Message } from '@shared/types';
 import { logLLM } from '@shared/services/console/logger';
 import { runAgentLoop } from '@shared/services/ai/agent';
+import { createAssistantMessage, createUserMessage } from '@shared/services/ai/messageFactory';
 import { stopMindConversation } from '@shared/services/ai/mind';
 import { stopChatConversation } from '@shared/services/ai/chat';
 import type { AgentCallbacks } from '@shared/services/ai/agent';
@@ -139,22 +140,12 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
     setCurrentStatus('');
     if (isDefaultAgent) {
       useSessionStore.getState().setSessionStreaming(sessionId, false);
-      addMessage(sessionId, {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: t('chat.stopped'),
-        timestamp: Date.now(),
-      });
+      addMessage(sessionId, createAssistantMessage(t('chat.stopped'), { id: crypto.randomUUID() }));
       return;
     }
 
     setAgentSessionStreaming(currentAgentId, sessionId, false);
-    addAgentMessage(currentAgentId, sessionId, {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: t('chat.stopped'),
-      timestamp: Date.now(),
-    });
+    addAgentMessage(currentAgentId, sessionId, createAssistantMessage(t('chat.stopped'), { id: crypto.randomUUID() }));
   };
 
 
@@ -223,12 +214,7 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
   const handleSendMessage = async (content: string) => {
     if (!content.trim() || isLoading) return;
 
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: content.trim(),
-      timestamp: Date.now(),
-    };
+    const userMessage: Message = createUserMessage(content.trim(), { id: crypto.randomUUID() });
     appendMessage(sessionId, userMessage);
 
     // Auto-rename session with first user message (max 50 chars)
@@ -282,12 +268,10 @@ export default function ChatContainer({ sessionId }: ChatContainerProps) {
       if (error instanceof Error && error.name === 'AbortError') return;
       console.error('Error:', error);
       if (!(error && typeof error === 'object' && '__openbunnyHandled' in error)) {
-        appendMessage(sessionId, {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: t('chat.error', { error: error instanceof Error ? error.message : String(error) }),
-          timestamp: Date.now(),
-        });
+        appendMessage(sessionId, createAssistantMessage(
+          t('chat.error', { error: error instanceof Error ? error.message : String(error) }),
+          { id: crypto.randomUUID() },
+        ));
       }
     } finally {
       abortControllerRef.current = null;

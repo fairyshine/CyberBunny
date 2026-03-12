@@ -21,6 +21,86 @@ export interface AgentProfile {
   createdAt: number;
 }
 
+export interface MessageFileAttachment {
+  data: string;
+  mediaType: string;
+  filename?: string;
+}
+
+export interface MessageSkillResource {
+  type: 'directory' | 'file';
+  path: string;
+  name: string;
+  size?: number;
+}
+
+export interface SystemMessagePresentation {
+  kind: 'system';
+}
+
+export interface MarkdownMessagePresentation {
+  kind: 'markdown';
+  plots: string[];
+}
+
+export interface ProcessMessagePresentation {
+  kind: 'process';
+  stage: 'thought' | 'tool_call';
+  toolName?: string;
+  toolInput?: string;
+  toolDescription?: string;
+  isStreaming: boolean;
+}
+
+export interface ToolResultMessagePresentation {
+  kind: 'tool_result';
+  toolName?: string;
+  content: string;
+  previewText: string;
+  isError: boolean;
+  isStreaming: boolean;
+  files: MessageFileAttachment[];
+}
+
+export interface SkillActivationMessagePresentation {
+  kind: 'skill_activation';
+  skillName: string;
+  resourcePath?: string;
+  skillDescription?: string;
+  isStreaming: boolean;
+}
+
+export interface SkillResultErrorMessagePresentation {
+  kind: 'skill_result_error';
+  content: string;
+}
+
+export interface SkillResourceResultMessagePresentation {
+  kind: 'skill_resource_result';
+  skillName: string;
+  resourcePath: string;
+  fileContent: string;
+  resourceFormat: 'image' | 'markdown' | 'text';
+  files: MessageFileAttachment[];
+}
+
+export interface SkillActivationResultMessagePresentation {
+  kind: 'skill_activation_result';
+  skillName: string;
+  skillBody: string;
+  resources: MessageSkillResource[];
+}
+
+export type MessagePresentation =
+  | SystemMessagePresentation
+  | MarkdownMessagePresentation
+  | ProcessMessagePresentation
+  | ToolResultMessagePresentation
+  | SkillActivationMessagePresentation
+  | SkillResultErrorMessagePresentation
+  | SkillResourceResultMessagePresentation
+  | SkillActivationResultMessagePresentation;
+
 // Agent 消息类型 (UI layer)
 export interface Message {
   id: string;
@@ -41,16 +121,20 @@ export interface Message {
   groupId?: string;
   parentId?: string;
 
+  presentation?: MessagePresentation;
+
   // 元数据
   metadata?: {
     toolCalls?: ToolCall[];
     toolResults?: ToolResult[];
     plots?: string[];
+    files?: MessageFileAttachment[];
     model?: string;
     tokens?: number;
     duration?: number;
     streaming?: boolean;
     toolDescription?: string;
+    skillDescription?: string;
     speakerAgentId?: string;
     speakerAgentName?: string;
     [key: string]: unknown;
