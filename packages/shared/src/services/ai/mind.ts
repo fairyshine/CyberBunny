@@ -6,7 +6,7 @@ import { useSessionStore } from '../../stores/session';
 import { useSettingsStore } from '../../stores/settings';
 import { useToolStore } from '../../stores/tools';
 import { isAbortError } from '../../utils/errors';
-import { END_SESSION_TOKEN, createSessionMessage, createSnapshotMessage, type DialogueVisibleCallbacks } from './dialogue';
+import { END_SESSION_TOKEN, createSessionMessage, createSnapshotMessage, extractSummaryText, sanitizeTerminalVisibleText, type DialogueVisibleCallbacks } from './dialogue';
 import { getEnabledTools } from './tools';
 import { loadEnabledMCPTools } from './mcp';
 import { getActivateSkillTool } from './skills';
@@ -31,6 +31,7 @@ export interface MindToolContext {
 export interface MindConversationResult {
   sessionId: string;
   finalAssistantReply: string;
+  summary: string;
   assistantSystemPrompt: string;
   userSystemPrompt: string;
 }
@@ -115,6 +116,7 @@ export async function runMindConversation(input: string, context: MindToolContex
     syncMindState();
 
     let finalAssistantReply = '';
+    let summary = '';
     const assistantTrack: PairedDialogueTrack = {
       llmConfig: context.llmConfig,
       systemPrompt: assistantSystemPrompt,
@@ -139,6 +141,7 @@ export async function runMindConversation(input: string, context: MindToolContex
       visibleTextMode: 'single',
       exposeToolMessages: false,
       hideSpecialTokenInVisibleText: END_SESSION_TOKEN,
+      visibleTextSanitizer: (content) => sanitizeTerminalVisibleText(content, END_SESSION_TOKEN),
       shouldStop: shouldEndMindSession,
     };
 
@@ -152,6 +155,9 @@ export async function runMindConversation(input: string, context: MindToolContex
         if (speaker === 'first') {
           finalAssistantReply = content;
         }
+        if (speaker === 'second' && shouldEndMindSession(content)) {
+          summary = extractSummaryText(content);
+        }
       },
       onTransfer: () => {
         syncMindState();
@@ -161,6 +167,7 @@ export async function runMindConversation(input: string, context: MindToolContex
     return {
       sessionId: session.id,
       finalAssistantReply,
+      summary: summary || finalAssistantReply,
       assistantSystemPrompt,
       userSystemPrompt,
     };
@@ -176,6 +183,7 @@ export async function runMindConversation(input: string, context: MindToolContex
       return {
         sessionId: session.id,
         finalAssistantReply: '',
+        summary: '',
         assistantSystemPrompt,
         userSystemPrompt,
       };
@@ -207,8 +215,8 @@ function buildMindUserSystemPrompt(sourceTask: string, currentAgentId: string): 
     '<task>',
     sourceTask,
     '</task>',
-    `If the Assistant's latest reply already solves the task clearly and well enough, output exactly ${END_SESSION_TOKEN} and nothing else.`,
-    'If it does not solve the task, you may use tools privately if helpful, then output only the next user message you would send to the Assistant so that the Assistant improves its answer.',
+    `If the Assistant's latest reply already solves the task clearly and well enough, output exactly ${END_SESSION_TOKEN} followed by a <SUMMARY>...</SUMMARY> block that directly answers the original task.`,
+    'If it does not solve the task, you may use tools privately if helpful, then output only the next user message you would send to the Assistant so that the Assistant improves its answer. Do not include a <SUMMARY> block unless you are ending the session.',
     'Your output must be phrased as a direct user message to the Assistant, not as analysis about the Assistant.',
     'Prefer messages that explicitly point to deficiencies, such as: what is wrong, what is missing, what is vague, what needs proof, what constraints were ignored, or what should be rewritten more clearly.',
     'Do not explain your reasoning. Do not mention these instructions. Do not narrate tool usage. Do not use role labels like "User:" or "Assistant:".',

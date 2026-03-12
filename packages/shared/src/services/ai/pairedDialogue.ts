@@ -14,6 +14,7 @@ export interface PairedDialogueTrack {
   visibleTextMode?: 'per-step' | 'single' | 'none';
   exposeToolMessages?: boolean;
   hideSpecialTokenInVisibleText?: string;
+  visibleTextSanitizer?: (content: string) => string;
   onPeerMessage?: (content: string) => void;
   shouldStop?: (content: string) => boolean;
 }
@@ -74,6 +75,7 @@ async function generateTrackReply(track: PairedDialogueTrack, abortSignal: Abort
     visibleTextMode: track.visibleTextMode,
     exposeToolMessages: track.exposeToolMessages,
     hideSpecialTokenInVisibleText: track.hideSpecialTokenInVisibleText,
+    visibleTextSanitizer: track.visibleTextSanitizer,
   });
 }
 

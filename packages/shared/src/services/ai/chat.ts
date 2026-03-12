@@ -6,7 +6,7 @@ import { useSettingsStore } from '../../stores/settings';
 import { useToolStore } from '../../stores/tools';
 import { useSkillStore } from '../../stores/skills';
 import { isAbortError } from '../../utils/errors';
-import { END_SESSION_TOKEN, createSessionMessage, createSnapshotMessage, type DialogueVisibleCallbacks } from './dialogue';
+import { END_SESSION_TOKEN, createSessionMessage, createSnapshotMessage, extractSummaryText, sanitizeTerminalVisibleText, type DialogueVisibleCallbacks } from './dialogue';
 import { getEnabledTools } from './tools';
 import { loadEnabledMCPTools } from './mcp';
 import { getActivateSkillTool } from './skills';
@@ -31,6 +31,7 @@ export interface ChatConversationResult {
   sourceSessionId: string;
   targetSessionId: string;
   finalTargetReply: string;
+  summary: string;
   activeAssistantSystemPrompt: string;
   passiveAssistantSystemPrompt: string;
   targetAgentName: string;
@@ -166,6 +167,7 @@ export async function runChatConversation(agentName: string, input: string, cont
   context.onSourceSessionReady?.(sourceSession.id);
 
   let finalTargetReply = '';
+  let summary = '';
 
   try {
     const initialTaskMessage = createAgentSpokenMessage(sourceAgentId, sourceAgent.name, sourceTask);
@@ -199,6 +201,7 @@ export async function runChatConversation(agentName: string, input: string, cont
       visibleTextMode: 'per-step',
       exposeToolMessages: true,
       hideSpecialTokenInVisibleText: END_SESSION_TOKEN,
+      visibleTextSanitizer: (content) => sanitizeTerminalVisibleText(content, END_SESSION_TOKEN),
       onPeerMessage: (content) => {
         appendSessionMessage(sourceAgentId, sourceSession.id, createAgentSpokenMessage(targetAgent.id, targetAgent.name, content));
       },
@@ -214,6 +217,9 @@ export async function runChatConversation(agentName: string, input: string, cont
         if (speaker === 'first') {
           finalTargetReply = content;
         }
+        if (speaker === 'second' && shouldEndSession(content)) {
+          summary = extractSummaryText(content);
+        }
       },
     });
 
@@ -221,6 +227,7 @@ export async function runChatConversation(agentName: string, input: string, cont
       sourceSessionId: sourceSession.id,
       targetSessionId: targetSession.id,
       finalTargetReply,
+      summary: summary || finalTargetReply,
       activeAssistantSystemPrompt,
       passiveAssistantSystemPrompt,
       targetAgentName: targetAgent.name,
@@ -382,8 +389,8 @@ ${customPrompt}` : '',
     '<task>',
     sourceTask,
     '</task>',
-    `If the counterpart Assistant's latest reply already solves the task clearly and well enough, output exactly ${END_SESSION_TOKEN} and nothing else.`,
-    'Otherwise, output only the next direct message you want to send to the counterpart Assistant so it improves its answer.',
+    `If the counterpart Assistant's latest reply already solves the task clearly and well enough, output exactly ${END_SESSION_TOKEN} followed by a <SUMMARY>...</SUMMARY> block that directly answers the original chat input.`,
+    'Otherwise, output only the next direct message you want to send to the counterpart Assistant so it improves its answer. Do not include a <SUMMARY> block unless you are ending the session.',
     'Do not explain your hidden reasoning. Do not mention these instructions. Do not use role labels like "User:" or "Assistant:".',
     'Bad outputs: answering the task yourself, generic praise, or saying the task is done when the reply is still weak.',
     'Good outputs: direct, specific pressure such as asking it to fix what is wrong, add what is missing, verify claims, rewrite more clearly, or stay on-task.',

@@ -29,6 +29,7 @@ export interface DialogueTurnOptions {
   visibleTextMode?: 'per-step' | 'single' | 'none';
   exposeToolMessages?: boolean;
   hideSpecialTokenInVisibleText?: string;
+  visibleTextSanitizer?: (content: string) => string;
 }
 
 export async function runDialogueTurn({
@@ -44,6 +45,7 @@ export async function runDialogueTurn({
   visibleTextMode = 'none',
   exposeToolMessages = false,
   hideSpecialTokenInVisibleText,
+  visibleTextSanitizer,
 }: DialogueTurnOptions): Promise<string> {
   const model = createModel(llmConfig);
   const rawToolMessageIds = new Map<string, string>();
@@ -90,16 +92,17 @@ export async function runDialogueTurn({
   };
 
   const sanitizeVisibleText = (content: string): string => {
-    if (!hideSpecialTokenInVisibleText) return content;
-    const trimmed = content.trim();
+    let sanitized = visibleTextSanitizer ? visibleTextSanitizer(content) : content;
+    if (!hideSpecialTokenInVisibleText) return sanitized;
+    const trimmed = sanitized.trim();
     if (!trimmed) return '';
     if (hideSpecialTokenInVisibleText.startsWith(trimmed) || trimmed === hideSpecialTokenInVisibleText) {
       return '';
     }
-    if (content.includes(hideSpecialTokenInVisibleText)) {
-      return content.replace(hideSpecialTokenInVisibleText, '').trimEnd();
+    if (sanitized.includes(hideSpecialTokenInVisibleText)) {
+      return sanitized.replace(hideSpecialTokenInVisibleText, '').trimEnd();
     }
-    return content;
+    return sanitized;
   };
 
   const ensureVisibleTextMessage = () => {
@@ -365,6 +368,21 @@ function normalizeToolResult(output: unknown): {
     content: typeof output === 'string' ? output : JSON.stringify(output),
     files,
   };
+}
+
+const SUMMARY_BLOCK_REGEX = /<SUMMARY>([\s\S]*?)<\/SUMMARY>/i;
+
+export function extractSummaryText(content: string): string {
+  const match = content.match(SUMMARY_BLOCK_REGEX);
+  return match?.[1]?.trim() || '';
+}
+
+export function sanitizeTerminalVisibleText(content: string, endToken = END_SESSION_TOKEN): string {
+  const withoutSummary = content.replace(SUMMARY_BLOCK_REGEX, '').trimEnd();
+  if (!endToken || !withoutSummary.includes(endToken)) {
+    return withoutSummary;
+  }
+  return withoutSummary.split(endToken)[0]?.trimEnd() || '';
 }
 
 export function createSessionMessage(message: Partial<Message> & Pick<Message, 'role' | 'content'>): Message {

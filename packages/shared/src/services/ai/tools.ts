@@ -420,7 +420,7 @@ export const memoryTool = tool({
 
 export function createMindTool(context?: ToolExecutionContext) {
   return tool({
-    description: "Run an internal self-dialogue: a user-role model talks to the assistant until it emits [END_SESSION]. Returns the assistant's final reply.",
+    description: "Run an internal self-dialogue: a user-role model talks to the assistant until it emits [END_SESSION] plus a <SUMMARY> block. Returns the summary answer.",
     inputSchema: z.object({
       text: z.string().describe('Seed text for the internal dialogue'),
     }),
@@ -431,7 +431,7 @@ export function createMindTool(context?: ToolExecutionContext) {
 
       try {
         const result = await runMindConversation(text, context as MindToolContext);
-        return result.finalAssistantReply || '[mind] Session ended without an assistant reply.';
+        return result.summary || result.finalAssistantReply || '[mind] Session ended without a summary.';
       } catch (error) {
         const msg = getErrorMessage(error);
         logTool('error', 'Mind session failed', msg);
@@ -443,7 +443,7 @@ export function createMindTool(context?: ToolExecutionContext) {
 
 export function createChatTool(context?: ToolExecutionContext) {
   return tool({
-    description: 'Start an agent-to-agent conversation. Creates a read-only chat session for both agents and returns the counterpart agent\'s final reply.',
+    description: 'Start an agent-to-agent conversation. Creates a read-only chat session for both agents and returns the final <SUMMARY> produced when the active side ends the dialogue.',
     inputSchema: z.object({
       agentName: z.string().describe('Target agent name'),
       text: z.string().describe('Initial conversation objective or opening message'),
@@ -455,7 +455,7 @@ export function createChatTool(context?: ToolExecutionContext) {
 
       try {
         const result = await runChatConversation(agentName, text, context as ChatToolContext);
-        const finalReply = result.finalTargetReply || '[chat] Session ended without a final reply.';
+        const finalReply = result.summary || result.finalTargetReply || '[chat] Session ended without a summary.';
         return [
           `Agent: ${result.targetAgentName}`,
           `Source Session: ${result.sourceSessionId}`,
