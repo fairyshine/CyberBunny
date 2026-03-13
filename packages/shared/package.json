@@ -13,49 +13,141 @@
       "types": "./dist/types/index.d.ts",
       "import": "./dist/types/index.js"
     },
-    "./services/*": {
-      "types": "./dist/services/*.d.ts",
-      "import": "./dist/services/*.js"
-    },
-    "./stores/*": {
-      "types": "./dist/stores/*.d.ts",
-      "import": "./dist/stores/*.js"
-    },
-    "./hooks/*": {
-      "types": "./dist/hooks/*.d.ts",
-      "import": "./dist/hooks/*.js"
-    },
-    "./utils/*": {
-      "types": "./dist/utils/*.d.ts",
-      "import": "./dist/utils/*.js"
-    },
-    "./lib/*": {
-      "types": "./dist/lib/*.d.ts",
-      "import": "./dist/lib/*.js"
-    },
-    "./platform": {
-      "types": "./dist/platform/index.d.ts",
-      "import": "./dist/platform/index.js"
-    },
-    "./platform/node": {
-      "types": "./dist/platform/node.d.ts",
-      "import": "./dist/platform/node.js"
-    },
-    "./platform/detect": {
-      "types": "./dist/platform/detect.d.ts",
-      "import": "./dist/platform/detect.js"
+    "./hooks/useAgentConfig": {
+      "types": "./dist/hooks/useAgentConfig.d.ts",
+      "import": "./dist/hooks/useAgentConfig.js"
     },
     "./i18n": {
       "types": "./dist/i18n/index.d.ts",
       "import": "./dist/i18n/index.js"
     },
-    "./platform/*": {
-      "types": "./dist/platform/*.d.ts",
-      "import": "./dist/platform/*.js"
+    "./i18n/locales/en-US": {
+      "types": "./dist/i18n/locales/en-US.d.ts",
+      "import": "./dist/i18n/locales/en-US.js"
     },
-    "./i18n/locales/*": {
-      "types": "./dist/i18n/locales/*.d.ts",
-      "import": "./dist/i18n/locales/*.js"
+    "./i18n/locales/zh-CN": {
+      "types": "./dist/i18n/locales/zh-CN.d.ts",
+      "import": "./dist/i18n/locales/zh-CN.js"
+    },
+    "./lib/utils": {
+      "types": "./dist/lib/utils.d.ts",
+      "import": "./dist/lib/utils.js"
+    },
+    "./platform": {
+      "types": "./dist/platform/index.d.ts",
+      "import": "./dist/platform/index.js"
+    },
+    "./platform/detect": {
+      "types": "./dist/platform/detect.d.ts",
+      "import": "./dist/platform/detect.js"
+    },
+    "./platform/node": {
+      "types": "./dist/platform/node.d.ts",
+      "import": "./dist/platform/node.js"
+    },
+    "./services/ai": {
+      "types": "./dist/services/ai/index.d.ts",
+      "import": "./dist/services/ai/index.js"
+    },
+    "./services/ai/agent": {
+      "types": "./dist/services/ai/agent.d.ts",
+      "import": "./dist/services/ai/agent.js"
+    },
+    "./services/ai/chat": {
+      "types": "./dist/services/ai/chat.d.ts",
+      "import": "./dist/services/ai/chat.js"
+    },
+    "./services/ai/mcp": {
+      "types": "./dist/services/ai/mcp.d.ts",
+      "import": "./dist/services/ai/mcp.js"
+    },
+    "./services/ai/messageFactory": {
+      "types": "./dist/services/ai/messageFactory.d.ts",
+      "import": "./dist/services/ai/messageFactory.js"
+    },
+    "./services/ai/mind": {
+      "types": "./dist/services/ai/mind.d.ts",
+      "import": "./dist/services/ai/mind.js"
+    },
+    "./services/ai/provider": {
+      "types": "./dist/services/ai/provider.d.ts",
+      "import": "./dist/services/ai/provider.js"
+    },
+    "./services/ai/tools": {
+      "types": "./dist/services/ai/tools.d.ts",
+      "import": "./dist/services/ai/tools.js"
+    },
+    "./services/console/logger": {
+      "types": "./dist/services/console/logger.d.ts",
+      "import": "./dist/services/console/logger.js"
+    },
+    "./services/cron": {
+      "types": "./dist/services/cron/index.d.ts",
+      "import": "./dist/services/cron/index.js"
+    },
+    "./services/filesystem": {
+      "types": "./dist/services/filesystem/index.d.ts",
+      "import": "./dist/services/filesystem/index.js"
+    },
+    "./services/heartbeat": {
+      "types": "./dist/services/heartbeat/index.d.ts",
+      "import": "./dist/services/heartbeat/index.js"
+    },
+    "./services/llm/streaming": {
+      "types": "./dist/services/llm/streaming.d.ts",
+      "import": "./dist/services/llm/streaming.js"
+    },
+    "./services/python/executor": {
+      "types": "./dist/services/python/executor.d.ts",
+      "import": "./dist/services/python/executor.js"
+    },
+    "./services/skills": {
+      "types": "./dist/services/skills/index.d.ts",
+      "import": "./dist/services/skills/index.js"
+    },
+    "./services/sound": {
+      "types": "./dist/services/sound/index.d.ts",
+      "import": "./dist/services/sound/index.js"
+    },
+    "./services/storage/bootstrap": {
+      "types": "./dist/services/storage/bootstrap.d.ts",
+      "import": "./dist/services/storage/bootstrap.js"
+    },
+    "./stores/agent": {
+      "types": "./dist/stores/agent.d.ts",
+      "import": "./dist/stores/agent.js"
+    },
+    "./stores/session": {
+      "types": "./dist/stores/session.d.ts",
+      "import": "./dist/stores/session.js"
+    },
+    "./stores/settings": {
+      "types": "./dist/stores/settings.d.ts",
+      "import": "./dist/stores/settings.js"
+    },
+    "./stores/skills": {
+      "types": "./dist/stores/skills.d.ts",
+      "import": "./dist/stores/skills.js"
+    },
+    "./stores/tools": {
+      "types": "./dist/stores/tools.d.ts",
+      "import": "./dist/stores/tools.js"
+    },
+    "./utils/imageUtils": {
+      "types": "./dist/utils/imageUtils.d.ts",
+      "import": "./dist/utils/imageUtils.js"
+    },
+    "./utils/messageHistory": {
+      "types": "./dist/utils/messageHistory.d.ts",
+      "import": "./dist/utils/messageHistory.js"
+    },
+    "./utils/messagePresentation": {
+      "types": "./dist/utils/messagePresentation.d.ts",
+      "import": "./dist/utils/messagePresentation.js"
+    },
+    "./utils/theme": {
+      "types": "./dist/utils/theme.d.ts",
+      "import": "./dist/utils/theme.js"
     },
     "./version": {
       "types": "./dist/version.d.ts",

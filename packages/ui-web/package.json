@@ -13,17 +13,9 @@
       "types": "./dist/bootstrap.d.ts",
       "import": "./dist/bootstrap.js"
     },
-    "./components/*": {
-      "types": "./dist/components/*.d.ts",
-      "import": "./dist/components/*.js"
-    },
-    "./lib/*": {
-      "types": "./dist/lib/*.d.ts",
-      "import": "./dist/lib/*.js"
-    },
-    "./platform/*": {
-      "types": "./dist/platform/*.d.ts",
-      "import": "./dist/platform/*.js"
+    "./platform/sound": {
+      "types": "./dist/platform/sound.d.ts",
+      "import": "./dist/platform/sound.js"
     },
     "./styles": "./dist/index.css"
   },

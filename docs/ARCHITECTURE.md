@@ -154,6 +154,8 @@ Planned fix:
 
 - Build `shared` and `ui-web` as artifacts and consume `dist` outputs
 - Migration is now in progress: `web`, `desktop`, `cli`, and `tui` build against package artifacts, while `mobile` still uses source-level aliases pending follow-up cleanup
+- Current limitation: `web` and `desktop` still duplicate several runtime dependencies because their Vite build aliases point directly at `shared/dist` and `ui-web/dist`, which makes Rollup resolve bare imports from the app package context instead of the workspace package manifests
+- `shared` and `ui-web` now publish explicit `exports` maps and are checked by `scripts/check-package-exports.mjs` so package consumers cannot silently drift onto undeclared subpaths
 
 ## Platform Service Contracts
 

@@ -9,6 +9,7 @@ const steps = [
   ['pnpm', ['--filter', '@openbunny/cli', 'build']],
   ['pnpm', ['--filter', '@openbunny/tui', 'build']],
   ['node', ['scripts/check-package-boundaries.mjs']],
+  ['node', ['scripts/check-package-exports.mjs']],
 ];
 
 for (const [command, args] of steps) {

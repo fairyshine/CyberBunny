@@ -81,12 +81,13 @@ Status: In progress
 - [ ] Update consumers to import compiled outputs instead of raw source
   - Progress: `ui-web`, `web`, `desktop`, `cli`, and `tui` now build against package contracts/artifacts; `mobile` remains on a source-first Expo workflow for now
 - [ ] Remove duplicated transitive dependency declarations where possible
+  - Note: `web`/`desktop` still need shared UI/runtime deps declared locally because Vite currently aliases `@openbunny/shared` and `@openbunny/ui-web` to `dist` directories during build, so Rollup resolves bare imports from the app package context rather than the workspace package manifest
 
 #### 4.2 Add package contract checks
 
 - [x] Add typecheck/build verification for each package entrypoint
 - [x] Add a dependency-boundary rule or script for forbidden imports
-- [ ] Ensure package exports reflect intended public APIs only
+- [x] Ensure package exports reflect intended public APIs only
 
 ### Phase 5 — Test coverage for core flows
 
@@ -133,6 +134,7 @@ This change set starts with the safest item in Phase 1:
 - Move `cli` and `tui` imports onto `@openbunny/shared` public subpaths and compile them with build-only `tsconfig` files that resolve against `shared/dist` instead of `shared/src`.
 - Expand `@openbunny/shared` package exports for `version`, platform subpaths, and locale bundles so non-web consumers can stay on package contracts instead of filesystem aliases.
 - Add `scripts/check-package-boundaries.mjs` and `scripts/verify-package-contracts.mjs` so the artifact-consuming packages keep their new boundaries under automated verification.
+- Add `scripts/check-package-exports.mjs` and replace wildcard `exports` with explicit package contracts for `shared` and `ui-web`.
 
 ## Audit Notes
 
