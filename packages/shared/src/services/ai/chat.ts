@@ -2,9 +2,6 @@ import type { ModelMessage, Tool } from 'ai';
 import type { ChatSessionMeta, LLMConfig, Message, MindDialogueSnapshot, Session } from '../../types';
 import { useAgentStore, DEFAULT_AGENT_ID } from '../../stores/agent';
 import { useSessionStore } from '../../stores/session';
-import { useSettingsStore } from '../../stores/settings';
-import { useToolStore } from '../../stores/tools';
-import { useSkillStore } from '../../stores/skills';
 import { isAbortError } from '../../utils/errors';
 import { getMessageDisplayType } from '../../utils/messagePresentation';
 import { END_SESSION_TOKEN, createSnapshotMessage, extractSummaryText, sanitizeTerminalVisibleText, type DialogueVisibleCallbacks } from './dialogue';
@@ -13,6 +10,8 @@ import { getEnabledTools } from './tools';
 import { loadEnabledMCPTools } from './mcp';
 import { getActivateSkillTool } from './skills';
 import { buildAgentAssistantSystemPrompt } from './prompts';
+import type { AgentRuntimeContext } from './runtimeContext';
+import { resolveAgentRuntimeContext } from './runtimeContext';
 import { appendSessionMessage, createDetachedSession, flushSession, setSessionPrompt, setSessionStreaming, updateSessionMessage } from './sessionOps';
 import { runPairedDialogue, type PairedDialogueTrack } from './pairedDialogue';
 
@@ -27,6 +26,7 @@ export interface ChatToolContext {
   projectId?: string;
   currentAgentId?: string;
   onSourceSessionReady?: (sessionId: string) => void;
+  runtimeContext?: Partial<AgentRuntimeContext>;
 }
 
 export interface ChatConversationResult {
@@ -73,16 +73,31 @@ export async function runChatConversation(agentName: string, input: string, cont
     throw new Error('Chat text is required.');
   }
 
-  const sourceAgentId = context.currentAgentId || useAgentStore.getState().currentAgentId || DEFAULT_AGENT_ID;
-  const sourceAgent = getAgentById(sourceAgentId);
+  const runtimeContext = resolveAgentRuntimeContext({
+    currentAgentId: context.runtimeContext?.currentAgentId ?? context.currentAgentId,
+    agents: context.runtimeContext?.agents,
+    defaultLLMConfig: context.runtimeContext?.defaultLLMConfig,
+    defaultEnabledToolIds: context.runtimeContext?.defaultEnabledToolIds,
+    defaultSkillIds: context.runtimeContext?.defaultSkillIds,
+    mcpConnections: context.runtimeContext?.mcpConnections,
+    onConnectionStatusChange: context.runtimeContext?.onConnectionStatusChange,
+    skills: context.runtimeContext?.skills,
+    enabledSkillIds: context.runtimeContext?.enabledSkillIds,
+    markSkillActivated: context.runtimeContext?.markSkillActivated,
+    proxyUrl: context.runtimeContext?.proxyUrl,
+    toolExecutionTimeout: context.runtimeContext?.toolExecutionTimeout,
+  });
+
+  const sourceAgentId = runtimeContext.currentAgentId;
+  const sourceAgent = getAgentById(sourceAgentId, runtimeContext);
   if (!sourceAgent) {
     throw new Error(`Source agent not found: ${sourceAgentId}`);
   }
 
-  const targetAgent = resolveTargetAgent(agentName, sourceAgentId);
+  const targetAgent = resolveTargetAgent(agentName, sourceAgentId, runtimeContext);
   validateRuntimeConfig(context.llmConfig, sourceAgent.name);
   const targetScope = 'local';
-  const targetRuntime = getAgentRuntime(targetAgent.id);
+  const targetRuntime = getAgentRuntime(targetAgent.id, runtimeContext);
   validateRuntimeConfig(targetRuntime.llmConfig, targetAgent.name);
   const activeAssistantSystemPrompt = buildChatActiveAssistantSystemPrompt(
     sourceAgentId,
@@ -90,8 +105,9 @@ export async function runChatConversation(agentName: string, input: string, cont
     sourceTask,
     targetScope,
     context.sessionSkillIds,
+    runtimeContext,
   );
-  const passiveAssistantSystemPrompt = buildPassiveAssistantSystemPrompt(targetAgent.id, sourceAgentId, targetScope, targetRuntime.skillIds);
+  const passiveAssistantSystemPrompt = buildPassiveAssistantSystemPrompt(targetAgent.id, sourceAgentId, targetScope, targetRuntime.skillIds, runtimeContext);
 
   const sourceSession = await createChatSession(
     sourceAgentId,
@@ -147,7 +163,7 @@ export async function runChatConversation(agentName: string, input: string, cont
     currentAgentId: sourceAgentId,
     enabledToolIds: activeToolIds,
   };
-  const activeTools = await buildToolSet(activeToolIds, context.sessionSkillIds, activeToolContext, abortController.signal);
+  const activeTools = await buildToolSet(activeToolIds, context.sessionSkillIds, activeToolContext, abortController.signal, runtimeContext);
 
   const passiveToolIds = targetRuntime.enabledToolIds.filter((toolId) => toolId !== 'chat');
   const passiveToolContext = {
@@ -157,7 +173,7 @@ export async function runChatConversation(agentName: string, input: string, cont
     sessionSkillIds: targetRuntime.skillIds,
     currentAgentId: targetAgent.id,
   };
-  const passiveTools = await buildToolSet(passiveToolIds, targetRuntime.skillIds, passiveToolContext, abortController.signal);
+  const passiveTools = await buildToolSet(passiveToolIds, targetRuntime.skillIds, passiveToolContext, abortController.signal, runtimeContext);
 
   chatAbortControllers.set(sourceSession.id, abortController);
   chatAbortControllers.set(targetSession.id, abortController);
@@ -302,23 +318,20 @@ async function buildToolSet(
   enabledToolIds: string[],
   sessionSkillIds: string[] | undefined,
   toolContext: ChatToolContext,
-  abortSignal?: AbortSignal,
+  abortSignal: AbortSignal | undefined,
+  runtimeContext: AgentRuntimeContext,
 ): Promise<Record<string, Tool>> {
-  const skillActivationTool = getActivateSkillTool(sessionSkillIds);
+  const skillActivationTool = getActivateSkillTool(sessionSkillIds, runtimeContext);
   const builtinToolSet = getEnabledTools(enabledToolIds, toolContext);
   const mcpToolSet = await loadEnabledMCPTools(
     enabledToolIds,
-    useToolStore.getState().mcpConnections,
+    runtimeContext.mcpConnections,
     {
-      proxyUrl: useSettingsStore.getState().proxyUrl,
-      timeoutMs: useSettingsStore.getState().toolExecutionTimeout || 300000,
+      proxyUrl: runtimeContext.proxyUrl,
+      timeoutMs: runtimeContext.toolExecutionTimeout || 300000,
       abortSignal,
       reservedToolNames: [...Object.keys(builtinToolSet), ...Object.keys(skillActivationTool)],
-      onConnectionStatusChange: (connectionId, status, error) => {
-        const toolStore = useToolStore.getState();
-        toolStore.updateMCPStatus(connectionId, status);
-        toolStore.setMCPError(connectionId, error || null);
-      },
+      onConnectionStatusChange: runtimeContext.onConnectionStatusChange,
     },
   );
 
@@ -329,13 +342,15 @@ async function buildToolSet(
   };
 }
 
-function resolveTargetAgent(agentName: string, sourceAgentId: string) {
+function resolveTargetAgent(agentName: string, sourceAgentId: string, runtimeContext?: Partial<AgentRuntimeContext>) {
   const normalized = agentName.trim().toLowerCase();
   if (!normalized) {
     throw new Error('Target agent name is required.');
   }
 
-  const matches = useAgentStore.getState().agents.filter((agent) => agent.id !== sourceAgentId && agent.name.trim().toLowerCase() === normalized);
+  const agents = runtimeContext?.agents ?? useAgentStore.getState().agents;
+
+  const matches = agents.filter((agent) => agent.id !== sourceAgentId && agent.name.trim().toLowerCase() === normalized);
   if (matches.length === 1) {
     return matches[0];
   }
@@ -343,7 +358,7 @@ function resolveTargetAgent(agentName: string, sourceAgentId: string) {
     throw new Error(`Multiple agents matched "${agentName}". Please use a unique agent name.`);
   }
 
-  const partialMatches = useAgentStore.getState().agents.filter((agent) => agent.id !== sourceAgentId && agent.name.trim().toLowerCase().includes(normalized));
+  const partialMatches = agents.filter((agent) => agent.id !== sourceAgentId && agent.name.trim().toLowerCase().includes(normalized));
   if (partialMatches.length === 1) {
     return partialMatches[0];
   }
@@ -354,8 +369,9 @@ function resolveTargetAgent(agentName: string, sourceAgentId: string) {
   throw new Error(`Agent not found: ${agentName}`);
 }
 
-function getAgentById(agentId: string) {
-  return useAgentStore.getState().agents.find((agent) => agent.id === agentId) || null;
+function getAgentById(agentId: string, runtimeContext?: Partial<AgentRuntimeContext>) {
+  const agents = runtimeContext?.agents ?? useAgentStore.getState().agents;
+  return agents.find((agent) => agent.id === agentId) || null;
 }
 
 function getSessionByOwner(agentId: string, sessionId: string): Session | null {
@@ -381,16 +397,16 @@ function syncChatMeta(agentId: string, sessionId: string, meta: ChatSessionMeta)
   useAgentStore.getState().setAgentSessionChatMeta(agentId, sessionId, meta);
 }
 
-function getAgentRuntime(agentId: string): { llmConfig: LLMConfig; enabledToolIds: string[]; skillIds: string[] } {
+function getAgentRuntime(agentId: string, runtimeContext?: Partial<AgentRuntimeContext>): { llmConfig: LLMConfig; enabledToolIds: string[]; skillIds: string[] } {
   if (agentId === DEFAULT_AGENT_ID) {
     return {
-      llmConfig: useSessionStore.getState().llmConfig,
-      enabledToolIds: useSettingsStore.getState().enabledTools,
-      skillIds: useSkillStore.getState().enabledSkillIds,
+      llmConfig: runtimeContext?.defaultLLMConfig ?? useSessionStore.getState().llmConfig,
+      enabledToolIds: runtimeContext?.defaultEnabledToolIds ?? [],
+      skillIds: runtimeContext?.defaultSkillIds ?? [],
     };
   }
 
-  const agent = getAgentById(agentId);
+  const agent = getAgentById(agentId, runtimeContext);
   if (!agent) {
     throw new Error(`Agent not found: ${agentId}`);
   }
@@ -408,13 +424,14 @@ function buildChatActiveAssistantSystemPrompt(
   sourceTask: string,
   targetScope: 'local' | 'network',
   sessionSkillIds?: string[],
+  runtimeContext?: Partial<AgentRuntimeContext>,
 ): string {
-  const sourceAgent = getAgentById(sourceAgentId);
-  const targetAgent = getAgentById(targetAgentId);
+  const sourceAgent = getAgentById(sourceAgentId, runtimeContext);
+  const targetAgent = getAgentById(targetAgentId, runtimeContext);
   const customPrompt = sourceAgent?.chatActiveAssistantPrompt?.trim() || '';
 
   return [
-    buildAgentAssistantSystemPrompt(sourceAgentId, sessionSkillIds),
+    buildAgentAssistantSystemPrompt(sourceAgentId, sessionSkillIds, runtimeContext),
     customPrompt ? `
 
 ## Active Assistant Persona
@@ -442,10 +459,10 @@ ${customPrompt}` : '',
   ].join("\n");
 }
 
-function buildPassiveAssistantSystemPrompt(targetAgentId: string, sourceAgentId: string, sourceScope: 'local' | 'network', targetSkillIds?: string[]): string {
-  const sourceAgent = getAgentById(sourceAgentId);
+function buildPassiveAssistantSystemPrompt(targetAgentId: string, sourceAgentId: string, sourceScope: 'local' | 'network', targetSkillIds?: string[], runtimeContext?: Partial<AgentRuntimeContext>): string {
+  const sourceAgent = getAgentById(sourceAgentId, runtimeContext);
   return [
-    buildAgentAssistantSystemPrompt(targetAgentId, targetSkillIds),
+    buildAgentAssistantSystemPrompt(targetAgentId, targetSkillIds, runtimeContext),
     '\n\n## Agent-To-Agent Context',
     'You are talking to another agent, not a human user.',
     `The counterpart is the ${sourceScope} agent \"${sourceAgent?.name || sourceAgentId}\".`,

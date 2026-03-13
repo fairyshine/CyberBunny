@@ -61,6 +61,17 @@ export function setSessionPrompt(agentId: string, sessionId: string, systemPromp
   useAgentStore.getState().setAgentSessionSystemPrompt(agentId, sessionId, systemPrompt);
 }
 
+export function setSessionMindMeta(agentId: string, sessionId: string, mindMeta: Session['mindSession']): void {
+  if (!mindMeta) return;
+
+  if (agentId === DEFAULT_AGENT_ID) {
+    useSessionStore.getState().setSessionMindMeta(sessionId, mindMeta);
+    return;
+  }
+
+  useAgentStore.getState().setAgentSessionMindMeta(agentId, sessionId, mindMeta);
+}
+
 export async function flushSession(agentId: string, sessionId: string): Promise<void> {
   if (agentId === DEFAULT_AGENT_ID) {
     await useSessionStore.getState().flushMessages(sessionId);

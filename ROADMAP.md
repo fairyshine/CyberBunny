@@ -43,10 +43,10 @@ Status: In progress
 #### 2.1 Define explicit runtime dependencies for AI flows
 
 - [x] Add a `RuntimeContext` / `AgentRuntimeContext` type in `shared`
-- [ ] Pass agent, skill, MCP, timeout, and proxy dependencies into AI services
-- [ ] Remove direct store reads from `services/ai/agent.ts`
-- [ ] Remove direct store reads from `services/ai/mind.ts`
-- [ ] Remove direct store reads from `services/ai/skills.ts`
+- [x] Pass agent, skill, MCP, timeout, and proxy dependencies into AI services
+- [x] Remove direct store reads from `services/ai/agent.ts`
+- [x] Remove direct store reads from `services/ai/mind.ts`
+- [x] Remove direct store reads from `services/ai/skills.ts`
 
 #### 2.2 Centralize session orchestration
 
@@ -111,6 +111,10 @@ This change set starts with the safest item in Phase 1:
 - Consolidate duplicated `useAgentConfig` into `packages/shared/src/hooks/useAgentConfig.ts`
 - Consolidate duplicated React bootstrap into `packages/ui-web/src/bootstrap.tsx`
 - Introduce `services/ai/runtimeContext.ts` and thread optional runtime context through `agent`, `mind`, `skills`, and prompt assembly.
+- Extend `chat.ts` to consume the new runtime context path for agent resolution and toolset assembly.
+- Make `skills.ts` a pure runtime-context consumer, leaving fallback resolution outside the module.
+- Make prompt assembly prefer runtime-context agent data so the `agent.ts` path stays store-free.
+- Move `mind` session meta persistence behind `sessionOps` so `mind.ts` stays orchestration-only.
 
 ## Audit Notes
 

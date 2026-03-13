@@ -1,7 +1,9 @@
 import { DEFAULT_AGENT_ID, useAgentStore } from '../../stores/agent';
+import { useSessionStore } from '../../stores/session';
 import { useSettingsStore } from '../../stores/settings';
 import { useSkillStore } from '../../stores/skills';
 import { useToolStore, type MCPConnection } from '../../stores/tools';
+import type { Agent, LLMConfig } from '../../types';
 import type { LoadedSkill } from '../skills';
 
 export interface SkillRuntimeContext {
@@ -21,6 +23,10 @@ export interface MCPRuntimeContext {
 
 export interface AgentRuntimeContext extends SkillRuntimeContext, MCPRuntimeContext {
   currentAgentId: string;
+  agents: Agent[];
+  defaultLLMConfig: LLMConfig;
+  defaultEnabledToolIds: string[];
+  defaultSkillIds: string[];
   proxyUrl?: string;
   toolExecutionTimeout?: number;
 }
@@ -54,6 +60,10 @@ export function resolveAgentRuntimeContext(overrides: Partial<AgentRuntimeContex
 
   return {
     currentAgentId: overrides.currentAgentId ?? useAgentStore.getState().currentAgentId ?? DEFAULT_AGENT_ID,
+    agents: overrides.agents ?? useAgentStore.getState().agents,
+    defaultLLMConfig: overrides.defaultLLMConfig ?? useSessionStore.getState().llmConfig,
+    defaultEnabledToolIds: overrides.defaultEnabledToolIds ?? settingsStore.enabledTools,
+    defaultSkillIds: overrides.defaultSkillIds ?? skillContext.enabledSkillIds,
     proxyUrl: overrides.proxyUrl ?? settingsStore.proxyUrl,
     toolExecutionTimeout: overrides.toolExecutionTimeout ?? settingsStore.toolExecutionTimeout,
     ...skillContext,

@@ -14,7 +14,6 @@
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 import type { SkillRuntimeContext } from './runtimeContext';
-import { resolveSkillRuntimeContext } from './runtimeContext';
 import type { LoadedSkill } from '../skills';
 import { listSkillResources, readSkillResource } from '../skills';
 
@@ -24,8 +23,8 @@ import { listSkillResources, readSkillResource } from '../skills';
  * Returns empty string if no skills are enabled.
  * @param sessionSkillIds - Optional session-level skill overrides. If provided, uses these instead of global enabledSkillIds.
  */
-export function generateSkillsSystemPrompt(sessionSkillIds?: string[], runtimeContext?: Partial<SkillRuntimeContext>): string {
-  const { skills, enabledSkillIds } = resolveSkillRuntimeContext(runtimeContext);
+export function generateSkillsSystemPrompt(sessionSkillIds: string[] | undefined, runtimeContext: SkillRuntimeContext): string {
+  const { skills, enabledSkillIds } = runtimeContext;
   const activeIds = sessionSkillIds ?? enabledSkillIds;
   const enabled = skills.filter(s => activeIds.includes(s.id));
 
@@ -69,8 +68,8 @@ Do not guess or fabricate skill instructions — always activate first.
  * Returns empty object if no skills are enabled (don't register a useless tool).
  * @param sessionSkillIds - Optional session-level skill overrides. If provided, uses these instead of global enabledSkillIds.
  */
-export function getActivateSkillTool(sessionSkillIds?: string[], runtimeContext?: Partial<SkillRuntimeContext>): Record<string, Tool> {
-  const { skills, enabledSkillIds, markSkillActivated } = resolveSkillRuntimeContext(runtimeContext);
+export function getActivateSkillTool(sessionSkillIds: string[] | undefined, runtimeContext: SkillRuntimeContext): Record<string, Tool> {
+  const { skills, enabledSkillIds, markSkillActivated } = runtimeContext;
   const activeIds = sessionSkillIds ?? enabledSkillIds;
   const enabled = skills.filter(s => activeIds.includes(s.id));
 
@@ -171,13 +170,13 @@ ${skillDir}${resourcesXml}
 
 export type { LoadedSkill as SkillInfo };
 
-export function getBuiltinSkills(runtimeContext?: Partial<SkillRuntimeContext>): LoadedSkill[] {
-  return resolveSkillRuntimeContext(runtimeContext).skills;
+export function getBuiltinSkills(runtimeContext: SkillRuntimeContext): LoadedSkill[] {
+  return runtimeContext.skills;
 }
 
 /**
  * @deprecated Use getActivateSkillTool() instead.
  */
-export function getSkillTools(runtimeContext?: Partial<SkillRuntimeContext>): Record<string, Tool> {
+export function getSkillTools(runtimeContext: SkillRuntimeContext): Record<string, Tool> {
   return getActivateSkillTool(undefined, runtimeContext);
 }

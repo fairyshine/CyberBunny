@@ -1,8 +1,6 @@
 import type { ModelMessage } from 'ai';
 import i18n from '../../i18n';
 import type { LLMConfig, Message, MindDialogueSnapshot, Session } from '../../types';
-import { useAgentStore, DEFAULT_AGENT_ID } from '../../stores/agent';
-import { useSessionStore } from '../../stores/session';
 import { isAbortError } from '../../utils/errors';
 import { END_SESSION_TOKEN, createSnapshotMessage, extractSummaryText, sanitizeTerminalVisibleText, type DialogueVisibleCallbacks } from './dialogue';
 import { createResponseMessage, createUserMessage } from './messageFactory';
@@ -12,7 +10,7 @@ import { getActivateSkillTool } from './skills';
 import type { AgentRuntimeContext } from './runtimeContext';
 import { resolveAgentRuntimeContext } from './runtimeContext';
 import { buildAgentAssistantSystemPrompt } from './prompts';
-import { appendSessionMessage, createDetachedSession, flushSession, setSessionPrompt, setSessionStreaming, updateSessionMessage } from './sessionOps';
+import { appendSessionMessage, createDetachedSession, flushSession, setSessionMindMeta, setSessionPrompt, setSessionStreaming, updateSessionMessage } from './sessionOps';
 import { runPairedDialogue, type PairedDialogueTrack } from './pairedDialogue';
 
 export const MIND_SESSION_NAME = 'mind_session';
@@ -57,9 +55,9 @@ export async function runMindConversation(input: string, context: MindToolContex
     proxyUrl: context.runtimeContext?.proxyUrl,
     toolExecutionTimeout: context.runtimeContext?.toolExecutionTimeout,
   });
-  const currentAgentId = runtimeContext.currentAgentId || useAgentStore.getState().currentAgentId || DEFAULT_AGENT_ID;
+  const currentAgentId = runtimeContext.currentAgentId;
   const assistantSystemPrompt = buildAgentAssistantSystemPrompt(currentAgentId, context.sessionSkillIds, runtimeContext);
-  const userSystemPrompt = buildMindUserSystemPrompt(sourceTask, currentAgentId);
+  const userSystemPrompt = buildMindUserSystemPrompt(sourceTask, currentAgentId, runtimeContext);
   const session = await createMindSession(currentAgentId, sourceTask, context.projectId);
   const abortController = new AbortController();
   const assistantTranscript: ModelMessage[] = [{ role: 'user', content: sourceTask }];
@@ -202,8 +200,8 @@ export async function runMindConversation(input: string, context: MindToolContex
   }
 }
 
-function buildMindUserSystemPrompt(sourceTask: string, currentAgentId: string): string {
-  const agent = useAgentStore.getState().agents.find((item) => item.id === currentAgentId);
+function buildMindUserSystemPrompt(sourceTask: string, currentAgentId: string, runtimeContext: AgentRuntimeContext): string {
+  const agent = runtimeContext.agents.find((item) => item.id === currentAgentId);
   const customPrompt = agent?.mindUserPrompt?.trim();
   return [
     'You are NOT the assistant. You are the user talking to a real assistant.',
@@ -259,17 +257,9 @@ function updateMindMessage(currentAgentId: string, sessionId: string, messageId:
 }
 
 function syncMindMeta(currentAgentId: string, sessionId: string, meta: Session['mindSession']): void {
-  if (currentAgentId === DEFAULT_AGENT_ID) {
-    setSessionPrompt(currentAgentId, sessionId, meta?.assistantSystemPrompt || '');
-    if (meta) {
-      useSessionStore.getState().setSessionMindMeta(sessionId, meta);
-    }
-    return;
-  }
-
   setSessionPrompt(currentAgentId, sessionId, meta?.assistantSystemPrompt || '');
   if (meta) {
-    useAgentStore.getState().setAgentSessionMindMeta(currentAgentId, sessionId, meta);
+    setSessionMindMeta(currentAgentId, sessionId, meta);
   }
 }
 
