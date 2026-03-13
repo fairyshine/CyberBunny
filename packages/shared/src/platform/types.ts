@@ -29,9 +29,15 @@ export interface IPlatformFS {
   rename(oldPath: string, newPath: string): Promise<void>;
 }
 
+export interface ExternalFetchOptions {
+  service: 'llm-provider';
+  proxyUrl?: string;
+}
+
 // Platform API interface (for HTTP requests)
 export interface IPlatformAPI {
   fetch(url: string, options?: RequestInit): Promise<Response>;
+  createExternalFetch?(options: ExternalFetchOptions): typeof globalThis.fetch | undefined;
 }
 
 // Platform context (injected by each platform)

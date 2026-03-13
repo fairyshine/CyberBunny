@@ -14,3 +14,14 @@ export function renderOpenBunnyApp(root: HTMLElement): void {
     </React.StrictMode>,
   );
 }
+
+export function bootstrapOpenBunnyDOMApp(initPlatform: () => void, rootId: string = 'root'): void {
+  initPlatform();
+
+  const root = document.getElementById(rootId);
+  if (!root) {
+    throw new Error(`OpenBunny root element not found: #${rootId}`);
+  }
+
+  renderOpenBunnyApp(root);
+}

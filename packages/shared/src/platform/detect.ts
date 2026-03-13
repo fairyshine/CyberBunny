@@ -85,6 +85,10 @@ export function setPlatformContext(context: IPlatformContext): void {
   platformContext = context;
 }
 
+export function clearPlatformContextForTests(): void {
+  platformContext = null;
+}
+
 export function getPlatformContext(): IPlatformContext {
   if (!platformContext) {
     throw new Error('Platform context not initialized. Call setPlatformContext() first.');

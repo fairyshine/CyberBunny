@@ -64,15 +64,17 @@ export function CronViewer({ isOpen, onClose }: CronViewerProps) {
     [scheduleType, interval, hour, minute, weekday, customExpr],
   );
 
-  const refresh = useCallback(() => {
-    setJobs(cronManager.list());
+  const refresh = useCallback(async () => {
+    setJobs(await cronManager.list());
   }, []);
 
   useEffect(() => {
     if (!isOpen) return;
-    refresh();
+    void refresh();
     const unsub = cronManager.subscribe(refresh);
-    const timer = window.setInterval(refresh, 30000);
+    const timer = window.setInterval(() => {
+      void refresh();
+    }, 30000);
     return () => { unsub(); clearInterval(timer); };
   }, [isOpen, refresh]);
 
@@ -88,7 +90,7 @@ export function CronViewer({ isOpen, onClose }: CronViewerProps) {
     setShowAdvanced(false);
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     setError('');
     const desc = description.trim();
     if (!desc) {
@@ -101,7 +103,7 @@ export function CronViewer({ isOpen, onClose }: CronViewerProps) {
       return;
     }
     try {
-      cronManager.add(expr, desc);
+      await cronManager.add(expr, desc);
       resetForm();
       setShowAdd(false);
     } catch (e) {
@@ -109,12 +111,12 @@ export function CronViewer({ isOpen, onClose }: CronViewerProps) {
     }
   };
 
-  const handleRemove = (id: string) => {
-    cronManager.remove(id);
+  const handleRemove = async (id: string) => {
+    await cronManager.remove(id);
   };
 
-  const handleClearAll = () => {
-    cronManager.clear();
+  const handleClearAll = async () => {
+    await cronManager.clear();
   };
 
   const formatTime = (ts: number | null) => {

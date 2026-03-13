@@ -56,18 +56,18 @@ Status: Completed
 
 ### Phase 3 — Tighten platform boundaries
 
-Status: Planned
+Status: In progress
 
 #### 3.1 Route environment access through platform context
 
-- [ ] Replace `window`-based branching in `services/ai/provider.ts`
-- [ ] Replace direct `localStorage` usage in `services/cron/index.ts`
-- [ ] Review storage backends for a single initialization path per platform
+- [x] Replace `window`-based branching in `services/ai/provider.ts`
+- [x] Replace direct `localStorage` usage in `services/cron/index.ts`
+- [x] Review storage backends for a single initialization path per platform
 
 #### 3.2 Normalize platform bootstrapping
 
-- [ ] Create a shared bootstrap helper for React platforms
-- [ ] Make platform initialization idempotent and easy to test
+- [x] Create a shared bootstrap helper for React platforms
+- [x] Make platform initialization idempotent and easy to test
 - [ ] Document required platform services for each client package
 
 ### Phase 4 — Package boundary hardening
@@ -120,6 +120,11 @@ This change set starts with the safest item in Phase 1:
 - Extract shared session message persistence helpers so `load*/flush*` flows no longer duplicate storage normalization in both stores.
 - Extract shared session/agent state helpers so trash cleanup, stream interruption, and agent rehydrate flows live outside the Zustand store bodies.
 - Introduce an injectable `sessionOwnerStore` facade so `chat` and `mind` orchestration can run on Zustand today and alternate clients later via the same `sessionOps` surface.
+- Move provider-specific proxy fetch selection into platform APIs so `services/ai/provider.ts` no longer branches on browser globals.
+- Route cron persistence through platform storage so scheduled jobs restore consistently without `localStorage` checks in shared services.
+- Centralize message/statistics backend registration in `initializePlatformStorage()` so browser, desktop, mobile, CLI, and TUI each use one explicit startup path.
+- Expand `packages/ui-web/src/bootstrap.tsx` so web and desktop share the same platform-init + root-mount bootstrap entry.
+- Add `initializePlatformRuntime()` so browser, desktop, mobile, CLI, and TUI platform init paths are idempotent, return their context, and can be reset in tests.
 
 ## Audit Notes
 

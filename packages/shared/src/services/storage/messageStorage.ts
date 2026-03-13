@@ -6,43 +6,32 @@
  * 2. localStorage 5-10MB size limit
  * 3. High-frequency writes during tool-input-delta streaming
  *
- * Backend selection:
- * - Browser / Electron: IndexedDB (auto-detected via `typeof indexedDB`)
- * - React Native: expo-sqlite (injected via setBackend() during platform init)
+ * Backend selection is configured during platform initialization:
+ * - Browser / Electron: IndexedDB via `initializePlatformStorage()`
+ * - React Native: expo-sqlite via `initializePlatformStorage({ messageBackend })`
  */
 
 import type { Message } from '../../types';
 import type { IMessageStorageBackend } from './types';
-import { IndexedDBBackend } from './indexeddb';
-
 export type { IMessageStorageBackend } from './types';
 
 const FLUSH_INTERVAL = 1000; // 1s debounce
 
 class MessageStorage {
-  private backend: IMessageStorageBackend;
+  private backend: IMessageStorageBackend = {
+    load: async () => [],
+    save: async () => {},
+    delete: async () => {},
+    clear: async () => {},
+  };
 
   // In-memory dirty buffers: sessionId -> messages
   private dirtyBuffers = new Map<string, Message[]>();
   private flushTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
-  constructor() {
-    // Default to IndexedDB for browser/Electron; mobile overrides via setBackend()
-    if (typeof indexedDB !== 'undefined') {
-      this.backend = new IndexedDBBackend();
-    } else {
-      // No-op backend until mobile injects its own
-      this.backend = {
-        load: async () => [],
-        save: async () => {},
-        delete: async () => {},
-        clear: async () => {},
-      };
-    }
-  }
 
   /**
-   * Replace the storage backend (e.g. for React Native expo-sqlite).
+   * Replace the storage backend (configured during platform initialization).
    */
   setBackend(backend: IMessageStorageBackend): void {
     this.backend = backend;

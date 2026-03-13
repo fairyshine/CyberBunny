@@ -512,20 +512,20 @@ export const cronTool = tool({
         case 'add': {
           if (!expression) return t()('tools.exec.cronNeedExpression');
           if (!description) return t()('tools.exec.cronNeedDescription');
-          const job = cronManager.add(expression, description);
+          const job = await cronManager.add(expression, description);
           logTool('success', t()('tools.exec.cronAdded', { description, expression }));
           const nextStr = job.nextRun ? new Date(job.nextRun).toLocaleString() : '-';
           return t()('tools.exec.cronAddedResult', { id: job.id, expression, description, nextRun: nextStr });
         }
         case 'remove': {
           if (!id) return t()('tools.exec.cronNeedId');
-          const removed = cronManager.remove(id);
+          const removed = await cronManager.remove(id);
           if (!removed) return t()('tools.exec.cronNotFound', { id });
           logTool('success', t()('tools.exec.cronRemoved', { id }));
           return t()('tools.exec.cronRemovedResult', { id });
         }
         case 'list': {
-          const jobs = cronManager.list();
+          const jobs = await cronManager.list();
           if (jobs.length === 0) return t()('tools.exec.cronEmpty');
           const lines = jobs.map((j) => {
             const next = j.nextRun ? new Date(j.nextRun).toLocaleString() : '-';
@@ -535,7 +535,7 @@ export const cronTool = tool({
           return t()('tools.exec.cronListResult', { count: jobs.length, list: lines.join('\n\n') });
         }
         case 'clear': {
-          cronManager.clear();
+          await cronManager.clear();
           logTool('success', t()('tools.exec.cronCleared'));
           return t()('tools.exec.cronClearedResult');
         }

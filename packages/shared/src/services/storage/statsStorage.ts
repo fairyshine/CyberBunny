@@ -1,32 +1,21 @@
 /**
  * Stats Storage — service layer for recording and querying usage statistics.
  *
- * Backend selection mirrors MessageStorage:
- * - Browser / Electron: IndexedDB (auto-detected)
- * - React Native: injected via setBackend()
+ * Backend selection mirrors MessageStorage and is configured during platform initialization.
  */
 
 import type { StatsRecord, IStatsStorageBackend, AggregatedStats } from './statsTypes';
-import { IndexedDBStatsBackend } from './statsIndexeddb';
-
 export type { IStatsStorageBackend, StatsRecord, AggregatedStats } from './statsTypes';
 
 class StatsStorage {
-  private backend: IStatsStorageBackend;
+  private backend: IStatsStorageBackend = {
+    append: async () => {},
+    loadAll: async () => [],
+    loadBySession: async () => [],
+    deleteBySession: async () => {},
+    clear: async () => {},
+  };
 
-  constructor() {
-    if (typeof indexedDB !== 'undefined') {
-      this.backend = new IndexedDBStatsBackend();
-    } else {
-      this.backend = {
-        append: async () => {},
-        loadAll: async () => [],
-        loadBySession: async () => [],
-        deleteBySession: async () => {},
-        clear: async () => {},
-      };
-    }
-  }
 
   setBackend(backend: IStatsStorageBackend): void {
     this.backend = backend;

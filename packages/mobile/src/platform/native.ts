@@ -1,10 +1,9 @@
 import { Platform } from 'react-native';
-import { setPlatformContext } from '@shared/platform';
+import { initializePlatformRuntime } from '@shared/platform';
 import type { IPlatformAPI, IPlatformContext, OSType } from '@shared/platform';
 import { setThemeHandler, setLanguageHandler } from '@shared/stores/settings';
 import { setFileSystemInstance } from '@shared/services/filesystem';
-import { messageStorage } from '@shared/services/storage/messageStorage';
-import { statsStorage } from '@shared/services/storage/statsStorage';
+import { initializePlatformStorage } from '@shared/services/storage/bootstrap';
 import { soundManager } from '@shared/services/sound';
 import { nativeStorage } from './storage';
 import { nativeFS } from './filesystem';
@@ -24,45 +23,38 @@ const nativeAPI: IPlatformAPI = {
 /**
  * Initialize React Native mobile platform context
  */
-export function initMobilePlatform(): void {
-  const os: OSType = Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'unknown';
-
-  const context: IPlatformContext = {
-    info: {
-      type: 'mobile',
-      os,
-      isBrowser: false,
-      isDesktop: false,
-      isMobile: true,
+export function initMobilePlatform(): IPlatformContext {
+  return initializePlatformRuntime({
+    key: 'mobile',
+    createContext: () => {
+      const os: OSType = Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'unknown';
+      return {
+        info: {
+          type: 'mobile',
+          os,
+          isBrowser: false,
+          isDesktop: false,
+          isMobile: true,
+        },
+        storage: nativeStorage,
+        fs: nativeFS,
+        api: nativeAPI,
+      };
     },
-    storage: nativeStorage,
-    fs: nativeFS,
-    api: nativeAPI,
-  };
-
-  setPlatformContext(context);
-
-  // Register mobile filesystem as the IFileSystem implementation
-  setFileSystemInstance(mobileFileSystem);
-
-  // Register SQLite-based message backend for React Native
-  messageStorage.setBackend(new SQLiteMessageBackend());
-
-  // Register SQLite-based stats backend for React Native
-  statsStorage.setBackend(new SQLiteStatsBackend());
-
-  // Wire up theme handler (handled by App.tsx via Paper theme)
-  setThemeHandler(() => {
-    // Theme changes are handled by App.tsx re-rendering with new theme
+    initialize: () => {
+      setFileSystemInstance(mobileFileSystem);
+      initializePlatformStorage({
+        messageBackend: new SQLiteMessageBackend(),
+        statsBackend: new SQLiteStatsBackend(),
+      });
+      setThemeHandler(() => {
+        // Theme changes are handled by App.tsx re-rendering with new theme
+      });
+      setLanguageHandler((lang: string) => {
+        i18n.changeLanguage(lang);
+      });
+      soundManager.setBackend(new MobileSoundBackend());
+      console.log('[Platform] Initialized: mobile (React Native)');
+    },
   });
-
-  // Wire up language handler
-  setLanguageHandler((lang: string) => {
-    i18n.changeLanguage(lang);
-  });
-
-  // Wire up sound backend
-  soundManager.setBackend(new MobileSoundBackend());
-
-  console.log('[Platform] Initialized: mobile (React Native)');
 }

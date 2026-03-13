@@ -158,11 +158,13 @@ Planned fix:
 
 These are safe patterns to continue:
 
-- Platform initialization in entry packages before rendering or command startup
+- Platform initialization in entry packages before rendering or command startup, routed through idempotent initializers
 - Re-exporting shared hooks or helpers instead of duplicating implementations
 - Small cross-platform utilities living in `shared/src/utils`
-- Shared React bootstrap utilities living in `ui-web`
+- Shared React bootstrap utilities living in `ui-web`, including the common DOM app bootstrap used by `web` and `desktop`
 - AI session orchestration flowing through `packages/shared/src/services/ai/sessionOps.ts` with an injectable `sessionOwnerStore` adapter
+- Platform-owned external fetch policies for LLM providers, exposed through `IPlatformAPI.createExternalFetch()` instead of browser-global checks in shared services
+- Platform-owned storage backend bootstrap via `initializePlatformStorage()` rather than per-service environment auto-detection
 
 ## Near-Term Refactor Priorities
 

@@ -1,4 +1,5 @@
 import { Cron } from 'croner';
+import { getPlatformContext, type IPlatformStorage } from '../../platform';
 
 export interface CronJob {
   id: string;
@@ -10,7 +11,6 @@ export interface CronJob {
   runCount: number;
 }
 
-/** Serializable subset persisted to storage */
 interface PersistedJob {
   id: string;
   expression: string;
@@ -29,67 +29,95 @@ class CronManager {
   private listeners = new Set<CronListener>();
   private onTrigger: ((job: CronJob) => void) | null = null;
   private initialized = false;
+  private initPromise: Promise<void> | null = null;
 
   setTriggerHandler(handler: (job: CronJob) => void) {
     this.onTrigger = handler;
   }
 
-  /** Restore persisted jobs and start their cron timers */
-  initialize() {
+  async initialize(): Promise<void> {
     if (this.initialized) return;
-    this.initialized = true;
-    try {
-      if (typeof localStorage === 'undefined') return;
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const persisted: PersistedJob[] = JSON.parse(raw);
-      for (const p of persisted) {
-        this.startJob(p.id, p.expression, p.description, p.createdAt, p.lastRun, p.runCount);
+    if (this.initPromise) return this.initPromise;
+
+    this.initPromise = (async () => {
+      try {
+        const storage = this.getStorage();
+        if (!storage) return;
+
+        const raw = await storage.getItem(STORAGE_KEY);
+        if (!raw) return;
+
+        const persisted: PersistedJob[] = JSON.parse(raw);
+        for (const job of persisted) {
+          if (this.jobs.has(job.id)) continue;
+          this.startJob(job.id, job.expression, job.description, job.createdAt, job.lastRun, job.runCount);
+        }
+      } catch {
+        // ignore corrupt data or unavailable storage
+      } finally {
+        this.initialized = true;
+        this.initPromise = null;
+        this.notify();
       }
-    } catch { /* ignore corrupt data */ }
+    })();
+
+    return this.initPromise;
   }
 
-  add(expression: string, description: string): CronJob {
-    this.initialize();
+  async add(expression: string, description: string): Promise<CronJob> {
+    await this.initialize();
     const id = crypto.randomUUID();
     const meta = this.startJob(id, expression, description, Date.now(), null, 0);
-    this.persist();
+    await this.persist();
     this.notify();
     return meta;
   }
 
-  remove(id: string): boolean {
-    this.initialize();
+  async remove(id: string): Promise<boolean> {
+    await this.initialize();
     const entry = this.jobs.get(id);
     if (!entry) return false;
     entry.cron.stop();
     this.jobs.delete(id);
-    this.persist();
+    await this.persist();
     this.notify();
     return true;
   }
 
-  list(): CronJob[] {
-    this.initialize();
-    return Array.from(this.jobs.values()).map(({ cron, meta }) => ({
-      ...meta,
-      nextRun: cron.nextRun()?.getTime() ?? null,
-    }));
+  async list(): Promise<CronJob[]> {
+    await this.initialize();
+    return this.getCurrentJobs();
   }
 
-  clear() {
-    this.initialize();
+  async clear(): Promise<void> {
+    await this.initialize();
     for (const { cron } of this.jobs.values()) {
       cron.stop();
     }
     this.jobs.clear();
-    this.persist();
+    await this.persist();
     this.notify();
   }
 
   subscribe(listener: CronListener): () => void {
     this.listeners.add(listener);
+    void this.initialize();
     return () => this.listeners.delete(listener);
+  }
+
+  private getStorage(): IPlatformStorage | null {
+    try {
+      return getPlatformContext().storage;
+    } catch {
+      return null;
+    }
+  }
+
+  private getCurrentJobs(): CronJob[] {
+    return Array.from(this.jobs.values()).map(({ cron, meta }) => ({
+      ...meta,
+      nextRun: cron.nextRun()?.getTime() ?? null,
+    }));
   }
 
   private startJob(
@@ -106,7 +134,7 @@ class CronManager {
       entry.meta.lastRun = Date.now();
       entry.meta.runCount++;
       entry.meta.nextRun = cron.nextRun()?.getTime() ?? null;
-      this.persist();
+      void this.persist();
       this.notify();
       this.onTrigger?.(entry.meta);
     });
@@ -125,9 +153,11 @@ class CronManager {
     return meta;
   }
 
-  private persist() {
+  private async persist(): Promise<void> {
     try {
-      if (typeof localStorage === 'undefined') return;
+      const storage = this.getStorage();
+      if (!storage) return;
+
       const data: PersistedJob[] = Array.from(this.jobs.values()).map(({ meta }) => ({
         id: meta.id,
         expression: meta.expression,
@@ -136,12 +166,14 @@ class CronManager {
         lastRun: meta.lastRun,
         runCount: meta.runCount,
       }));
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch { /* storage full or unavailable */ }
+      await storage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch {
+      // storage full or unavailable
+    }
   }
 
   private notify() {
-    const jobs = this.list();
+    const jobs = this.getCurrentJobs();
     this.listeners.forEach((fn) => fn(jobs));
   }
 }

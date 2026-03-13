@@ -1,7 +1,8 @@
-import { setPlatformContext } from '@shared/platform';
-import type { IPlatformStorage, IPlatformFS, IPlatformAPI, OSType } from '@shared/platform';
+import { initializePlatformRuntime } from '@shared/platform';
+import type { IPlatformStorage, IPlatformFS, IPlatformAPI, IPlatformContext, OSType } from '@shared/platform';
 import { setThemeHandler, setLanguageHandler } from '@shared/stores/settings';
 import { soundManager } from '@shared/services/sound';
+import { initializePlatformStorage } from '@shared/services/storage/bootstrap';
 import { applyTheme } from '@openbunny/ui-web';
 import { WebSoundBackend } from '@openbunny/ui-web/platform/sound';
 import i18n from '@shared/i18n';
@@ -73,29 +74,32 @@ const electronAPI: IPlatformAPI = {
 /**
  * Initialize Electron desktop platform context
  */
-export function initDesktopPlatform(): void {
-  const os = (window.electronAPI.os || 'unknown') as OSType;
-
-  setPlatformContext({
-    info: {
-      type: 'desktop',
-      os,
-      isBrowser: false,
-      isDesktop: true,
-      isMobile: false,
+export function initDesktopPlatform(): IPlatformContext {
+  return initializePlatformRuntime({
+    key: 'desktop',
+    createContext: () => {
+      const os = (window.electronAPI.os || 'unknown') as OSType;
+      return {
+        info: {
+          type: 'desktop',
+          os,
+          isBrowser: false,
+          isDesktop: true,
+          isMobile: false,
+        },
+        storage: electronStorage,
+        fs: electronFS,
+        api: electronAPI,
+      };
     },
-    storage: electronStorage,
-    fs: electronFS,
-    api: electronAPI,
+    initialize: (context) => {
+      initializePlatformStorage();
+      setThemeHandler(applyTheme);
+      setLanguageHandler((lang: string) => {
+        i18n.changeLanguage(lang);
+      });
+      soundManager.setBackend(new WebSoundBackend());
+      console.log(`[Platform] Initialized: desktop (Electron) on ${context.info.os}`);
+    },
   });
-
-  setThemeHandler(applyTheme);
-  setLanguageHandler((lang: string) => {
-    i18n.changeLanguage(lang);
-  });
-
-  // Wire up sound backend (Electron uses Chromium, same as browser)
-  soundManager.setBackend(new WebSoundBackend());
-
-  console.log(`[Platform] Initialized: desktop (Electron) on ${os}`);
 }
