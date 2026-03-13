@@ -2,17 +2,26 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Session, Message, LLMConfig, SessionType, Project, MindSessionMeta, ChatSessionMeta } from '../types';
 import { logSettings } from '../services/console/logger';
-import { messageStorage } from '../services/storage/messageStorage';
-import { statsStorage } from '../services/storage/statsStorage';
-import { normalizeMessagePresentation } from '../utils/messagePresentation';
-import { appendSessionMessageState, clearStreamingMessageFlags, stripTransientSessionState, updateSessionChatMetaState, updateSessionMessageState, updateSessionMindMetaState } from './sessionStateHelpers';
-
-/** Cached session statistics — updated incrementally to avoid full recalculation */
-export interface SessionStats {
-  sessionCount: number;
-  totalMessages: number;
-  totalTokens: number;
-}
+import { clearAllSessionPersistence, deleteSessionPersistence, deleteSessionPersistenceBatch, flushAllSessionPersistence, persistSessionMessages } from '../services/storage/sessionPersistence';
+import { flushSessionMessages, loadNormalizedSessionMessages } from '../services/storage/sessionMessages';
+import {
+  appendSessionMessageState,
+  closeSessionTabState,
+  computeSessionStats,
+  deleteSessionState,
+  getMessageTokenCount,
+  markStreamingSessionsInterruptedState,
+  mergePersistedSessionMessages,
+  permanentlyDeleteSessionState,
+  replaceSessionMessagesState,
+  restoreSessionState,
+  SessionStats,
+  stripTransientSessionState,
+  updateSessionChatMetaState,
+  updateSessionMessageState,
+  updateSessionMindMetaState,
+  clearDeletedSessionsState,
+} from './sessionStateHelpers';
 
 interface SessionState {
   sessions: Session[];
@@ -73,24 +82,6 @@ export const selectDeletedSessions = (state: SessionState): Session[] => {
   return state.sessions.filter(s => s.deletedAt).sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
 };
 
-/** Compute stats from sessions array (used for initial calc and recalc) */
-function computeStats(sessions: Session[]): SessionStats {
-  const active = sessions.filter(s => !s.deletedAt);
-  return {
-    sessionCount: active.length,
-    totalMessages: active.reduce((sum, s) => sum + s.messages.length, 0),
-    totalTokens: active.reduce(
-      (sum, s) => sum + s.messages.reduce((mSum, m) => mSum + (m.metadata?.tokens ?? 0), 0),
-      0,
-    ),
-  };
-}
-
-/** Get token count from a single message */
-function msgTokens(m: Message): number {
-  return m.metadata?.tokens ?? 0;
-}
-
 export const useSessionStore = create<SessionState>()(
   persist(
     (set, get) => ({
@@ -108,7 +99,7 @@ export const useSessionStore = create<SessionState>()(
       },
 
       recalcStats: () => {
-        set((state) => ({ sessionStats: computeStats(state.sessions) }));
+        set((state) => ({ sessionStats: computeSessionStats(state.sessions) }));
       },
 
       createSession: (name = '新会话', sessionType: SessionType = 'user', projectId?: string) => {
@@ -146,86 +137,23 @@ export const useSessionStore = create<SessionState>()(
       },
 
       deleteSession: (id: string) => {
-        set((state) => {
-          const target = state.sessions.find(s => s.id === id);
-          const wasActive = target && !target.deletedAt;
-          const newSessions = state.sessions.map((s) =>
-            s.id === id ? { ...s, deletedAt: Date.now() } : s
-          );
-
-          // 从打开的标签中移除该会话
-          const newOpenIds = state.openSessionIds.filter(sid => sid !== id);
-
-          // 如果删除的是当前会话，切换到下一个打开的会话
-          const newCurrentId = state.currentSessionId === id
-            ? (newOpenIds[newOpenIds.length - 1] || null)
-            : state.currentSessionId;
-
-          const sessionStats = wasActive ? {
-            sessionCount: state.sessionStats.sessionCount - 1,
-            totalMessages: state.sessionStats.totalMessages - (target?.messages.length ?? 0),
-            totalTokens: state.sessionStats.totalTokens - (target?.messages.reduce((s, m) => s + msgTokens(m), 0) ?? 0),
-          } : state.sessionStats;
-
-          return {
-            sessions: newSessions,
-            currentSessionId: newCurrentId,
-            openSessionIds: newOpenIds,
-            sessionStats,
-          };
-        });
+        set((state) => deleteSessionState(state, id));
       },
 
       restoreSession: (id: string) => {
-        set((state) => {
-          const target = state.sessions.find(s => s.id === id);
-          const wasDeleted = target?.deletedAt;
-          const newSessions = state.sessions.map((s) =>
-            s.id === id ? { ...s, deletedAt: undefined, updatedAt: Date.now() } : s
-          );
-
-          const sessionStats = wasDeleted ? {
-            sessionCount: state.sessionStats.sessionCount + 1,
-            totalMessages: state.sessionStats.totalMessages + (target?.messages.length ?? 0),
-            totalTokens: state.sessionStats.totalTokens + (target?.messages.reduce((s, m) => s + msgTokens(m), 0) ?? 0),
-          } : state.sessionStats;
-
-          return { sessions: newSessions, sessionStats };
-        });
+        set((state) => restoreSessionState(state, id));
       },
 
       permanentlyDeleteSession: (id: string) => {
-        // Also remove messages and stats from database
-        messageStorage.delete(id);
-        statsStorage.deleteSession(id);
-        set((state) => {
-          const target = state.sessions.find(s => s.id === id);
-          const wasActive = target && !target.deletedAt;
-          // Only adjust stats if the session was active (not already in trash)
-          const sessionStats = wasActive ? {
-            sessionCount: state.sessionStats.sessionCount - 1,
-            totalMessages: state.sessionStats.totalMessages - (target?.messages.length ?? 0),
-            totalTokens: state.sessionStats.totalTokens - (target?.messages.reduce((s, m) => s + msgTokens(m), 0) ?? 0),
-          } : state.sessionStats;
-
-          return {
-            sessions: state.sessions.filter((s) => s.id !== id),
-            currentSessionId: state.currentSessionId === id ? null : state.currentSessionId,
-            sessionStats,
-          };
-        });
+        void deleteSessionPersistence(id, { includeStats: true });
+        set((state) => permanentlyDeleteSessionState(state, id));
       },
 
       clearTrash: () => {
-        // Delete messages and stats for all trashed sessions
-        const trashed = get().sessions.filter((s) => s.deletedAt);
-        for (const s of trashed) {
-          messageStorage.delete(s.id);
-          statsStorage.deleteSession(s.id);
-        }
-        // Trashed sessions are already excluded from stats, no stats change needed
+        const trashed = get().sessions.filter((session) => session.deletedAt);
+        void deleteSessionPersistenceBatch(trashed.map((session) => session.id), { includeStats: true });
         set((state) => ({
-          sessions: state.sessions.filter((s) => !s.deletedAt),
+          sessions: clearDeletedSessionsState(state.sessions),
         }));
       },
 
@@ -249,13 +177,13 @@ export const useSessionStore = create<SessionState>()(
 
           // Async persist to IndexedDB (debounced)
           if (updated) {
-            messageStorage.save(sessionId, updated.messages);
+            persistSessionMessages(sessionId, updated.messages);
           }
 
           const sessionStats = isActive ? {
             ...state.sessionStats,
             totalMessages: state.sessionStats.totalMessages + 1,
-            totalTokens: state.sessionStats.totalTokens + msgTokens(message),
+            totalTokens: state.sessionStats.totalTokens + getMessageTokenCount(message),
           } : state.sessionStats;
 
           return { sessions: newSessions, sessionStats };
@@ -267,7 +195,7 @@ export const useSessionStore = create<SessionState>()(
           // Find old token count for delta calculation
           const session = state.sessions.find(s => s.id === sessionId);
           const previousMessage = session?.messages.find(m => m.id === messageId);
-          const oldTokens = previousMessage ? msgTokens(previousMessage) : 0;
+          const oldTokens = previousMessage ? getMessageTokenCount(previousMessage) : 0;
 
           const {
             sessions: newSessions,
@@ -277,11 +205,11 @@ export const useSessionStore = create<SessionState>()(
 
           // Async persist to IndexedDB (debounced)
           if (updated) {
-            messageStorage.save(sessionId, updated.messages);
+            persistSessionMessages(sessionId, updated.messages);
           }
 
           // Calculate new token count from the updated message
-          const newTokens = newMsg ? msgTokens(newMsg) : 0;
+          const newTokens = newMsg ? getMessageTokenCount(newMsg) : 0;
           const tokenDelta = newTokens - oldTokens;
 
           const sessionStats = tokenDelta !== 0 ? {
@@ -302,8 +230,7 @@ export const useSessionStore = create<SessionState>()(
       },
 
       clearAllSessions: () => {
-        messageStorage.clear();
-        statsStorage.clear();
+        void clearAllSessionPersistence({ includeStats: true });
         set({
           sessions: [],
           currentSessionId: null,
@@ -322,22 +249,11 @@ export const useSessionStore = create<SessionState>()(
       },
 
       markStreamingSessionsInterrupted: () => {
-        const now = Date.now();
         set((state) => {
-          let changed = false;
-          const sessions = state.sessions.map((session) => {
-            if (!session.isStreaming) return session;
-            changed = true;
-            const messages = clearStreamingMessageFlags(session.messages);
-            messageStorage.save(session.id, messages);
-            return {
-              ...session,
-              messages,
-              isStreaming: false,
-              interruptedAt: now,
-              updatedAt: now,
-            };
-          });
+          const { sessions, changed } = markStreamingSessionsInterruptedState(
+            state.sessions,
+            persistSessionMessages,
+          );
           return changed ? { sessions } : state;
         });
       },
@@ -365,19 +281,8 @@ export const useSessionStore = create<SessionState>()(
       },
 
       closeSession: (id: string) => {
-        // Flush messages before closing
-        messageStorage.flush(id);
-        set((state) => {
-          const newOpenIds = state.openSessionIds.filter(sid => sid !== id);
-          // 如果关闭的是当前会话，切换到下一个打开的会话
-          const newCurrentId = state.currentSessionId === id
-            ? (newOpenIds[newOpenIds.length - 1] || null)
-            : state.currentSessionId;
-          return {
-            openSessionIds: newOpenIds,
-            currentSessionId: newCurrentId,
-          };
-        });
+        void flushSessionMessages(id);
+        set((state) => closeSessionTabState(state, id));
       },
 
       /**
@@ -390,15 +295,12 @@ export const useSessionStore = create<SessionState>()(
         // Skip if messages are already loaded
         if (session.messages.length > 0) return;
 
-        const messages = (await messageStorage.load(sessionId)).map((message) => normalizeMessagePresentation(message));
+        const messages = await loadNormalizedSessionMessages(sessionId);
         if (messages.length === 0) return;
 
         set((state) => {
-          const newSessions = state.sessions.map((s) =>
-            s.id === sessionId ? { ...s, messages } : s
-          );
-          // Messages loaded from IndexedDB — recalc stats to include them
-          return { sessions: newSessions, sessionStats: computeStats(newSessions) };
+          const { sessions: newSessions } = replaceSessionMessagesState(state.sessions, sessionId, messages);
+          return { sessions: newSessions, sessionStats: computeSessionStats(newSessions) };
         });
       },
 
@@ -407,7 +309,7 @@ export const useSessionStore = create<SessionState>()(
        * Call on step finish or before navigation.
        */
       flushMessages: async (sessionId: string) => {
-        await messageStorage.flush(sessionId);
+        await flushSessionMessages(sessionId);
       },
 
       moveSessionToProject: (sessionId: string, projectId: string | null) => {
@@ -532,25 +434,19 @@ async function migrateMessagesToIndexedDB(): Promise<void> {
     let migrated = 0;
     for (const session of sessions) {
       if (session.messages && session.messages.length > 0) {
-        messageStorage.save(session.id, session.messages);
+        persistSessionMessages(session.id, session.messages);
         migrated++;
       }
     }
 
     if (migrated > 0) {
       // Flush all migrated messages to IndexedDB
-      await messageStorage.flushAll();
+      await flushAllSessionPersistence();
 
       // Load migrated messages into Zustand state so UI shows them immediately
       const state = useSessionStore.getState();
-      const updatedSessions = state.sessions.map((s) => {
-        const old = sessions.find((os) => os.id === s.id);
-        if (old && old.messages.length > 0 && s.messages.length === 0) {
-          return { ...s, messages: old.messages };
-        }
-        return s;
-      });
-      useSessionStore.setState({ sessions: updatedSessions, sessionStats: computeStats(updatedSessions) });
+      const updatedSessions = mergePersistedSessionMessages(state.sessions, sessions);
+      useSessionStore.setState({ sessions: updatedSessions, sessionStats: computeSessionStats(updatedSessions) });
 
       console.log(`[Migration] Migrated messages for ${migrated} sessions to IndexedDB`);
     }
@@ -565,6 +461,6 @@ async function migrateMessagesToIndexedDB(): Promise<void> {
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
     useSessionStore.getState().markStreamingSessionsInterrupted();
-    messageStorage.flushAll();
+    void flushAllSessionPersistence();
   });
 }

@@ -51,7 +51,7 @@ Status: In progress
 #### 2.2 Centralize session orchestration
 
 - [x] Extract session/agent message persistence flows into app services or repositories
-- [ ] Keep Zustand stores focused on state mutation and selectors
+- [x] Keep Zustand stores focused on state mutation and selectors
 - [ ] Reuse the same orchestration layer from UI and non-UI clients
 
 ### Phase 3 — Tighten platform boundaries
@@ -117,6 +117,8 @@ This change set starts with the safest item in Phase 1:
 - Move `mind` session meta persistence behind `sessionOps` so `mind.ts` stays orchestration-only.
 - Route `chat` session lookup/delete/chat-meta persistence through `sessionOps` to consolidate workspace session storage access.
 - Extract shared session mutation helpers so `session.ts` and `agent.ts` reuse the same pure message/meta update paths.
+- Extract shared session message persistence helpers so `load*/flush*` flows no longer duplicate storage normalization in both stores.
+- Extract shared session/agent state helpers so trash cleanup, stream interruption, and agent rehydrate flows live outside the Zustand store bodies.
 
 ## Audit Notes
 

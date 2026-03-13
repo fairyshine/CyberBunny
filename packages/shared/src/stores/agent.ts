@@ -7,9 +7,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Agent, LLMConfig, Session, Message, SessionType, AgentRelationship, AgentGroup, MindSessionMeta, ChatSessionMeta } from '../types';
-import { messageStorage } from '../services/storage/messageStorage';
-import { normalizeMessagePresentation } from '../utils/messagePresentation';
-import { appendSessionMessageState, clearStreamingMessageFlags, stripTransientSessionState, updateSessionChatMetaState, updateSessionMessageState, updateSessionMindMetaState } from './sessionStateHelpers';
+import { deleteSessionPersistence, flushAllSessionPersistence, persistSessionMessages } from '../services/storage/sessionPersistence';
+import { flushSessionMessages, loadNormalizedSessionMessages } from '../services/storage/sessionMessages';
+import { deleteAgentSessionState, deleteAgentState, markStreamingAgentSessionsInterruptedState, normalizeHydratedAgentState } from './agentStateHelpers';
+import { appendSessionMessageState, replaceSessionMessagesState, stripTransientSessionState, updateSessionChatMetaState, updateSessionMessageState, updateSessionMindMetaState } from './sessionStateHelpers';
 
 const DEFAULT_AGENT_ID = 'default';
 const AGENT_FILES_BASE = '/root/.agents';
@@ -164,34 +165,14 @@ export const useAgentStore = create<AgentState>()(
       },
 
       deleteAgent: (id) => {
-        // Cannot delete the default agent
-        const agent = get().agents.find((a) => a.id === id);
+        const agent = get().agents.find((candidate) => candidate.id === id);
         if (!agent || agent.isDefault) return;
 
-        // Clean up sessions from IndexedDB
-        const sessions = get().agentSessions[id] || [];
-        for (const s of sessions) {
-          messageStorage.delete(s.id);
+        for (const session of get().agentSessions[id] || []) {
+          void deleteSessionPersistence(session.id);
         }
-        set((state) => {
-          const { [id]: _sessions, ...restSessions } = state.agentSessions;
-          const { [id]: _currentId, ...restCurrentIds } = state.agentCurrentSessionId;
-          const { [id]: _projects, ...restProjects } = state.agentProjects;
-          const remainingAgents = state.agents.filter((a) => a.id !== id);
-          return {
-            agents: remainingAgents,
-            currentAgentId: state.currentAgentId === id ? DEFAULT_AGENT_ID : state.currentAgentId,
-            agentSessions: restSessions,
-            agentCurrentSessionId: restCurrentIds,
-            agentProjects: restProjects,
-            agentGroups: state.agentGroups.map((g) => {
-              if (g.coreAgentId !== id) return g;
-              // Re-assign core to first remaining member
-              const nextCore = remainingAgents.find((a) => a.groupId === g.id);
-              return { ...g, coreAgentId: nextCore?.id };
-            }),
-          };
-        });
+
+        set((state) => deleteAgentState(state, id, DEFAULT_AGENT_ID));
       },
 
       setCurrentAgent: (id) => set({ currentAgentId: id }),
@@ -315,15 +296,16 @@ export const useAgentStore = create<AgentState>()(
       },
 
       deleteAgentSession: (agentId, sessionId) => {
-        messageStorage.delete(sessionId);
+        void deleteSessionPersistence(sessionId);
         set((state) => {
-          const sessions = (state.agentSessions[agentId] || []).filter((s) => s.id !== sessionId);
-          const currentId = state.agentCurrentSessionId[agentId] === sessionId
-            ? (sessions[0]?.id || null)
-            : state.agentCurrentSessionId[agentId];
+          const nextSessionState = deleteAgentSessionState({
+            sessions: state.agentSessions[agentId] || [],
+            currentSessionId: state.agentCurrentSessionId[agentId] ?? null,
+          }, sessionId);
+
           return {
-            agentSessions: { ...state.agentSessions, [agentId]: sessions },
-            agentCurrentSessionId: { ...state.agentCurrentSessionId, [agentId]: currentId },
+            agentSessions: { ...state.agentSessions, [agentId]: nextSessionState.sessions },
+            agentCurrentSessionId: { ...state.agentCurrentSessionId, [agentId]: nextSessionState.currentSessionId },
           };
         });
       },
@@ -342,7 +324,7 @@ export const useAgentStore = create<AgentState>()(
             message,
           );
           if (updated) {
-            messageStorage.save(sessionId, updated.messages);
+            persistSessionMessages(sessionId, updated.messages);
           }
           return { agentSessions: { ...state.agentSessions, [agentId]: sessions } };
         });
@@ -357,7 +339,7 @@ export const useAgentStore = create<AgentState>()(
             updates,
           );
           if (updated) {
-            messageStorage.save(sessionId, updated.messages);
+            persistSessionMessages(sessionId, updated.messages);
           }
           return { agentSessions: { ...state.agentSessions, [agentId]: sessions } };
         });
@@ -377,26 +359,10 @@ export const useAgentStore = create<AgentState>()(
       },
 
       markStreamingAgentSessionsInterrupted: () => {
-        const now = Date.now();
         set((state) => {
-          let changed = false;
-          const agentSessions = Object.fromEntries(
-            Object.entries(state.agentSessions).map(([agentId, sessions]) => [
-              agentId,
-              sessions.map((session) => {
-                if (!session.isStreaming) return session;
-                changed = true;
-                const messages = clearStreamingMessageFlags(session.messages);
-                messageStorage.save(session.id, messages);
-                return {
-                  ...session,
-                  messages,
-                  isStreaming: false,
-                  interruptedAt: now,
-                  updatedAt: now,
-                };
-              }),
-            ])
+          const { agentSessions, changed } = markStreamingAgentSessionsInterruptedState(
+            state.agentSessions,
+            persistSessionMessages,
           );
 
           return changed ? { agentSessions } : state;
@@ -464,21 +430,19 @@ export const useAgentStore = create<AgentState>()(
         const session = (get().agentSessions[agentId] || []).find((s) => s.id === sessionId);
         if (!session || session.messages.length > 0) return;
 
-        const messages = (await messageStorage.load(sessionId)).map((message) => normalizeMessagePresentation(message));
+        const messages = await loadNormalizedSessionMessages(sessionId);
         if (messages.length === 0) return;
 
         set((state) => ({
           agentSessions: {
             ...state.agentSessions,
-            [agentId]: (state.agentSessions[agentId] || []).map((s) =>
-              s.id === sessionId ? { ...s, messages } : s
-            ),
+            [agentId]: replaceSessionMessagesState(state.agentSessions[agentId] || [], sessionId, messages).sessions,
           },
         }));
       },
 
       flushAgentMessages: async (_agentId, sessionId) => {
-        await messageStorage.flush(sessionId);
+        await flushSessionMessages(sessionId);
       },
 
       moveAgentSessionToProject: (agentId, sessionId, projectId) => {
@@ -586,46 +550,20 @@ export const useAgentStore = create<AgentState>()(
       onRehydrateStorage: () => {
         return (state) => {
           if (!state) return;
-          // Ensure default agent always exists after rehydration
-          const hasDefault = state.agents.some((a) => a.isDefault);
-          if (!hasDefault) {
-            state.agents = [createDefaultAgent(), ...state.agents];
-          }
 
-          const defaultAgent = state.agents.find((a) => a.id === DEFAULT_AGENT_ID || a.isDefault);
-          if (defaultAgent) {
-            defaultAgent.id = DEFAULT_AGENT_ID;
-            defaultAgent.isDefault = true;
-            if (!defaultAgent.name || defaultAgent.name === 'CyberBunny') {
-              defaultAgent.name = 'OpenBunny';
-            }
-            defaultAgent.mindUserPrompt = defaultAgent.mindUserPrompt || '';
-            defaultAgent.chatActiveAssistantPrompt = defaultAgent.chatActiveAssistantPrompt || '';
-          }
+          const normalizedState = normalizeHydratedAgentState({
+            agents: state.agents,
+            agentSessions: state.agentSessions,
+            agentCurrentSessionId: state.agentCurrentSessionId,
+            agentProjects: state.agentProjects,
+            defaultAgentId: DEFAULT_AGENT_ID,
+            createDefaultAgent,
+          });
 
-          state.agents = state.agents.map((agent) => ({
-            ...agent,
-            mindUserPrompt: agent.mindUserPrompt || '',
-            chatActiveAssistantPrompt: agent.chatActiveAssistantPrompt || '',
-          }));
-
-          // Ensure default agent has sessions entry
-          if (!state.agentSessions[DEFAULT_AGENT_ID]) {
-            state.agentSessions[DEFAULT_AGENT_ID] = [];
-          }
-          state.agentSessions = Object.fromEntries(
-            Object.entries(state.agentSessions).map(([agentId, sessions]) => [
-              agentId,
-              sessions.map((session) => stripTransientSessionState(session)),
-            ])
-          );
-          if (state.agentCurrentSessionId[DEFAULT_AGENT_ID] === undefined) {
-            state.agentCurrentSessionId[DEFAULT_AGENT_ID] = null;
-          }
-          // Ensure default agent has projects entry
-          if (!state.agentProjects[DEFAULT_AGENT_ID]) {
-            state.agentProjects[DEFAULT_AGENT_ID] = [];
-          }
+          state.agents = normalizedState.agents;
+          state.agentSessions = normalizedState.agentSessions;
+          state.agentCurrentSessionId = normalizedState.agentCurrentSessionId;
+          state.agentProjects = normalizedState.agentProjects;
         };
       },
     }
@@ -636,6 +574,6 @@ export const useAgentStore = create<AgentState>()(
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
     useAgentStore.getState().markStreamingAgentSessionsInterrupted();
-    messageStorage.flushAll();
+    void flushAllSessionPersistence();
   });
 }
