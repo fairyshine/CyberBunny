@@ -375,7 +375,6 @@ function GraphContent({ onClose, groupId }: GraphContentProps) {
   const initializedRef = useRef(false);
 
   const agentIdKey = useMemo(() => agents.map((agent) => agent.id).sort().join(','), [agents]);
-  const relIdKey = useMemo(() => relationships.map((relationship) => relationship.id).sort().join(','), [relationships]);
   const overviewKey = useMemo(
     () => [
       allAgents.map((agent) => `${agent.id}:${agent.groupId ?? 'ungrouped'}`).sort().join(','),
@@ -457,37 +456,19 @@ function GraphContent({ onClose, groupId }: GraphContentProps) {
     if (isOverviewMode || agents.length === 0) return;
 
     const allSaved = agents.every((agent) => nodePositionsRef.current.has(agent.id) || agent.graphPosition != null);
+    const completePositions = allSaved
+      ? new Map<string, { x: number; y: number }>(
+          agents.map((agent) => [agent.id, nodePositionsRef.current.get(agent.id) ?? agent.graphPosition!]),
+        )
+      : circleLayout(agents);
 
-    if (allSaved) {
-      const positions = new Map<string, { x: number; y: number }>();
-      agents.forEach((agent) => {
-        positions.set(agent.id, nodePositionsRef.current.get(agent.id) ?? agent.graphPosition!);
-      });
-      applyPositions(positions);
+    applyPositions(completePositions);
 
-      if (!initializedRef.current) {
-        initializedRef.current = true;
-        setTimeout(() => fitView({ padding: 0.3, duration: 300 }), 200);
-      }
-      return;
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      setTimeout(() => fitView({ padding: 0.3, duration: 300 }), 200);
     }
-
-    runElkLayout(agents, relationships)
-      .then((positions) => {
-        applyPositions(positions);
-        if (!initializedRef.current) {
-          initializedRef.current = true;
-          setTimeout(() => fitView({ padding: 0.3, duration: 300 }), 200);
-        }
-      })
-      .catch(() => {
-        applyPositions(circleLayout(agents));
-        if (!initializedRef.current) {
-          initializedRef.current = true;
-          setTimeout(() => fitView({ padding: 0.3, duration: 300 }), 200);
-        }
-      });
-  }, [agentIdKey, relIdKey, agents, applyPositions, fitView, isOverviewMode, relationships]);
+  }, [agentIdKey, agents, applyPositions, fitView, isOverviewMode]);
 
   useEffect(() => {
     if (isOverviewMode) return;

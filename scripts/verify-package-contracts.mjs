@@ -4,6 +4,7 @@ const steps = [
   ['pnpm', ['--filter', '@openbunny/shared', 'build']],
   ['pnpm', ['--filter', '@openbunny/ui-web', 'build']],
   ['pnpm', ['--filter', '@openbunny/web', 'build']],
+  ['pnpm', ['--filter', '@openbunny/desktop', 'exec', 'vite', 'build']],
   ['pnpm', ['--filter', '@openbunny/desktop', 'typecheck']],
   ['pnpm', ['--filter', '@openbunny/mobile', 'typecheck']],
   ['pnpm', ['--filter', '@openbunny/mobile', 'typecheck:contracts']],
@@ -13,6 +14,7 @@ const steps = [
   ['node', ['scripts/check-package-exports.mjs']],
   ['node', ['scripts/check-app-runtime-deps.mjs']],
   ['node', ['scripts/check-mobile-runtime-contracts.mjs']],
+  ['node', ['scripts/check-bundle-budgets.mjs']],
 ];
 
 for (const [command, args] of steps) {

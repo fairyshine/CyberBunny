@@ -168,6 +168,14 @@
     "./services/ai/mcpToolId": {
       "types": "./dist/services/ai/mcpToolId.d.ts",
       "import": "./dist/services/ai/mcpToolId.js"
+    },
+    "./services/ai/sessionOwnerStore": {
+      "types": "./dist/services/ai/sessionOwnerStore.d.ts",
+      "import": "./dist/services/ai/sessionOwnerStore.js"
+    },
+    "./services/ai/runtimeDefaults": {
+      "types": "./dist/services/ai/runtimeDefaults.d.ts",
+      "import": "./dist/services/ai/runtimeDefaults.js"
     }
   },
   "scripts": {

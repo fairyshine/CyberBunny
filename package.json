@@ -28,7 +28,8 @@
     "verify:packages": "node scripts/verify-package-contracts.mjs",
     "check:exports": "node scripts/check-package-exports.mjs",
     "check:app-runtime-deps": "node scripts/check-app-runtime-deps.mjs",
-    "check:mobile-runtime": "node scripts/check-mobile-runtime-contracts.mjs"
+    "check:mobile-runtime": "node scripts/check-mobile-runtime-contracts.mjs",
+    "check:bundle-budgets": "node scripts/check-bundle-budgets.mjs"
   },
   "devDependencies": {
     "typescript": "catalog:"

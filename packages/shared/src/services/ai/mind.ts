@@ -81,7 +81,7 @@ export async function runMindConversation(input: string, context: MindToolContex
     enabledToolIds,
   };
   const skillActivationTool = getActivateSkillTool(context.sessionSkillIds, runtimeContext);
-  const builtinToolSet = getEnabledTools(enabledToolIds, toolContext);
+  const builtinToolSet = getEnabledTools(enabledToolIds, { ...toolContext, runtimeContext });
   const mcpToolSet = await loadEnabledMCPTools(
     enabledToolIds,
     runtimeContext.mcpConnections,

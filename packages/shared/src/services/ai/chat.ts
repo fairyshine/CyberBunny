@@ -328,7 +328,7 @@ async function buildToolSet(
   runtimeContext: AgentRuntimeContext,
 ): Promise<Record<string, Tool>> {
   const skillActivationTool = getActivateSkillTool(sessionSkillIds, runtimeContext);
-  const builtinToolSet = getEnabledTools(enabledToolIds, toolContext);
+  const builtinToolSet = getEnabledTools(enabledToolIds, { ...toolContext, runtimeContext });
   const mcpToolSet = await loadEnabledMCPTools(
     enabledToolIds,
     runtimeContext.mcpConnections,

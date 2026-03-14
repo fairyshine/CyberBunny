@@ -1,7 +1,12 @@
 import { detectPlatform, initializePlatformRuntime } from '@openbunny/shared/platform';
 import type { IPlatformStorage, IPlatformAPI, IPlatformContext } from '@openbunny/shared/platform';
-import { setThemeHandler, setLanguageHandler } from '@openbunny/shared/stores/settings';
+import { setThemeHandler, setLanguageHandler, useSettingsStore } from '@openbunny/shared/stores/settings';
 import { soundManager } from '@openbunny/shared/services/sound';
+import {
+  setDefaultAIRuntimeDefaultsResolver,
+  zustandAIRuntimeDefaultsResolver,
+} from '@openbunny/shared/services/ai/runtimeDefaults';
+import { setDefaultSessionOwnerStore, zustandSessionOwnerStore } from '@openbunny/shared/services/ai/sessionOwnerStore';
 import { initializePlatformStorage } from '@openbunny/shared/services/storage/bootstrap';
 import { applyTheme, type Theme } from '@openbunny/ui-web';
 import { WebSoundBackend } from '@openbunny/ui-web/platform/sound';
@@ -74,11 +79,17 @@ export function initBrowserPlatform(): IPlatformContext {
     }),
     initialize: (context) => {
       initializePlatformStorage();
+      setDefaultAIRuntimeDefaultsResolver(zustandAIRuntimeDefaultsResolver);
+      setDefaultSessionOwnerStore(zustandSessionOwnerStore);
       setThemeHandler((theme: Theme) => {
         applyTheme(theme);
       });
       setLanguageHandler((lang: string) => {
         i18n.changeLanguage(lang);
+      });
+      soundManager.setSettingsResolver(() => {
+        const { masterMuted, soundEffectsEnabled, masterVolume } = useSettingsStore.getState();
+        return { masterMuted, soundEffectsEnabled, masterVolume };
       });
       soundManager.setBackend(new WebSoundBackend());
       console.log(`[Platform] Initialized: ${context.info.type}`);

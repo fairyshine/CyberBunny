@@ -1,6 +1,6 @@
 # OpenBunny Architecture Roadmap
 
-Last updated: 2026-03-13
+Last updated: 2026-03-14
 
 ## Goals
 
@@ -8,13 +8,15 @@ Last updated: 2026-03-13
 - Turn `shared` into a reusable core layer across Web / Desktop / Mobile / CLI / TUI
 - Shrink duplicated code paths before they spread further
 - Make future refactors incremental, testable, and low-risk
+- Add packaging and bundle guardrails so architecture wins do not drift back
 
 ## Principles
 
 - Prefer explicit dependency injection over `*.getState()` inside core services
 - Keep platform access behind the platform abstraction layer
 - Keep stores focused on state, not orchestration-heavy business logic
-- Land changes in small, reversible steps with tests or typecheck validation
+- Ship workspace packages through explicit package contracts and built artifacts
+- Land changes in small, reversible steps with tests, typechecks, or build validation
 
 ## Roadmap
 
@@ -34,7 +36,7 @@ Status: Completed
 
 - [x] Write this roadmap
 - [x] Add a short architecture overview describing current layers and intended dependencies
-- [x] Mark temporary exceptions where `shared` still touches platform globals or stores
+- [x] Mark temporary exceptions where `shared` still touches platform globals or store-backed adapters
 
 ### Phase 2 — Introduce runtime context
 
@@ -44,9 +46,7 @@ Status: Completed
 
 - [x] Add a `RuntimeContext` / `AgentRuntimeContext` type in `shared`
 - [x] Pass agent, skill, MCP, timeout, and proxy dependencies into AI services
-- [x] Remove direct store reads from `services/ai/agent.ts`
-- [x] Remove direct store reads from `services/ai/mind.ts`
-- [x] Remove direct store reads from `services/ai/skills.ts`
+- [x] Remove direct store reads from the main AI execution paths in `agent.ts`, `mind.ts`, and `skills.ts`
 
 #### 2.2 Centralize session orchestration
 
@@ -79,15 +79,15 @@ Status: Completed
 - [x] Build `@openbunny/shared` to `dist`
 - [x] Build `@openbunny/ui-web` to `dist`
 - [x] Update consumers to import compiled outputs instead of raw source
-  - Progress: `ui-web`, `web`, `desktop`, `cli`, `tui`, and `mobile` now resolve `@openbunny/shared` through package contracts/artifacts; `mobile` startup prebuilds `shared` so Expo runtime can consume the workspace package exports instead of source aliases
 - [x] Remove duplicated transitive dependency declarations where possible
-  - Progress: `web` and `desktop` now resolve `@openbunny/shared` / `@openbunny/ui-web` through workspace package manifests during build, so their app manifests only keep direct dependencies (`@openbunny/*`, `react`, `react-dom`)
+- [x] Align mobile runtime resolution with public package exports instead of `shared/src` aliases
 
 #### 4.2 Add package contract checks
 
 - [x] Add typecheck/build verification for each package entrypoint
 - [x] Add a dependency-boundary rule or script for forbidden imports
 - [x] Ensure package exports reflect intended public APIs only
+- [x] Add dedicated mobile runtime contract checks for Expo config and startup flow
 
 ### Phase 5 — Test coverage for core flows
 
@@ -98,52 +98,55 @@ Status: Completed
 - [x] Add targeted tests around provider/proxy selection behavior
 - [x] Add targeted tests for platform initialization invariants
 
+### Phase 6 — Runtime performance guardrails
+
+Status: In Progress
+
+- [x] Share Vite manual chunk rules across `web` and `desktop`
+- [x] Lazy-load heavy markdown/code-highlighting paths through `LazyShikiCodeBlock`
+- [x] Lazy-load the agent graph surface and keep ELK behind a dynamic import
+- [x] Use lightweight `circleLayout()` for first graph render when saved positions are absent
+- [x] Reserve ELK auto-layout for explicit user-triggered relayouts
+- [x] Add bundle budget checks for `web` and `desktop` entry chunks plus required async heavy chunks
+- [ ] Reduce remaining large async chunks such as `vendor-elk` and `vendor-shiki`
+- [ ] Improve Expo package-artifact development ergonomics so mobile no longer depends on a paired watch process
+
 ## Execution order
 
-1. Finish Phase 1 duplicate cleanup and architecture notes
-2. Introduce runtime context in AI services without behavior changes
+1. Stop duplication and document intended boundaries
+2. Introduce runtime context without behavior changes
 3. Move platform branching behind abstractions
-4. Compile workspace packages to artifacts
-5. Backfill tests around the newly stabilized boundaries
+4. Compile workspace packages to artifacts and enforce public contracts
+5. Backfill tests around the stabilized boundaries
+6. Add build-time and bundle-time guardrails for performance-sensitive surfaces
 
 ## Current increment
 
-This change set starts with the safest item in Phase 1:
+This roadmap slice now includes the following completed work:
 
-- Consolidate duplicated `useAgentConfig` into `packages/shared/src/hooks/useAgentConfig.ts`
-- Consolidate duplicated React bootstrap into `packages/ui-web/src/bootstrap.tsx`
-- Introduce `services/ai/runtimeContext.ts` and thread optional runtime context through `agent`, `mind`, `skills`, and prompt assembly.
-- Extend `chat.ts` to consume the new runtime context path for agent resolution and toolset assembly.
-- Make `skills.ts` a pure runtime-context consumer, leaving fallback resolution outside the module.
-- Make prompt assembly prefer runtime-context agent data so the `agent.ts` path stays store-free.
-- Move `mind` session meta persistence behind `sessionOps` so `mind.ts` stays orchestration-only.
-- Route `chat` session lookup/delete/chat-meta persistence through `sessionOps` to consolidate workspace session storage access.
-- Extract shared session mutation helpers so `session.ts` and `agent.ts` reuse the same pure message/meta update paths.
-- Extract shared session message persistence helpers so `load*/flush*` flows no longer duplicate storage normalization in both stores.
-- Extract shared session/agent state helpers so trash cleanup, stream interruption, and agent rehydrate flows live outside the Zustand store bodies.
-- Introduce an injectable `sessionOwnerStore` facade so `chat` and `mind` orchestration can run on Zustand today and alternate clients later via the same `sessionOps` surface.
-- Move provider-specific proxy fetch selection into platform APIs so `services/ai/provider.ts` no longer branches on browser globals.
-- Route cron persistence through platform storage so scheduled jobs restore consistently without `localStorage` checks in shared services.
-- Centralize message/statistics backend registration in `initializePlatformStorage()` so browser, desktop, mobile, CLI, and TUI each use one explicit startup path.
-- Expand `packages/ui-web/src/bootstrap.tsx` so web and desktop share the same platform-init + root-mount bootstrap entry.
-- Add `initializePlatformRuntime()` so browser, desktop, mobile, CLI, and TUI platform init paths are idempotent, return their context, and can be reset in tests.
-- Document each client package's required platform services so new entrypoints can wire `storage`, `fs`, `api`, `sound`, and settings hooks consistently.
-- Add explicit `build` pipelines for `@openbunny/shared` and `@openbunny/ui-web`, emitting ESM artifacts to `dist` with rewritten relative imports for runtime consumption.
-- Make `web` dev resolve `shared`/`ui-web` against source aliases while production builds resolve through workspace package exports to the compiled artifacts.
-- Make `desktop` dev resolve `shared`/`ui-web` against source aliases while production builds resolve through workspace package exports to the compiled artifacts.
-- Move `cli` and `tui` imports onto `@openbunny/shared` public subpaths and compile them with build-only `tsconfig` files that resolve against `shared/dist` instead of `shared/src`.
-- Expand `@openbunny/shared` package exports for `version`, platform subpaths, and locale bundles so non-web consumers can stay on package contracts instead of filesystem aliases.
-- Add `scripts/check-package-boundaries.mjs` and `scripts/verify-package-contracts.mjs` so the artifact-consuming packages keep their new boundaries under automated verification.
-- Add `scripts/check-package-exports.mjs` and replace wildcard `exports` with explicit package contracts for `shared` and `ui-web`.
-- Add `scripts/check-app-runtime-deps.mjs` so `web` and `desktop` keep lean runtime manifests instead of re-declaring `shared` / `ui-web` transitive dependencies.
-- Add `sessionOps.test.ts` and `sessionPersistence.test.ts` to cover orchestration delegation, persistence forwarding, and interrupted-stream session recovery helpers.
-- Add `runtimeContext.test.ts` to verify skill/MCP/session/agent runtime context assembly, default store fallbacks, and override precedence.
-- Add `provider.test.ts` plus small dependency-injection seams in `provider.ts` to verify proxy fetch wiring, provider SDK branch selection, openai-compatible model resolution, and connection probe behavior.
-- Add `packages/mobile/tsconfig.contract.json` and `typecheck:contracts` so the Expo client validates `@openbunny/shared` package contracts against `shared/dist`, then remove Metro/Babel source aliases so runtime resolution also flows through the workspace package exports.
-- Add `scripts/check-mobile-runtime-contracts.mjs` so Expo config and startup scripts cannot silently drift back to raw-source resolution.
-- Add `scripts/dev-mobile.mjs` plus `@openbunny/shared` watch mode so Expo development can keep package-artifact resolution without manual rebuild steps.
+- Consolidate duplicated React/bootstrap/theme/sound helpers into shared entrypoints
+- Introduce `services/ai/runtimeContext.ts` and thread runtime dependencies through AI execution paths
+- Route session persistence and orchestration through `packages/shared/src/services/ai/sessionOps.ts`
+- Move shared sound playback settings behind an app-injected resolver so `services/sound` no longer reads Zustand directly
+- Move `services/ai/tools.ts` to injected runtime settings so built-in tools no longer read Zustand or `localStorage` directly
+- Move default `sessionOwnerStore` selection behind an injected resolver so runtime context no longer hard-codes the Zustand adapter
+- Move remaining AI runtime defaults behind `services/ai/runtimeDefaults.ts` so `runtimeContext.ts` resolves from an injected adapter instead of importing stores directly
+- Normalize platform initialization with `initializePlatformRuntime()` and `initializePlatformStorage()`
+- Build `@openbunny/shared` and `@openbunny/ui-web` as consumable package artifacts with explicit exports
+- Move `cli`, `tui`, `web`, `desktop`, and `mobile` imports onto public `@openbunny/shared/*` contracts
+- Add `scripts/check-package-boundaries.mjs`, `scripts/check-package-exports.mjs`, `scripts/check-app-runtime-deps.mjs`, and `scripts/check-mobile-runtime-contracts.mjs`
+- Add `scripts/dev-mobile.mjs` plus `@openbunny/shared` watch mode so Expo can develop against package artifacts
+- Add placeholder mobile sound assets and static native sound loading so `expo export` succeeds
+- Trim MCP-heavy imports from shared/mobile entry paths and lazy-load MCP connection setup where appropriate
+- Share Vite chunk strategy through `scripts/vite-chunks.mjs` for `web` and `desktop`
+- Lazy-load Shiki rendering and the agent graph surface so the main `index-*.js` bundle stays materially smaller
+- Split Shiki into finer async `core` / `langs` / `themes` chunks with the JavaScript regex engine so opening code blocks no longer pulls the full bundled payload at once
+- Change `packages/ui-web/src/components/agent-graph/AgentGraphDialog.tsx` to default to `circleLayout()` on first render and only pull ELK on manual auto-layout
+- Add `scripts/check-bundle-budgets.mjs` and wire it into `verify:packages` to keep `web`/`desktop` entry bundles and async heavy chunks under contract
+- Rename `packages/desktop/postcss.config.mjs` to native ESM config naming so Vite builds stay warning-free
 
 ## Audit Notes
 
-- Remaining same-name files such as `MessageList` and `ChatInput` are currently platform-specific and should not be force-merged.
-- Shared extraction should focus on contracts, IDs, selectors, and runtime helpers rather than forcing identical component structures.
+- Remaining same-name files such as `MessageList` and `ChatInput` are still platform-specific and should not be force-merged.
+- Shared extraction should focus on contracts, IDs, selectors, runtime helpers, and platform seams rather than forcing identical component structures.
+- The biggest remaining performance hotspot is now `vendor-elk`; Shiki has been split into smaller async `core` / `langs` / `themes` chunks, but graph auto-layout still carries a very large on-demand payload.

@@ -1,6 +1,6 @@
 # OpenBunny Architecture Overview
 
-Last updated: 2026-03-13
+Last updated: 2026-03-14
 
 ## Goals
 
@@ -43,6 +43,7 @@ Responsibilities:
 - Shared React UI for browser-like clients
 - Presentational components, keyboard shortcuts, theming, rendering bootstrap
 - UI-only hooks that compose store state for React screens
+- Lazy-load heavy visualization and rich-rendering surfaces when possible
 
 ### 3. Shared App Layer
 
@@ -54,9 +55,10 @@ Responsibilities:
 
 - Domain types
 - Zustand stores
-- Core services for AI, skills, MCP, storage, filesystem, sound, stats, i18n
+- Core services for AI, skills, MCP, storage, filesystem, sound, stats, and i18n
 - Platform abstraction interfaces and platform context
 - Shared hooks and utilities that do not require a specific client package
+- Public package contracts consumed from built artifacts by all other apps
 
 ### 4. Edge Proxy
 
@@ -98,44 +100,26 @@ Use this guide when adding code:
 
 ## Current Temporary Exceptions
 
-These are known architecture leaks. They work today, but should be treated as cleanup targets rather than patterns to copy.
+These are the remaining architecture leaks worth tracking in the current slice.
 
-### `shared` directly reads Zustand stores inside core services
-
-Examples:
-
-- `packages/shared/src/services/ai/agent.ts`
-- `packages/shared/src/services/ai/mind.ts`
-- `packages/shared/src/services/ai/skills.ts`
-
-Why this is temporary:
-
-- It hides runtime dependencies inside core services
-- It makes CLI / TUI / mobile reuse harder to reason about
-- It makes testing and future extraction harder
-
-Planned fix:
-
-- Introduce an explicit runtime context and dependency injection for AI flows
-
-### `shared` directly branches on browser globals
+### Web and desktop still ship very large async UI chunks
 
 Examples:
 
-- `packages/shared/src/services/ai/provider.ts`
-- `packages/shared/src/services/cron/index.ts`
-- `packages/shared/src/services/storage/messageStorage.ts`
-- `packages/shared/src/services/storage/statsStorage.ts`
+- `packages/ui-web/src/components/agent-graph/AgentGraphDialog.tsx`
+- `packages/ui-web/src/lib/shiki.ts`
+- `scripts/vite-chunks.mjs`
 
 Why this is temporary:
 
-- It bypasses the platform abstraction layer
-- It scatters environment checks across services
-- It increases the chance of browser-only assumptions leaking into other clients
+- Main entry bundles are now much smaller, and Shiki has been split into smaller async core/language/theme chunks, but `vendor-elk` is still large when graph auto-layout is opened
+- Initial graph render now avoids ELK unless the user explicitly asks for auto-layout, but the heavy library still exists as an on-demand chunk
+- Rich syntax highlighting is lazy-loaded and now fine-grained, so the remaining hotspot is dominated by graph layout rather than code rendering
 
 Planned fix:
 
-- Move environment decisions behind `getPlatformContext()` and explicit backend registration
+- Keep bundle budgets enforced with `scripts/check-bundle-budgets.mjs`
+- Further shrink or offload ELK/Shiki via lighter defaults, workerization, or narrower language/theme sets
 
 ### Mobile Expo development still relies on a parallel shared build process
 
@@ -144,11 +128,12 @@ Examples:
 - `packages/mobile/package.json`
 - `packages/mobile/metro.config.js`
 - `packages/mobile/tsconfig.contract.json`
+- `scripts/dev-mobile.mjs`
 
 Why this is temporary:
 
-- Expo runtime now resolves `@openbunny/shared` through the workspace package exports, so `shared/dist` must stay fresh during development
-- Root `dev:mobile` now starts a parallel `@openbunny/shared` watch build plus Expo, but the workflow still spans two coordinated processes
+- Expo runtime now resolves `@openbunny/shared` through workspace package exports, so `shared/dist` must stay fresh during development
+- Root `dev:mobile` starts a parallel `@openbunny/shared` watch build plus Expo, but the workflow still spans two coordinated processes
 - Package contract alignment is complete, while development ergonomics still depend on that companion shared build worker
 
 Planned fix:
@@ -249,13 +234,17 @@ These are safe patterns to continue:
 - Small cross-platform utilities living in `shared/src/utils`
 - Shared React bootstrap utilities living in `ui-web`, including the common DOM app bootstrap used by `web` and `desktop`
 - AI session orchestration flowing through `packages/shared/src/services/ai/sessionOps.ts` with an injectable `sessionOwnerStore` adapter
+- Built-in AI tools receiving timeout, search, and exec settings through runtime context instead of reading Zustand or `localStorage` directly
+- Default AI session-owner behavior being registered during platform init instead of being hard-coded inside runtime-context resolution
 - Platform-owned external fetch policies for LLM providers, exposed through `IPlatformAPI.createExternalFetch()` instead of browser-global checks in shared services
 - Platform-owned storage backend bootstrap via `initializePlatformStorage()` rather than per-service environment auto-detection
+- App-owned sound settings injection so `packages/shared/src/services/sound/index.ts` stays store-agnostic while platforms wire live preferences
+- Shared Vite chunk rules in `scripts/vite-chunks.mjs` so `web` and `desktop` split heavy dependencies consistently
+- Bundle budget verification in `scripts/check-bundle-budgets.mjs` so main entry chunks stay bounded while heavy features remain async
+- Lightweight first-render graph layout via `circleLayout()` with ELK only loaded on explicit relayout
 
 ## Near-Term Refactor Priorities
 
-1. Finish removing low-risk duplicate hooks and helpers
-2. Introduce runtime context for AI services
-3. Move platform branching behind platform abstractions
-4. Harden package boundaries by shipping built artifacts
-5. Add tests around the new boundaries
+1. Reduce large async bundle chunks such as `vendor-elk`
+2. Improve Expo package-artifact development ergonomics
+3. Keep package and bundle contracts enforced in verification/CI

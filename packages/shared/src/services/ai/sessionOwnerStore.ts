@@ -127,3 +127,17 @@ export const zustandSessionOwnerStore: SessionOwnerStore = {
     useAgentStore.getState().deleteAgentSession(agentId, sessionId);
   },
 };
+
+let defaultSessionOwnerStore: SessionOwnerStore = zustandSessionOwnerStore;
+
+export function setDefaultSessionOwnerStore(sessionOwnerStore: SessionOwnerStore): void {
+  defaultSessionOwnerStore = sessionOwnerStore;
+}
+
+export function getDefaultSessionOwnerStore(): SessionOwnerStore {
+  return defaultSessionOwnerStore;
+}
+
+export function resetDefaultSessionOwnerStoreForTests(): void {
+  defaultSessionOwnerStore = zustandSessionOwnerStore;
+}

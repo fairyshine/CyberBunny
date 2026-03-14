@@ -85,6 +85,10 @@ export async function runAgentLoop(
     markSkillActivated: runtimeContext?.markSkillActivated,
     proxyUrl: runtimeContext?.proxyUrl ?? proxyUrl,
     toolExecutionTimeout: runtimeContext?.toolExecutionTimeout ?? toolTimeout,
+    execLoginShell: runtimeContext?.execLoginShell,
+    searchProvider: runtimeContext?.searchProvider,
+    exaApiKey: runtimeContext?.exaApiKey,
+    braveApiKey: runtimeContext?.braveApiKey,
   });
 
   const timeout = resolvedRuntime.toolExecutionTimeout || 300000; // Default 5 minutes
@@ -97,6 +101,7 @@ export async function runAgentLoop(
     sessionSkillIds,
     projectId,
     currentAgentId: resolvedRuntime.currentAgentId,
+    runtimeContext: resolvedRuntime,
   });
   const skillActivationTool = getActivateSkillTool(sessionSkillIds, resolvedRuntime);
   const mcpToolSet = await loadEnabledMCPTools(

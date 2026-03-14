@@ -54,6 +54,7 @@ export { createMessage, createUserMessage, createAssistantMessage, createSystemM
 export { providerRegistry, getProviderMeta } from './services/ai/providers';
 export type { ProviderMeta } from './services/ai/providers';
 export { resolveAgentRuntimeContext, resolveMCPRuntimeContext, resolveSkillRuntimeContext } from './services/ai/runtimeContext';
+export { getDefaultAIRuntimeDefaultsResolver, setDefaultAIRuntimeDefaultsResolver } from './services/ai/runtimeDefaults';
 export type { AgentRuntimeContext, MCPRuntimeContext, SkillRuntimeContext } from './services/ai/runtimeContext';
 
 // Services - LLM streaming (simplified with AI SDK)
@@ -62,7 +63,7 @@ export type { StreamOptions } from './services/llm/streaming';
 
 // Services - Sound
 export { soundManager } from './services/sound';
-export type { SoundEffect, ISoundBackend } from './services/sound';
+export type { SoundEffect, ISoundBackend, SoundSettingsSnapshot } from './services/sound';
 
 // Utils
 export { getErrorMessage, isAbortError } from './utils/errors';

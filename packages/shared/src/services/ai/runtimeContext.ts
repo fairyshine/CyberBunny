@@ -1,10 +1,7 @@
-import { DEFAULT_AGENT_ID, useAgentStore } from '../../stores/agent';
-import { useSessionStore } from '../../stores/session';
-import { useSettingsStore } from '../../stores/settings';
-import { useSkillStore } from '../../stores/skills';
-import { useToolStore, type MCPConnection } from '../../stores/tools';
+import type { MCPConnection } from '../../stores/tools';
 import type { Agent, LLMConfig } from '../../types';
-import { zustandSessionOwnerStore, type SessionOwnerStore } from './sessionOwnerStore';
+import { getDefaultAIRuntimeDefaultsResolver } from './runtimeDefaults';
+import { getDefaultSessionOwnerStore, type SessionOwnerStore } from './sessionOwnerStore';
 import type { LoadedSkill } from '../skills';
 
 export interface SkillRuntimeContext {
@@ -34,52 +31,59 @@ export interface AgentRuntimeContext extends SkillRuntimeContext, MCPRuntimeCont
   defaultSkillIds: string[];
   proxyUrl?: string;
   toolExecutionTimeout?: number;
+  execLoginShell?: boolean;
+  searchProvider?: 'exa_free' | 'exa' | 'brave';
+  exaApiKey?: string;
+  braveApiKey?: string;
 }
 
 export function resolveSkillRuntimeContext(overrides: Partial<SkillRuntimeContext> = {}): SkillRuntimeContext {
-  const skillStore = useSkillStore.getState();
+  const defaults = getDefaultAIRuntimeDefaultsResolver().getDefaults();
 
   return {
-    skills: overrides.skills ?? skillStore.skills,
-    enabledSkillIds: overrides.enabledSkillIds ?? skillStore.enabledSkillIds,
-    markSkillActivated: overrides.markSkillActivated ?? skillStore.markActivated,
+    skills: overrides.skills ?? defaults.skills,
+    enabledSkillIds: overrides.enabledSkillIds ?? defaults.enabledSkillIds,
+    markSkillActivated: overrides.markSkillActivated ?? defaults.markSkillActivated,
   };
 }
 
 export function resolveSessionRuntimeContext(overrides: Partial<SessionRuntimeContext> = {}): SessionRuntimeContext {
   return {
-    sessionOwnerStore: overrides.sessionOwnerStore ?? zustandSessionOwnerStore,
+    sessionOwnerStore: overrides.sessionOwnerStore ?? getDefaultSessionOwnerStore(),
   };
 }
 
 export function resolveMCPRuntimeContext(overrides: Partial<MCPRuntimeContext> = {}): MCPRuntimeContext {
-  const toolStore = useToolStore.getState();
+  const defaults = getDefaultAIRuntimeDefaultsResolver().getDefaults();
 
   return {
-    mcpConnections: overrides.mcpConnections ?? toolStore.mcpConnections,
-    onConnectionStatusChange: overrides.onConnectionStatusChange ?? ((connectionId, status, error) => {
-      toolStore.updateMCPStatus(connectionId, status);
-      toolStore.setMCPError(connectionId, error || null);
-    }),
+    mcpConnections: overrides.mcpConnections ?? defaults.mcpConnections,
+    onConnectionStatusChange: overrides.onConnectionStatusChange ?? defaults.onConnectionStatusChange,
   };
 }
 
 export function resolveAgentRuntimeContext(overrides: Partial<AgentRuntimeContext> = {}): AgentRuntimeContext {
-  const settingsStore = useSettingsStore.getState();
-  const skillContext = resolveSkillRuntimeContext(overrides);
-  const mcpContext = resolveMCPRuntimeContext(overrides);
+  const defaults = getDefaultAIRuntimeDefaultsResolver().getDefaults();
   const sessionContext = resolveSessionRuntimeContext(overrides);
+  const enabledSkillIds = overrides.enabledSkillIds ?? defaults.enabledSkillIds;
 
   return {
-    currentAgentId: overrides.currentAgentId ?? useAgentStore.getState().currentAgentId ?? DEFAULT_AGENT_ID,
-    agents: overrides.agents ?? useAgentStore.getState().agents,
-    defaultLLMConfig: overrides.defaultLLMConfig ?? useSessionStore.getState().llmConfig,
-    defaultEnabledToolIds: overrides.defaultEnabledToolIds ?? settingsStore.enabledTools,
-    defaultSkillIds: overrides.defaultSkillIds ?? skillContext.enabledSkillIds,
-    proxyUrl: overrides.proxyUrl ?? settingsStore.proxyUrl,
-    toolExecutionTimeout: overrides.toolExecutionTimeout ?? settingsStore.toolExecutionTimeout,
-    ...skillContext,
-    ...mcpContext,
+    currentAgentId: overrides.currentAgentId ?? defaults.currentAgentId,
+    agents: overrides.agents ?? defaults.agents,
+    defaultLLMConfig: overrides.defaultLLMConfig ?? defaults.defaultLLMConfig,
+    defaultEnabledToolIds: overrides.defaultEnabledToolIds ?? defaults.defaultEnabledToolIds,
+    defaultSkillIds: overrides.defaultSkillIds ?? enabledSkillIds,
+    proxyUrl: overrides.proxyUrl ?? defaults.proxyUrl,
+    toolExecutionTimeout: overrides.toolExecutionTimeout ?? defaults.toolExecutionTimeout,
+    execLoginShell: overrides.execLoginShell ?? defaults.execLoginShell,
+    searchProvider: overrides.searchProvider ?? defaults.searchProvider,
+    exaApiKey: overrides.exaApiKey ?? defaults.exaApiKey,
+    braveApiKey: overrides.braveApiKey ?? defaults.braveApiKey,
+    skills: overrides.skills ?? defaults.skills,
+    enabledSkillIds,
+    markSkillActivated: overrides.markSkillActivated ?? defaults.markSkillActivated,
+    mcpConnections: overrides.mcpConnections ?? defaults.mcpConnections,
+    onConnectionStatusChange: overrides.onConnectionStatusChange ?? defaults.onConnectionStatusChange,
     ...sessionContext,
   };
 }

@@ -1,10 +1,15 @@
 import { Platform } from 'react-native';
 import { initializePlatformRuntime } from '@openbunny/shared/platform';
 import type { IPlatformAPI, IPlatformContext, OSType } from '@openbunny/shared/platform';
-import { setThemeHandler, setLanguageHandler } from '@openbunny/shared/stores/settings';
+import { setThemeHandler, setLanguageHandler, useSettingsStore } from '@openbunny/shared/stores/settings';
 import { setFileSystemInstance } from '@openbunny/shared/services/filesystem';
 import { initializePlatformStorage } from '@openbunny/shared/services/storage/bootstrap';
 import { soundManager } from '@openbunny/shared/services/sound';
+import {
+  setDefaultAIRuntimeDefaultsResolver,
+  zustandAIRuntimeDefaultsResolver,
+} from '@openbunny/shared/services/ai/runtimeDefaults';
+import { setDefaultSessionOwnerStore, zustandSessionOwnerStore } from '@openbunny/shared/services/ai/sessionOwnerStore';
 import { nativeStorage } from './storage';
 import { nativeFS } from './filesystem';
 import { mobileFileSystem } from './mobileFileSystem';
@@ -43,6 +48,8 @@ export function initMobilePlatform(): IPlatformContext {
     },
     initialize: () => {
       setFileSystemInstance(mobileFileSystem);
+      setDefaultAIRuntimeDefaultsResolver(zustandAIRuntimeDefaultsResolver);
+      setDefaultSessionOwnerStore(zustandSessionOwnerStore);
       initializePlatformStorage({
         messageBackend: new SQLiteMessageBackend(),
         statsBackend: new SQLiteStatsBackend(),
@@ -52,6 +59,10 @@ export function initMobilePlatform(): IPlatformContext {
       });
       setLanguageHandler((lang: string) => {
         i18n.changeLanguage(lang);
+      });
+      soundManager.setSettingsResolver(() => {
+        const { masterMuted, soundEffectsEnabled, masterVolume } = useSettingsStore.getState();
+        return { masterMuted, soundEffectsEnabled, masterVolume };
       });
       soundManager.setBackend(new MobileSoundBackend());
       console.log('[Platform] Initialized: mobile (React Native)');

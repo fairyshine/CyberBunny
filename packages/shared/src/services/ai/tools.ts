@@ -9,7 +9,7 @@ import type { LLMConfig } from '../../types';
 import { runMindConversation, type MindToolContext } from './mind';
 import { runChatConversation, type ChatToolContext } from './chat';
 import { getErrorMessage } from '../../utils/errors';
-import { useSettingsStore } from '../../stores/settings';
+import type { AgentRuntimeContext } from './runtimeContext';
 import i18n from '../../i18n';
 
 const t = () => i18n.t.bind(i18n);
@@ -21,6 +21,38 @@ export interface ToolExecutionContext {
   sessionSkillIds?: string[];
   projectId?: string;
   currentAgentId?: string;
+  runtimeContext?: Partial<AgentRuntimeContext>;
+}
+
+interface ToolRuntimeSettings {
+  toolExecutionTimeout: number;
+  execLoginShell: boolean;
+  searchProvider: 'exa_free' | 'exa' | 'brave';
+  exaApiKey: string;
+  braveApiKey: string;
+}
+
+const DEFAULT_TOOL_RUNTIME_SETTINGS: ToolRuntimeSettings = {
+  toolExecutionTimeout: 300000,
+  execLoginShell: true,
+  searchProvider: 'exa_free',
+  exaApiKey: '',
+  braveApiKey: '',
+};
+
+function resolveToolRuntimeSettings(context?: ToolExecutionContext): ToolRuntimeSettings {
+  const runtime = context?.runtimeContext;
+  return {
+    toolExecutionTimeout: runtime?.toolExecutionTimeout ?? DEFAULT_TOOL_RUNTIME_SETTINGS.toolExecutionTimeout,
+    execLoginShell: runtime?.execLoginShell ?? DEFAULT_TOOL_RUNTIME_SETTINGS.execLoginShell,
+    searchProvider: runtime?.searchProvider ?? DEFAULT_TOOL_RUNTIME_SETTINGS.searchProvider,
+    exaApiKey: runtime?.exaApiKey ?? DEFAULT_TOOL_RUNTIME_SETTINGS.exaApiKey,
+    braveApiKey: runtime?.braveApiKey ?? DEFAULT_TOOL_RUNTIME_SETTINGS.braveApiKey,
+  };
+}
+
+function getToolTimeout(context?: ToolExecutionContext): number {
+  return resolveToolRuntimeSettings(context).toolExecutionTimeout || DEFAULT_TOOL_RUNTIME_SETTINGS.toolExecutionTimeout;
 }
 
 /**
@@ -28,12 +60,10 @@ export interface ToolExecutionContext {
  * @param timeoutMs - Timeout in milliseconds, -1 means no timeout (wait forever)
  */
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
-  // -1 means no timeout, wait forever
   if (timeoutMs === -1) {
     return promise;
   }
 
-  // Validate timeout value
   const validTimeout = (typeof timeoutMs === 'number' && timeoutMs > 0) ? timeoutMs : 300000;
 
   if (validTimeout !== timeoutMs) {
@@ -48,181 +78,172 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: st
   ]);
 }
 
-export const pythonTool = tool({
-  description: 'Execute Python code using Pyodide (WebAssembly). Supports pandas, numpy, matplotlib, etc.',
-  inputSchema: z.object({
-    code: z.string().describe('Python code to execute'),
-  }),
-  execute: async ({ code }) => {
-    const timeout = useSettingsStore.getState().toolExecutionTimeout || 300000;
-    logPython('info', t()('tools.exec.code', { length: code.length }), code.slice(0, 200));
-    try {
-      const result = await withTimeout(
-        pythonExecutor.execute(code),
-        timeout,
-        `Python execution timed out after ${timeout}ms`
-      );
-      if (result.error) {
-        logPython('error', t()('tools.exec.failed'), result.error);
-        return `Error:\n${result.error}`;
-      }
-      logPython('success', t()('tools.exec.completed'), result.output.slice(0, 200));
-      return `Output:\n\`\`\`\n${result.output}\n\`\`\``;
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      logPython('error', 'Python execution error', errorMsg);
-      return `Error:\n${errorMsg}`;
-    }
-  },
-});
-
-export const webSearchTool = tool({
-  description: 'Search the web for information using Exa or Brave search API.',
-  inputSchema: z.object({
-    query: z.string().describe('Search query'),
-  }),
-  execute: async ({ query }) => {
-    const timeout = useSettingsStore.getState().toolExecutionTimeout || 300000;
-    const getSearchConfig = () => {
+function createPythonTool(context?: ToolExecutionContext) {
+  return tool({
+    description: 'Execute Python code using Pyodide (WebAssembly). Supports pandas, numpy, matplotlib, etc.',
+    inputSchema: z.object({
+      code: z.string().describe('Python code to execute'),
+    }),
+    execute: async ({ code }) => {
+      const timeout = getToolTimeout(context);
+      logPython('info', t()('tools.exec.code', { length: code.length }), code.slice(0, 200));
       try {
-        if (typeof localStorage === 'undefined') return { provider: 'exa_free' as const, apiKey: '' };
-        const raw = localStorage.getItem('webagent-settings');
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          const state = parsed?.state;
-          const provider = state?.searchProvider || 'exa_free';
-          const apiKey = provider === 'brave' ? (state?.braveApiKey || '') : (state?.exaApiKey || '');
-          return { provider: provider as 'exa_free' | 'exa' | 'brave', apiKey };
+        const result = await withTimeout(
+          pythonExecutor.execute(code),
+          timeout,
+          `Python execution timed out after ${timeout}ms`
+        );
+        if (result.error) {
+          logPython('error', t()('tools.exec.failed'), result.error);
+          return `Error:\n${result.error}`;
         }
-      } catch { /* ignore */ }
-      return { provider: 'exa_free' as const, apiKey: '' };
-    };
+        logPython('success', t()('tools.exec.completed'), result.output.slice(0, 200));
+        return `Output:\n\`\`\`\n${result.output}\n\`\`\``;
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        logPython('error', 'Python execution error', errorMsg);
+        return `Error:\n${errorMsg}`;
+      }
+    },
+  });
+}
 
-    const { provider, apiKey } = getSearchConfig();
-    if (provider !== 'exa_free' && !apiKey) {
-      return t()('tools.exec.searchNoKey');
-    }
+function createWebSearchTool(context?: ToolExecutionContext) {
+  return tool({
+    description: 'Search the web for information using Exa or Brave search API.',
+    inputSchema: z.object({
+      query: z.string().describe('Search query'),
+    }),
+    execute: async ({ query }) => {
+      const timeout = getToolTimeout(context);
+      const { searchProvider: provider, exaApiKey, braveApiKey } = resolveToolRuntimeSettings(context);
+      const apiKey = provider === 'brave' ? braveApiKey : exaApiKey;
+      if (provider !== 'exa_free' && !apiKey) {
+        return t()('tools.exec.searchNoKey');
+      }
 
-    try {
-      let results: Array<{title: string; url: string; snippet: string}>;
+      try {
+        let results: Array<{title: string; url: string; snippet: string}>;
 
-      const searchPromise = (async () => {
-        if (provider === 'exa_free') {
-          // Exa MCP public endpoint — no API key needed
-          const response = await fetch('https://mcp.exa.ai/mcp', {
-            method: 'POST',
-            headers: {
-              'accept': 'application/json, text/event-stream',
-              'content-type': 'application/json',
-            },
-            body: JSON.stringify({
-              jsonrpc: '2.0',
-              id: 1,
-              method: 'tools/call',
-              params: {
-                name: 'web_search_exa',
-                arguments: {
-                  query,
-                  type: 'auto',
-                  numResults: 8,
-                  livecrawl: 'fallback',
-                },
+        const searchPromise = (async () => {
+          if (provider === 'exa_free') {
+            const response = await fetch('https://mcp.exa.ai/mcp', {
+              method: 'POST',
+              headers: {
+                'accept': 'application/json, text/event-stream',
+                'content-type': 'application/json',
               },
-            }),
-          });
-          if (!response.ok) {
-            const errBody = await response.text();
-            throw new Error(`Exa MCP ${response.status}: ${errBody.slice(0, 200)}`);
-          }
-          const text = await response.text();
-          // Parse SSE response
-          const lines = text.split('\n');
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = JSON.parse(line.substring(6));
-              const content = data?.result?.content?.[0]?.text;
-              if (content) {
-                // The MCP response contains formatted search results as text
-                return parseExaMcpResults(content);
+              body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'tools/call',
+                params: {
+                  name: 'web_search_exa',
+                  arguments: {
+                    query,
+                    type: 'auto',
+                    numResults: 8,
+                    livecrawl: 'fallback',
+                  },
+                },
+              }),
+            });
+            if (!response.ok) {
+              const errBody = await response.text();
+              throw new Error(`Exa MCP ${response.status}: ${errBody.slice(0, 200)}`);
+            }
+            const text = await response.text();
+            const lines = text.split('\n');
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = JSON.parse(line.substring(6));
+                const content = data?.result?.content?.[0]?.text;
+                if (content) {
+                  return parseExaMcpResults(content);
+                }
               }
             }
+            try {
+              const data = JSON.parse(text);
+              const content = data?.result?.content?.[0]?.text;
+              if (content) return parseExaMcpResults(content);
+            } catch { }
+            throw new Error('Failed to parse Exa MCP response');
+          } else if (provider === 'brave') {
+            const params = new URLSearchParams({ q: query, count: '5' });
+            const response = await fetch(`https://api.search.brave.com/res/v1/web/search?${params}`, {
+              headers: {
+                'Accept': 'application/json',
+                'Accept-Encoding': 'gzip',
+                'X-Subscription-Token': apiKey,
+              },
+            });
+            if (!response.ok) {
+              const errBody = await response.text();
+              throw new Error(`Brave ${response.status}: ${errBody.slice(0, 200)}`);
+            }
+            const data = await response.json();
+            return (data?.web?.results || []).slice(0, 5).map((r: any) => ({
+              title: r.title || r.url,
+              url: r.url,
+              snippet: r.description || '',
+            }));
+          } else {
+            const response = await fetch('https://api.exa.ai/search', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+              },
+              body: JSON.stringify({
+                query,
+                type: 'auto',
+                numResults: 5,
+                livecrawl: 'fallback',
+              }),
+            });
+            if (!response.ok) {
+              const errBody = await response.text();
+              throw new Error(`Exa ${response.status}: ${errBody.slice(0, 200)}`);
+            }
+            const data = await response.json();
+            return (data?.results || []).map((r: any) => ({
+              title: r.title || r.url,
+              url: r.url,
+              snippet: r.text || r.snippet || '',
+            }));
           }
-          // Fallback: try parsing as plain JSON
-          try {
-            const data = JSON.parse(text);
-            const content = data?.result?.content?.[0]?.text;
-            if (content) return parseExaMcpResults(content);
-          } catch { /* not plain JSON */ }
-          throw new Error('Failed to parse Exa MCP response');
-        } else if (provider === 'brave') {
-          const params = new URLSearchParams({ q: query, count: '5' });
-          const response = await fetch(`https://api.search.brave.com/res/v1/web/search?${params}`, {
-            headers: { 'Accept': 'application/json', 'X-Subscription-Token': apiKey },
-          });
-          if (!response.ok) {
-            const errBody = await response.text();
-            throw new Error(`Brave API ${response.status}: ${errBody.slice(0, 200)}`);
-          }
-          const data = await response.json();
-          return (data.web?.results || []).slice(0, 5).map((r: any) => ({
-            title: r.title || '', url: r.url || '', snippet: (r.description || '').slice(0, 200),
-          }));
-        } else {
-          const response = await fetch('https://api.exa.ai/search', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
-            body: JSON.stringify({ query, type: 'auto', numResults: 5, contents: { text: { maxCharacters: 1000 } } }),
-          });
-          if (!response.ok) {
-            const errBody = await response.text();
-            throw new Error(`Exa API ${response.status}: ${errBody.slice(0, 200)}`);
-          }
-          const data = await response.json();
-          return (data.results || []).map((r: any) => ({
-            title: r.title || '', url: r.url || '', snippet: (r.text || '').slice(0, 200),
-          }));
+        })();
+
+        results = await withTimeout(
+          searchPromise,
+          timeout,
+          `Search timed out after ${timeout}ms`
+        );
+
+        if (!results || results.length === 0) {
+          return t()('tools.exec.searchResults', { query });
         }
-      })();
 
-      results = await withTimeout(
-        searchPromise,
-        timeout,
-        `Web search timed out after ${timeout}ms`
-      );
+        const formatted = results.map((r, index) =>
+          `${index + 1}. ${r.title}\n${r.url}\n${r.snippet}`
+        ).join('\n\n');
 
-      return `${t()('tools.exec.searchResults', { query })}${results.map((r, i) =>
-        `${i + 1}. [${r.title}](${r.url})\n${r.snippet}\n`
-      ).join('\n')}`;
-    } catch (error) {
-      return t()('tools.exec.searchFailed', { error: error instanceof Error ? error.message : String(error) });
-    }
-  },
-});
+        return `${t()('tools.exec.searchResults', { query })}${formatted}`;
+      } catch (error) {
+        return t()('tools.exec.searchFailed', { error: getErrorMessage(error) });
+      }
+    },
+  });
+}
 
-/** Parse Exa MCP text response into structured results */
 function parseExaMcpResults(text: string): Array<{title: string; url: string; snippet: string}> {
   const results: Array<{title: string; url: string; snippet: string}> = [];
-  // Try JSON parse first (MCP may return JSON array)
-  try {
-    const parsed = JSON.parse(text);
-    if (Array.isArray(parsed)) {
-      return parsed.map((r: any) => ({
-        title: r.title || '', url: r.url || '', snippet: (r.text || r.snippet || r.description || '').slice(0, 200),
-      }));
-    }
-    if (parsed.results && Array.isArray(parsed.results)) {
-      return parsed.results.map((r: any) => ({
-        title: r.title || '', url: r.url || '', snippet: (r.text || r.snippet || r.description || '').slice(0, 200),
-      }));
-    }
-  } catch { /* not JSON, parse as text */ }
-  // Fallback: extract markdown-style links from text
   const linkRegex = /\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g;
   let match;
   while ((match = linkRegex.exec(text)) !== null) {
     const title = match[1];
     const url = match[2];
-    // Grab text after the link as snippet
     const afterIdx = match.index + match[0].length;
     const nextMatch = linkRegex.exec(text);
     const endIdx = nextMatch ? nextMatch.index : text.length;
@@ -231,196 +252,193 @@ function parseExaMcpResults(text: string): Array<{title: string; url: string; sn
     results.push({ title, url, snippet });
   }
   if (results.length > 0) return results;
-  // Last resort: return the raw text as a single result
   return [{ title: 'Search Results', url: '', snippet: text.slice(0, 500) }];
 }
 
-export const fileManagerTool = tool({
-  description: 'Manage files: read, write, list, mkdir, delete operations on the virtual file system. The root directory is /root.',
-  inputSchema: z.object({
-    operation: z.enum(['read', 'write', 'list', 'mkdir', 'delete']).describe('File operation to perform'),
-    path: z.string().describe('File or directory path'),
-    content: z.string().optional().describe('Content for write operation'),
-  }),
-  execute: async ({ operation, path, content }) => {
-    const timeout = useSettingsStore.getState().toolExecutionTimeout || 300000;
-    try {
-      const normalizedPath = path.trim();
-      if (normalizedPath.includes('/.memory') || normalizedPath === '/root/.memory') {
-        return '[Error] Access to .memory directory is restricted';
-      }
-
-      const fileOperation = (async () => {
-        await fileSystem.initialize();
-
-        const formatSize = (bytes: number): string => {
-          if (bytes < 1024) return `${bytes} B`;
-          if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-          return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-        };
-
-        switch (operation) {
-          case 'read': {
-            const fileContent = await fileSystem.readFileText(normalizedPath);
-            if (fileContent === null) {
-              logFile('warning', t()('tools.exec.fileNotFound', { path }));
-              return t()('tools.exec.fileNotFoundError', { path });
-            }
-            logFile('success', t()('tools.exec.readFile', { path }), { size: fileContent.length });
-            return `${path}:\n\`\`\`\n${fileContent.slice(0, 5000)}\n\`\`\``;
-          }
-          case 'write': {
-            if (!content && content !== '') {
-              return t()('tools.exec.writeNeedsContent');
-            }
-            await fileSystem.writeFile(normalizedPath, content!);
-            logFile('success', t()('tools.exec.writeFile', { path }), { size: content!.length });
-            return t()('tools.exec.fileSaved', { path, length: content!.length });
-          }
-          case 'list': {
-            const targetPath = normalizedPath || '/root';
-            const entries = await fileSystem.readdir(targetPath);
-            const filtered = entries.filter((e: any) => e.name !== '.memory');
-            if (filtered.length === 0) {
-              return `${targetPath}\n${t()('tools.exec.emptyFolder')}`;
-            }
-            const sorted = filtered.sort((a: any, b: any) => {
-              if (a.type === 'directory' && b.type !== 'directory') return -1;
-              if (a.type !== 'directory' && b.type === 'directory') return 1;
-              return a.name.localeCompare(b.name);
-            });
-            const lines = sorted.map((e: any) => {
-              const size = e.type === 'file' ? ` (${formatSize(e.size)})` : '';
-              return `${e.type === 'directory' ? 'DIR' : 'FILE'} ${e.name}${size}`;
-            });
-            logFile('info', t()('tools.exec.listDir', { path: targetPath }), { count: filtered.length });
-            return `${targetPath} (${t()('tools.exec.dirItems', { count: filtered.length })}):\n\n${lines.join('\n')}`;
-          }
-          case 'mkdir': {
-            await fileSystem.mkdir(normalizedPath);
-            logFile('success', t()('tools.exec.createFolder', { path }));
-            return t()('tools.exec.folderCreated', { path });
-          }
-          case 'delete': {
-            const entry = await fileSystem.stat(normalizedPath);
-            if (!entry) {
-              return t()('tools.exec.notFound', { path });
-            }
-            await fileSystem.rm(normalizedPath, entry.type === 'directory');
-            logFile('success', t()('tools.exec.deleted', { path }), { type: entry.type });
-            return t()('tools.exec.deletedOk', { path });
-          }
+function createFileManagerTool(context?: ToolExecutionContext) {
+  return tool({
+    description: 'Manage files: read, write, list, mkdir, delete operations on the virtual file system. The root directory is /root.',
+    inputSchema: z.object({
+      operation: z.enum(['read', 'write', 'list', 'mkdir', 'delete']).describe('File operation to perform'),
+      path: z.string().describe('File or directory path'),
+      content: z.string().optional().describe('Content for write operation'),
+    }),
+    execute: async ({ operation, path, content }) => {
+      const timeout = getToolTimeout(context);
+      try {
+        const normalizedPath = path.trim();
+        if (normalizedPath.includes('/.memory') || normalizedPath === '/root/.memory') {
+          return '[Error] Access to .memory directory is restricted';
         }
-      })();
 
-      return await withTimeout(
-        fileOperation,
-        timeout,
-        `File operation timed out after ${timeout}ms`
-      );
-    } catch (error) {
-      if (error instanceof SyntaxError) {
-        return t()('tools.exec.jsonError', { error: error.message });
+        const fileOperation = (async () => {
+          await fileSystem.initialize();
+
+          const formatSize = (bytes: number): string => {
+            if (bytes < 1024) return `${bytes} B`;
+            if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+            return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+          };
+
+          switch (operation) {
+            case 'read': {
+              const fileContent = await fileSystem.readFileText(normalizedPath);
+              if (fileContent === null) {
+                logFile('warning', t()('tools.exec.fileNotFound', { path }));
+                return t()('tools.exec.fileNotFoundError', { path });
+              }
+              logFile('success', t()('tools.exec.readFile', { path }), { size: fileContent.length });
+              return `${path}:\n\`\`\`\n${fileContent.slice(0, 5000)}\n\`\`\``;
+            }
+            case 'write': {
+              if (!content && content !== '') {
+                return t()('tools.exec.writeNeedsContent');
+              }
+              await fileSystem.writeFile(normalizedPath, content!);
+              logFile('success', t()('tools.exec.writeFile', { path }), { size: content!.length });
+              return t()('tools.exec.fileSaved', { path, length: content!.length });
+            }
+            case 'list': {
+              const targetPath = normalizedPath || '/root';
+              const entries = await fileSystem.readdir(targetPath);
+              const filtered = entries.filter((e: any) => e.name !== '.memory');
+              if (filtered.length === 0) {
+                return `${targetPath}\n${t()('tools.exec.emptyFolder')}`;
+              }
+              const sorted = filtered.sort((a: any, b: any) => {
+                if (a.type === 'directory' && b.type !== 'directory') return -1;
+                if (a.type !== 'directory' && b.type === 'directory') return 1;
+                return a.name.localeCompare(b.name);
+              });
+              const lines = sorted.map((e: any) => {
+                const size = e.type === 'file' ? ` (${formatSize(e.size)})` : '';
+                return `${e.type === 'directory' ? 'DIR' : 'FILE'} ${e.name}${size}`;
+              });
+              logFile('info', t()('tools.exec.listDir', { path: targetPath }), { count: filtered.length });
+              return `${targetPath} (${t()('tools.exec.dirItems', { count: filtered.length })}):\n\n${lines.join('\n')}`;
+            }
+            case 'mkdir': {
+              await fileSystem.mkdir(normalizedPath);
+              logFile('success', t()('tools.exec.createFolder', { path }));
+              return t()('tools.exec.folderCreated', { path });
+            }
+            case 'delete': {
+              const entry = await fileSystem.stat(normalizedPath);
+              if (!entry) {
+                return t()('tools.exec.notFound', { path });
+              }
+              await fileSystem.rm(normalizedPath, entry.type === 'directory');
+              logFile('success', t()('tools.exec.deleted', { path }), { type: entry.type });
+              return t()('tools.exec.deletedOk', { path });
+            }
+          }
+        })();
+
+        return await withTimeout(
+          fileOperation,
+          timeout,
+          `File operation timed out after ${timeout}ms`
+        );
+      } catch (error) {
+        if (error instanceof SyntaxError) {
+          return t()('tools.exec.jsonError', { error: error.message });
+        }
+        const errorMsg = getErrorMessage(error);
+        logFile('error', t()('tools.exec.fileOpFailed'), errorMsg);
+        return t()('tools.exec.opFailed', { error: errorMsg });
       }
-      const errorMsg = getErrorMessage(error);
-      logFile('error', t()('tools.exec.fileOpFailed'), errorMsg);
-      return t()('tools.exec.opFailed', { error: errorMsg });
-    }
-  },
-});
+    },
+  });
+}
 
-export const memoryTool = tool({
-  description: 'Read/write persistent memory and diary entries. Memory persists across sessions.',
-  inputSchema: z.object({
-    operation: z.enum(['read_memory', 'write_memory', 'read_diary', 'write_diary', 'list_diaries']).describe('Memory operation'),
-    content: z.string().optional().describe('Content to write'),
-    date: z.string().optional().describe('Date for diary (YYYY-MM-DD format)'),
-    mode: z.enum(['append', 'overwrite']).optional().describe('Write mode'),
-  }),
-  execute: async ({ operation, content, date, mode }) => {
-    const timeout = useSettingsStore.getState().toolExecutionTimeout || 300000;
-    const MEMORY_DIR = '/root/.memory';
-    const MEMORY_FILE = '/root/.memory/MEMORY.md';
+function createMemoryTool(context?: ToolExecutionContext) {
+  return tool({
+    description: 'Read/write persistent memory and diary entries. Memory persists across sessions.',
+    inputSchema: z.object({
+      operation: z.enum(['read_memory', 'write_memory', 'read_diary', 'write_diary', 'list_diaries']).describe('Memory operation'),
+      content: z.string().optional().describe('Content to write'),
+      date: z.string().optional().describe('Date for diary (YYYY-MM-DD format)'),
+      mode: z.enum(['append', 'overwrite']).optional().describe('Write mode'),
+    }),
+    execute: async ({ operation, content, date, mode }) => {
+      const timeout = getToolTimeout(context);
+      const MEMORY_DIR = '/root/.memory';
+      const MEMORY_FILE = '/root/.memory/MEMORY.md';
 
-    try {
-      const memoryOperation = (async () => {
-        await fileSystem.initialize();
-        if (!(await fileSystem.exists(MEMORY_DIR))) {
+      try {
+        const memoryOperation = (async () => {
+          await fileSystem.initialize();
           await fileSystem.mkdir(MEMORY_DIR);
-        }
 
-        switch (operation) {
-          case 'read_memory': {
-            const memContent = await fileSystem.readFileText(MEMORY_FILE);
-            if (!memContent) return t()('tools.exec.noMemory');
-            return t()('tools.exec.memoryRead', { content: memContent });
-          }
-          case 'write_memory': {
-            if (mode === 'overwrite') {
-              await fileSystem.writeFile(MEMORY_FILE, content || '');
-            } else {
-              const existing = await fileSystem.readFileText(MEMORY_FILE);
-              const timestamp = new Date().toLocaleString();
-              const newContent = existing
-                ? `${existing}\n\n---\n_${timestamp}_\n${content || ''}`
-                : `_${timestamp}_\n${content || ''}`;
-              await fileSystem.writeFile(MEMORY_FILE, newContent);
+          switch (operation) {
+            case 'read_memory': {
+              const memory = await fileSystem.readFileText(MEMORY_FILE);
+              if (memory == null || memory.trim() === '') {
+                return t()('tools.exec.noMemory');
+              }
+              return t()('tools.exec.memoryRead', { content: memory.slice(0, 5000) });
             }
-            return t()('tools.exec.memoryUpdated');
-          }
-          case 'read_diary': {
-            const targetDate = date || new Date().toISOString().slice(0, 10);
-            const diaryPath = `${MEMORY_DIR}/${targetDate}.md`;
-            const diaryContent = await fileSystem.readFileText(diaryPath);
-            if (!diaryContent) return t()('tools.exec.noDiary', { date: targetDate });
-            return t()('tools.exec.diaryRead', { date: targetDate, content: diaryContent });
-          }
-          case 'write_diary': {
-            const targetDate = date || new Date().toISOString().slice(0, 10);
-            const diaryPath = `${MEMORY_DIR}/${targetDate}.md`;
-            const existing = await fileSystem.readFileText(diaryPath);
-            const timestamp = new Date().toLocaleTimeString();
-            const newContent = existing
-              ? `${existing}\n\n**${timestamp}**\n${content || ''}`
-              : `# ${targetDate}\n\n**${timestamp}**\n${content || ''}`;
-            await fileSystem.writeFile(diaryPath, newContent);
-            return t()('tools.exec.diaryUpdated', { date: targetDate });
-          }
-          case 'list_diaries': {
-            const entries = await fileSystem.readdir(MEMORY_DIR);
-            const diaries = entries
-              .filter(e => e.type === 'file' && e.name !== 'MEMORY.md' && e.name.endsWith('.md'))
-              .sort((a, b) => b.name.localeCompare(a.name));
-            if (diaries.length === 0) {
-              return t()('tools.exec.noDiary', { date: '' }).replace('  ', ' ');
+            case 'write_memory': {
+              if (!content) return t()('tools.exec.writeNeedsContent');
+              const current = (await fileSystem.readFileText(MEMORY_FILE)) || '';
+              const next = mode === 'overwrite' ? content : `${current}${current && !current.endsWith('\n') ? '\n' : ''}${content}`;
+              await fileSystem.writeFile(MEMORY_FILE, next);
+              return t()('tools.exec.memoryUpdated');
             }
-            const list = diaries.map(d => {
-              const diaryDate = d.name.replace('.md', '');
-              const size = d.size < 1024 ? `${d.size} B` : `${(d.size / 1024).toFixed(1)} KB`;
-              return `- ${diaryDate} (${size})`;
-            }).join('\n');
-            return t()('tools.exec.diariesListed', { count: diaries.length, list });
+            case 'read_diary': {
+              const targetDate = date || new Date().toISOString().slice(0, 10);
+              const diaryPath = `${MEMORY_DIR}/${targetDate}.md`;
+              const diary = await fileSystem.readFileText(diaryPath);
+              if (diary == null || diary.trim() === '') {
+                return t()('tools.exec.noDiary', { date: targetDate });
+              }
+              return t()('tools.exec.diaryRead', { date: targetDate, content: diary.slice(0, 5000) });
+            }
+            case 'write_diary': {
+              if (!content) return t()('tools.exec.writeNeedsContent');
+              const targetDate = date || new Date().toISOString().slice(0, 10);
+              const diaryPath = `${MEMORY_DIR}/${targetDate}.md`;
+              const current = (await fileSystem.readFileText(diaryPath)) || '';
+              const next = mode === 'overwrite' ? content : `${current}${current && !current.endsWith('\n') ? '\n' : ''}${content}`;
+              await fileSystem.writeFile(diaryPath, next);
+              return t()('tools.exec.diaryUpdated', { date: targetDate });
+            }
+            case 'list_diaries': {
+              const entries = await fileSystem.readdir(MEMORY_DIR);
+              const diaries = entries
+                .filter(e => e.type === 'file' && e.name !== 'MEMORY.md' && e.name.endsWith('.md'))
+                .sort((a, b) => b.name.localeCompare(a.name));
+              if (diaries.length === 0) {
+                return t()('tools.exec.noDiary', { date: '' }).replace('  ', ' ');
+              }
+              const list = diaries.map(d => {
+                const diaryDate = d.name.replace('.md', '');
+                const size = d.size < 1024 ? `${d.size} B` : `${(d.size / 1024).toFixed(1)} KB`;
+                return `- ${diaryDate} (${size})`;
+              }).join('\n');
+              return t()('tools.exec.diariesListed', { count: diaries.length, list });
+            }
           }
-        }
-      })();
+        })();
 
-      return await withTimeout(
-        memoryOperation,
-        timeout,
-        `Memory operation timed out after ${timeout}ms`
-      );
-    } catch (error) {
-      if (error instanceof SyntaxError) {
-        return t()('tools.exec.jsonError', { error: error.message });
+        return await withTimeout(
+          memoryOperation,
+          timeout,
+          `Memory operation timed out after ${timeout}ms`
+        );
+      } catch (error) {
+        if (error instanceof SyntaxError) {
+          return t()('tools.exec.jsonError', { error: error.message });
+        }
+        return t()('tools.exec.memoryOpFailed', { error: getErrorMessage(error) });
       }
-      return t()('tools.exec.memoryOpFailed', { error: getErrorMessage(error) });
-    }
-  },
-});
+    },
+  });
+}
 
 export function createMindTool(context?: ToolExecutionContext) {
   return tool({
-    description: "Run an internal self-dialogue: a user-role model talks to the assistant until it emits [END_SESSION] plus a <SUMMARY> block. Returns the summary answer.",
+    description: 'Run an internal self-dialogue: a user-role model talks to the assistant until it emits [END_SESSION] plus a <SUMMARY> block. Returns the summary answer.',
     inputSchema: z.object({
       text: z.string().describe('Seed text for the internal dialogue'),
     }),
@@ -472,179 +490,182 @@ export function createChatTool(context?: ToolExecutionContext) {
   });
 }
 
-export const execTool = tool({
-  description: 'Execute shell commands in a persistent session (Desktop only: macOS/Linux). Maintains shell state across commands.',
-  inputSchema: z.object({
-    command: z.string().describe('Shell command to execute'),
-    sessionId: z.string().optional().describe('Session ID for persistent shell (optional, auto-generated if not provided)'),
-  }),
-  execute: async ({ command, sessionId }) => {
-    const timeout = useSettingsStore.getState().toolExecutionTimeout || 300000;
-    // Check if running on desktop platform
-    if (typeof window !== 'undefined' && (window as any).electronAPI?.exec) {
-      try {
-        const loginShell = useSettingsStore.getState().execLoginShell;
-        const execPromise = (window as any).electronAPI.exec.execute(command, sessionId, loginShell, timeout);
-        const result = await execPromise as any;
-        if (result.error) {
-          return `Error:\n${result.error}`;
-        }
-        return `Session: ${result.sessionId}\nExit Code: ${result.exitCode}\n\nOutput:\n\`\`\`\n${result.output}\n\`\`\``;
-      } catch (error) {
-        return `Error: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    }
-    return 'Error: exec tool is only available on desktop platforms (macOS/Linux)';
-  },
-});
-
-export const cronTool = tool({
-  description: 'Schedule periodic tasks using cron expressions. Supports add, remove, list, and clear operations.',
-  inputSchema: z.object({
-    operation: z.enum(['add', 'remove', 'list', 'clear']).describe('Cron operation to perform'),
-    expression: z.string().optional().describe('Cron expression for scheduling (e.g. "*/5 * * * *" for every 5 minutes, "0 9 * * *" for daily at 9am). Required for add operation.'),
-    description: z.string().optional().describe('Human-readable description of what this task does. Required for add operation.'),
-    id: z.string().optional().describe('Job ID for remove operation'),
-  }),
-  execute: async ({ operation, expression, description, id }) => {
-    try {
-      switch (operation) {
-        case 'add': {
-          if (!expression) return t()('tools.exec.cronNeedExpression');
-          if (!description) return t()('tools.exec.cronNeedDescription');
-          const job = await cronManager.add(expression, description);
-          logTool('success', t()('tools.exec.cronAdded', { description, expression }));
-          const nextStr = job.nextRun ? new Date(job.nextRun).toLocaleString() : '-';
-          return t()('tools.exec.cronAddedResult', { id: job.id, expression, description, nextRun: nextStr });
-        }
-        case 'remove': {
-          if (!id) return t()('tools.exec.cronNeedId');
-          const removed = await cronManager.remove(id);
-          if (!removed) return t()('tools.exec.cronNotFound', { id });
-          logTool('success', t()('tools.exec.cronRemoved', { id }));
-          return t()('tools.exec.cronRemovedResult', { id });
-        }
-        case 'list': {
-          const jobs = await cronManager.list();
-          if (jobs.length === 0) return t()('tools.exec.cronEmpty');
-          const lines = jobs.map((j) => {
-            const next = j.nextRun ? new Date(j.nextRun).toLocaleString() : '-';
-            const last = j.lastRun ? new Date(j.lastRun).toLocaleString() : '-';
-            return `- **${j.description}**\n  ID: \`${j.id}\`\n  Schedule: \`${j.expression}\` | Runs: ${j.runCount} | Next: ${next} | Last: ${last}`;
-          });
-          return t()('tools.exec.cronListResult', { count: jobs.length, list: lines.join('\n\n') });
-        }
-        case 'clear': {
-          await cronManager.clear();
-          logTool('success', t()('tools.exec.cronCleared'));
-          return t()('tools.exec.cronClearedResult');
-        }
-      }
-    } catch (error) {
-      const msg = getErrorMessage(error);
-      logTool('error', t()('tools.exec.cronFailed'), msg);
-      return t()('tools.exec.cronFailedResult', { error: msg });
-    }
-  },
-});
-
-export const heartbeatTool = tool({
-  description: 'Manage a heartbeat watchlist. Add/remove/list text items, and set a periodic interval (30/60/120 minutes) to process all items.',
-  inputSchema: z.object({
-    operation: z.enum(['add', 'remove', 'list', 'clear', 'set_interval', 'status']).describe('Heartbeat operation'),
-    text: z.string().optional().describe('Text content for add operation'),
-    id: z.string().optional().describe('Item ID for remove operation'),
-    interval: z.number().optional().describe('Interval in minutes (30, 60, or 120) for set_interval operation'),
-  }),
-  execute: async ({ operation, text, id, interval }) => {
-    try {
-      switch (operation) {
-        case 'add': {
-          if (!text) return t()('tools.exec.heartbeatNeedText');
-          const item = heartbeatManager.add(text);
-          logTool('success', t()('tools.exec.heartbeatAdded', { text }));
-          return t()('tools.exec.heartbeatAddedResult', { id: item.id, text });
-        }
-        case 'remove': {
-          if (!id) return t()('tools.exec.heartbeatNeedId');
-          const removed = heartbeatManager.remove(id);
-          if (!removed) return t()('tools.exec.heartbeatNotFound', { id });
-          logTool('success', t()('tools.exec.heartbeatRemoved', { id }));
-          return t()('tools.exec.heartbeatRemovedResult', { id });
-        }
-        case 'list': {
-          const items = heartbeatManager.list();
-          if (items.length === 0) return t()('tools.exec.heartbeatEmpty');
-          const lines = items.map(i =>
-            `- **${i.text}**\n  ID: \`${i.id}\` | Created: ${new Date(i.createdAt).toLocaleString()}`
-          );
-          return t()('tools.exec.heartbeatListResult', { count: items.length, list: lines.join('\n\n') });
-        }
-        case 'clear': {
-          heartbeatManager.clear();
-          logTool('success', t()('tools.exec.heartbeatCleared'));
-          return t()('tools.exec.heartbeatClearedResult');
-        }
-        case 'set_interval': {
-          if (!interval || ![30, 60, 120].includes(interval)) {
-            return t()('tools.exec.heartbeatInvalidInterval');
+function createExecTool(context?: ToolExecutionContext) {
+  return tool({
+    description: 'Execute shell commands in a persistent session (Desktop only: macOS/Linux). Maintains shell state across commands.',
+    inputSchema: z.object({
+      command: z.string().describe('Shell command to execute'),
+      sessionId: z.string().optional().describe('Session ID for persistent shell (optional, auto-generated if not provided)'),
+    }),
+    execute: async ({ command, sessionId }) => {
+      const { toolExecutionTimeout: timeout, execLoginShell } = resolveToolRuntimeSettings(context);
+      if (typeof window !== 'undefined' && (window as any).electronAPI?.exec) {
+        try {
+          const execPromise = (window as any).electronAPI.exec.execute(command, sessionId, execLoginShell, timeout);
+          const result = await execPromise as any;
+          if (result.error) {
+            return `Error:\n${result.error}`;
           }
-          heartbeatManager.setInterval(interval as 30 | 60 | 120);
-          logTool('success', t()('tools.exec.heartbeatIntervalSet', { interval }));
-          return t()('tools.exec.heartbeatIntervalSetResult', { interval });
-        }
-        case 'status': {
-          const items = heartbeatManager.list();
-          const iv = heartbeatManager.getInterval();
-          const lastTick = heartbeatManager.getLastTick();
-          const nextTick = heartbeatManager.getNextTick();
-          return t()('tools.exec.heartbeatStatus', {
-            count: items.length,
-            interval: iv,
-            lastTick: lastTick ? new Date(lastTick).toLocaleString() : '-',
-            nextTick: nextTick ? new Date(nextTick).toLocaleString() : '-',
-          });
+          return `Session: ${result.sessionId}\nExit Code: ${result.exitCode}\n\nOutput:\n\`\`\`\n${result.output}\n\`\`\``;
+        } catch (error) {
+          return `Error: ${error instanceof Error ? error.message : String(error)}`;
         }
       }
-    } catch (error) {
-      const msg = getErrorMessage(error);
-      logTool('error', t()('tools.exec.heartbeatFailed'), msg);
-      return t()('tools.exec.heartbeatFailedResult', { error: msg });
-    }
-  },
-});
+      return 'Error: exec tool is only available on desktop platforms (macOS/Linux)';
+    },
+  });
+}
 
-/**
- * All built-in tools keyed by tool ID
- */
-export const builtinTools = {
-  python: pythonTool,
-  web_search: webSearchTool,
-  file_manager: fileManagerTool,
-  memory: memoryTool,
-  mind: createMindTool(),
-  chat: createChatTool(),
-  exec: execTool,
-  cron: cronTool,
-  heartbeat: heartbeatTool,
+function createCronTool() {
+  return tool({
+    description: 'Schedule periodic tasks using cron expressions. Supports add, remove, list, and clear operations.',
+    inputSchema: z.object({
+      operation: z.enum(['add', 'remove', 'list', 'clear']).describe('Cron operation to perform'),
+      expression: z.string().optional().describe('Cron expression for scheduling (e.g. "*/5 * * * *" for every 5 minutes, "0 9 * * *" for daily at 9am). Required for add operation.'),
+      description: z.string().optional().describe('Human-readable description of what this task does. Required for add operation.'),
+      id: z.string().optional().describe('Job ID for remove operation'),
+    }),
+    execute: async ({ operation, expression, description, id }) => {
+      try {
+        switch (operation) {
+          case 'add': {
+            if (!expression) return t()('tools.exec.cronNeedExpression');
+            if (!description) return t()('tools.exec.cronNeedDescription');
+            const job = await cronManager.add(expression, description);
+            logTool('success', t()('tools.exec.cronAdded', { description, expression }));
+            const nextStr = job.nextRun ? new Date(job.nextRun).toLocaleString() : '-';
+            return t()('tools.exec.cronAddedResult', { id: job.id, expression, description, nextRun: nextStr });
+          }
+          case 'remove': {
+            if (!id) return t()('tools.exec.cronNeedId');
+            const removed = await cronManager.remove(id);
+            if (!removed) return t()('tools.exec.cronNotFound', { id });
+            logTool('success', t()('tools.exec.cronRemoved', { id }));
+            return t()('tools.exec.cronRemovedResult', { id });
+          }
+          case 'list': {
+            const jobs = await cronManager.list();
+            if (jobs.length === 0) return t()('tools.exec.cronEmpty');
+            const lines = jobs.map((j) => {
+              const next = j.nextRun ? new Date(j.nextRun).toLocaleString() : '-';
+              const last = j.lastRun ? new Date(j.lastRun).toLocaleString() : '-';
+              return `- **${j.description}**\n  ID: \`${j.id}\`\n  Schedule: \`${j.expression}\` | Runs: ${j.runCount} | Next: ${next} | Last: ${last}`;
+            });
+            return t()('tools.exec.cronListResult', { count: jobs.length, list: lines.join('\n\n') });
+          }
+          case 'clear': {
+            await cronManager.clear();
+            logTool('success', t()('tools.exec.cronCleared'));
+            return t()('tools.exec.cronClearedResult');
+          }
+        }
+      } catch (error) {
+        const msg = getErrorMessage(error);
+        logTool('error', t()('tools.exec.cronFailed'), msg);
+        return t()('tools.exec.cronFailedResult', { error: msg });
+      }
+    },
+  });
+}
+
+function createHeartbeatTool() {
+  return tool({
+    description: 'Manage a heartbeat watchlist. Add/remove/list text items, and set a periodic interval (30/60/120 minutes) to process all items.',
+    inputSchema: z.object({
+      operation: z.enum(['add', 'remove', 'list', 'clear', 'set_interval', 'status']).describe('Heartbeat operation'),
+      text: z.string().optional().describe('Text content for add operation'),
+      id: z.string().optional().describe('Item ID for remove operation'),
+      interval: z.number().optional().describe('Interval in minutes (30, 60, or 120) for set_interval operation'),
+    }),
+    execute: async ({ operation, text, id, interval }) => {
+      try {
+        switch (operation) {
+          case 'add': {
+            if (!text) return t()('tools.exec.heartbeatNeedText');
+            const item = heartbeatManager.add(text);
+            logTool('success', t()('tools.exec.heartbeatAdded', { text }));
+            return t()('tools.exec.heartbeatAddedResult', { id: item.id, text });
+          }
+          case 'remove': {
+            if (!id) return t()('tools.exec.heartbeatNeedId');
+            const removed = heartbeatManager.remove(id);
+            if (!removed) return t()('tools.exec.heartbeatNotFound', { id });
+            logTool('success', t()('tools.exec.heartbeatRemoved', { id }));
+            return t()('tools.exec.heartbeatRemovedResult', { id });
+          }
+          case 'list': {
+            const items = heartbeatManager.list();
+            if (items.length === 0) return t()('tools.exec.heartbeatEmpty');
+            const lines = items.map(i =>
+              `- **${i.text}**\n  ID: \`${i.id}\` | Created: ${new Date(i.createdAt).toLocaleString()}`
+            );
+            return t()('tools.exec.heartbeatListResult', { count: items.length, list: lines.join('\n\n') });
+          }
+          case 'clear': {
+            heartbeatManager.clear();
+            logTool('success', t()('tools.exec.heartbeatCleared'));
+            return t()('tools.exec.heartbeatClearedResult');
+          }
+          case 'set_interval': {
+            if (!interval || ![30, 60, 120].includes(interval)) {
+              return t()('tools.exec.heartbeatInvalidInterval');
+            }
+            heartbeatManager.setInterval(interval as 30 | 60 | 120);
+            logTool('success', t()('tools.exec.heartbeatIntervalSet', { interval }));
+            return t()('tools.exec.heartbeatIntervalSetResult', { interval });
+          }
+          case 'status': {
+            const items = heartbeatManager.list();
+            const iv = heartbeatManager.getInterval();
+            const lastTick = heartbeatManager.getLastTick();
+            const nextTick = heartbeatManager.getNextTick();
+            return t()('tools.exec.heartbeatStatus', {
+              count: items.length,
+              interval: iv,
+              lastTick: lastTick ? new Date(lastTick).toLocaleString() : '-',
+              nextTick: nextTick ? new Date(nextTick).toLocaleString() : '-',
+            });
+          }
+        }
+      } catch (error) {
+        const msg = getErrorMessage(error);
+        logTool('error', t()('tools.exec.heartbeatFailed'), msg);
+        return t()('tools.exec.heartbeatFailedResult', { error: msg });
+      }
+    },
+  });
+}
+
+const builtinToolFactories = {
+  python: createPythonTool,
+  web_search: createWebSearchTool,
+  file_manager: createFileManagerTool,
+  memory: createMemoryTool,
+  mind: createMindTool,
+  chat: createChatTool,
+  exec: createExecTool,
+  cron: createCronTool,
+  heartbeat: createHeartbeatTool,
 } as const;
 
-/**
- * Get enabled tools as a record for AI SDK
- */
+export const builtinTools = {
+  python: createPythonTool(),
+  web_search: createWebSearchTool(),
+  file_manager: createFileManagerTool(),
+  memory: createMemoryTool(),
+  mind: createMindTool(),
+  chat: createChatTool(),
+  exec: createExecTool(),
+  cron: createCronTool(),
+  heartbeat: createHeartbeatTool(),
+} as const;
+
 export function getEnabledTools(enabledToolIds: string[], context?: ToolExecutionContext): Record<string, Tool> {
   const tools: Record<string, Tool> = {};
   for (const id of enabledToolIds) {
-    if (id === 'mind') {
-      tools[id] = createMindTool(context);
-      continue;
-    }
-    if (id === 'chat') {
-      tools[id] = createChatTool(context);
-      continue;
-    }
-    if (id in builtinTools) {
-      tools[id] = builtinTools[id as keyof typeof builtinTools];
+    if (id in builtinToolFactories) {
+      const createTool = builtinToolFactories[id as keyof typeof builtinToolFactories] as (ctx?: ToolExecutionContext) => Tool;
+      tools[id] = createTool(context);
     }
   }
   return tools;
