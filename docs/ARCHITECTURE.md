@@ -117,10 +117,10 @@ Why this is temporary:
 
 Planned fix:
 
-- Keep bundle budgets enforced with `scripts/check-bundle-budgets.mjs`
+- Keep bundle budgets enforced with `scripts/check-bundle-budgets.mjs`, including explicit ceilings for initial JS payload and Shiki `core` / `lang` / `theme` async chunks
 - Further shrink or offload ELK/Shiki via lighter defaults, workerization, or narrower language/theme sets
 
-### Mobile Expo development still relies on a parallel shared build process
+### Mobile Expo development now runs through a single supervisor process
 
 Examples:
 
@@ -129,17 +129,11 @@ Examples:
 - `packages/mobile/tsconfig.contract.json`
 - `scripts/dev-mobile.mjs`
 
-Why this is temporary:
+Why this is now acceptable:
 
-- Expo runtime now resolves `@openbunny/shared` through workspace package exports, so `shared/dist` must stay fresh during development
-- Root `dev:mobile` starts a parallel `@openbunny/shared` watch build plus Expo, but the workflow still spans two coordinated processes
-- Package contract alignment is complete, while development ergonomics still depend on that companion shared build worker
-
-Planned fix:
-
-- Keep the shared watch/build flow running alongside Expo development through `node scripts/dev-mobile.mjs`
-- Keep mobile imports on public package subpaths so future tooling can stay package-contract based
-- Keep `typecheck:contracts`, `scripts/check-package-exports.mjs`, `scripts/check-app-runtime-deps.mjs`, and `scripts/check-mobile-runtime-contracts.mjs` guarding the package contracts while the dev workflow catches up
+- Expo runtime still resolves `@openbunny/shared` through workspace package exports, so `shared/dist` must stay fresh during development
+- Root `dev:mobile` now performs a single shared prebuild, starts Expo, and watches shared inputs to trigger rebuilds on demand instead of requiring a paired watch terminal
+- Package contract alignment remains guarded by `typecheck:contracts`, `scripts/check-package-exports.mjs`, `scripts/check-app-runtime-deps.mjs`, and `scripts/check-mobile-runtime-contracts.mjs`
 
 ## Platform Service Contracts
 
@@ -244,6 +238,5 @@ These are safe patterns to continue:
 
 ## Near-Term Refactor Priorities
 
-1. Improve Expo package-artifact development ergonomics
-2. Keep package and bundle contracts enforced in verification/CI
-3. Continue trimming optional UI feature chunks where it is low-risk
+1. Keep package and bundle contracts enforced in verification/CI
+2. Continue trimming optional UI feature chunks where it is low-risk

@@ -100,7 +100,7 @@ Status: Completed
 
 ### Phase 6 — Runtime performance guardrails
 
-Status: In Progress
+Status: Completed
 
 - [x] Share Vite manual chunk rules across `web` and `desktop`
 - [x] Lazy-load heavy markdown/code-highlighting paths through `LazyShikiCodeBlock`
@@ -108,8 +108,8 @@ Status: In Progress
 - [x] Use lightweight `circleLayout()` for first graph render when saved positions are absent
 - [x] Reserve ELK auto-layout for explicit user-triggered relayouts
 - [x] Add bundle budget checks for `web` and `desktop` entry chunks plus required async heavy chunks
-- [ ] Reduce remaining large async chunks such as `vendor-elk` and `vendor-shiki`
-- [ ] Improve Expo package-artifact development ergonomics so mobile no longer depends on a paired watch process
+- [x] Reduce remaining large async chunks such as `vendor-elk` and `vendor-shiki`
+- [x] Improve Expo package-artifact development ergonomics so mobile no longer depends on a paired watch process
 
 ## Execution order
 
@@ -136,14 +136,16 @@ This roadmap slice now includes the following completed work:
 - Move `cli`, `tui`, `web`, `desktop`, and `mobile` imports onto public `@openbunny/shared/*` contracts
 - Add `scripts/check-package-boundaries.mjs`, `scripts/check-package-exports.mjs`, `scripts/check-app-runtime-deps.mjs`, and `scripts/check-mobile-runtime-contracts.mjs`
 - Add `scripts/dev-mobile.mjs` plus `@openbunny/shared` watch mode so Expo can develop against package artifacts
+- Replace the parallel `@openbunny/shared` watch worker in `scripts/dev-mobile.mjs` with a single-process supervisor that prebuilds once, watches shared inputs, and rebuilds on demand while Expo keeps running
 - Add placeholder mobile sound assets and static native sound loading so `expo export` succeeds
 - Trim MCP-heavy imports from shared/mobile entry paths and lazy-load MCP connection setup where appropriate
 - Share Vite chunk strategy through `scripts/vite-chunks.mjs` for `web` and `desktop`
 - Lazy-load Shiki rendering and the agent graph surface so the main `index-*.js` bundle stays materially smaller
 - Split Shiki into finer async `core` / `langs` / `themes` chunks with the JavaScript regex engine so opening code blocks no longer pulls the full bundled payload at once
+- Tighten `scripts/check-bundle-budgets.mjs` so initial JS payload plus Shiki `core` / `lang` / `theme` async chunks each stay under explicit size ceilings instead of only checking that they exist
 - Replace ELK-based manual relayout with a lightweight built-in graph relaxation helper so graph editing no longer ships any ELK runtime or worker payload
 - Change `packages/ui-web/src/components/agent-graph/AgentGraphDialog.tsx` to default to `circleLayout()` on first render and use a lightweight built-in relayout helper only on explicit user action
-- Add `scripts/check-bundle-budgets.mjs` and wire it into `verify:packages` to keep `web`/`desktop` entry bundles and async heavy chunks under contract
+- Add `scripts/check-bundle-budgets.mjs` and wire it into `verify:packages` to keep `web`/`desktop` entry bundles, initial JS payload, and async heavy chunks under contract
 - Rename `packages/desktop/postcss.config.mjs` to native ESM config naming so Vite builds stay warning-free
 
 ## Audit Notes

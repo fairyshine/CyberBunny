@@ -42,6 +42,27 @@ if ((rootPackage.scripts?.['dev:mobile'] ?? '') !== 'node scripts/dev-mobile.mjs
   failures.push('- package.json must run mobile dev through `node scripts/dev-mobile.mjs`');
 }
 
+const devMobileDryRun = spawnSync('node', ['scripts/dev-mobile.mjs', '--dry-run'], {
+  cwd: repoRoot,
+  encoding: 'utf8',
+  shell: process.platform === 'win32',
+});
+
+if (devMobileDryRun.status !== 0) {
+  failures.push('- `node scripts/dev-mobile.mjs --dry-run` must succeed');
+} else {
+  const dryRunOutput = devMobileDryRun.stdout ?? '';
+  if (!dryRunOutput.includes('pnpm --filter @openbunny/shared build')) {
+    failures.push('- `scripts/dev-mobile.mjs` must prebuild shared artifacts before Expo starts');
+  }
+  if (dryRunOutput.includes('pnpm --filter @openbunny/shared watch')) {
+    failures.push('- `scripts/dev-mobile.mjs` must not rely on a paired shared watch process anymore');
+  }
+  if (!dryRunOutput.includes('pnpm --filter @openbunny/mobile start:runtime')) {
+    failures.push('- `scripts/dev-mobile.mjs` must launch Expo through `@openbunny/mobile start:runtime`');
+  }
+}
+
 if (failures.length === 0) {
   const probe = spawnSync(
     'node',

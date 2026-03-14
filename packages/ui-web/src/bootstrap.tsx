@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import '@openbunny/shared/i18n';
+import { initReactI18next } from 'react-i18next';
+import { initializeSharedI18n } from '@openbunny/shared/i18n';
 import './index.css';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -15,7 +16,8 @@ export function renderOpenBunnyApp(root: HTMLElement): void {
   );
 }
 
-export function bootstrapOpenBunnyDOMApp(initPlatform: () => void, rootId: string = 'root'): void {
+export async function bootstrapOpenBunnyDOMApp(initPlatform: () => void, rootId: string = 'root'): Promise<void> {
+  await initializeSharedI18n([initReactI18next]);
   initPlatform();
 
   const root = document.getElementById(rootId);
