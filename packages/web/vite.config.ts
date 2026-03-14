@@ -3,11 +3,7 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 import { createOpenBunnyManualChunks } from '../../scripts/vite-chunks.mjs'
 
-function createWorkspaceAliases(command: 'build' | 'serve'): AliasOptions {
-  if (command === 'build') {
-    return {}
-  }
-
+function createWorkspaceAliases(): AliasOptions {
   return {
     '@shared': path.resolve(__dirname, '../shared/src'),
     '@openbunny/shared': path.resolve(__dirname, '../shared/src'),
@@ -137,11 +133,11 @@ function corsProxyPlugin(): Plugin {
   }
 }
 
-export default defineConfig(({ command }) => ({
+export default defineConfig(() => ({
   plugins: [react(), corsProxyPlugin()],
   resolve: {
     dedupe: ['react', 'react-dom', 'zustand', 'react-i18next'],
-    alias: createWorkspaceAliases(command),
+    alias: createWorkspaceAliases(),
   },
   base: process.env.GITHUB_PAGES ? '/OpenBunny/' : '/',
   build: {

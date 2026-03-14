@@ -4,11 +4,7 @@ import electron from 'vite-plugin-electron/simple'
 import path from 'path'
 import { createOpenBunnyManualChunks } from '../../scripts/vite-chunks.mjs'
 
-function createWorkspaceAliases(command: 'build' | 'serve'): AliasOptions {
-  if (command === 'build') {
-    return {}
-  }
-
+function createWorkspaceAliases(): AliasOptions {
   return {
     '@shared': path.resolve(__dirname, '../shared/src'),
     '@openbunny/shared': path.resolve(__dirname, '../shared/src'),
@@ -17,7 +13,7 @@ function createWorkspaceAliases(command: 'build' | 'serve'): AliasOptions {
   }
 }
 
-export default defineConfig(({ command }) => ({
+export default defineConfig(() => ({
   plugins: [
     react(),
     electron({
@@ -41,7 +37,7 @@ export default defineConfig(({ command }) => ({
   ],
   resolve: {
     dedupe: ['react', 'react-dom', 'zustand', 'react-i18next'],
-    alias: createWorkspaceAliases(command),
+    alias: createWorkspaceAliases(),
   },
   build: {
     target: 'esnext',
