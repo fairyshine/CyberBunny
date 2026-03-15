@@ -1,15 +1,9 @@
 #!/usr/bin/env node
 import React from 'react';
-import path from 'node:path';
 import { render } from 'ink';
-import { initNodePlatform } from '@openbunny/shared/platform/node';
-import type { IPlatformStorage } from '@openbunny/shared/platform';
-import { detectNodeOS } from '@openbunny/shared/platform/detect';
-import { resolveNodeConfigDir } from '@openbunny/shared/platform/nodeConfig';
-import { registerZustandAIRuntimeAdapters } from '@openbunny/shared/stores/aiRuntimeAdapters';
+import { initTerminal, resolveLLMConfig, resolveSystemPrompt, resolveWorkspace } from '@openbunny/shared/terminal';
 import { getProviderMeta } from '@openbunny/shared/services/ai';
 import App from './App.js';
-import { createConfigStorage, resolveLLMConfig, resolveSystemPrompt, resolveWorkspace } from './config/store.js';
 
 const args = process.argv.slice(2);
 let model: string | undefined;
@@ -53,24 +47,14 @@ Commands inside TUI:
   /history                  Show session info
   /sessions                 List available sessions
   /resume <id>              Resume a previous session
+  /save                     Force-flush messages to disk
+  /providers                List supported providers
 `);
       process.exit(0);
   }
 }
 
-const storage: IPlatformStorage = createConfigStorage();
-const configDir = resolveNodeConfigDir();
-
-initNodePlatform(
-  { type: 'tui', os: detectNodeOS(), isBrowser: false, isDesktop: false, isMobile: false, isCLI: false, isTUI: true },
-  storage,
-  {
-    sessionsDir: path.join(configDir, 'sessions'),
-    statsDir: path.join(configDir, 'stats'),
-    storeDir: path.join(configDir, 'store'),
-  },
-);
-registerZustandAIRuntimeAdapters();
+const { configDir } = initTerminal({ type: 'tui' });
 
 const config = resolveLLMConfig({ apiKey, baseUrl, maxTokens, model, provider, temperature });
 const providerMeta = getProviderMeta(config.provider);

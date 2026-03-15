@@ -208,6 +208,22 @@
     "./services/storage/sessionPersistence": {
       "types": "./dist/services/storage/sessionPersistence.d.ts",
       "import": "./dist/services/storage/sessionPersistence.js"
+    },
+    "./terminal": {
+      "types": "./dist/terminal/index.d.ts",
+      "import": "./dist/terminal/index.js"
+    },
+    "./terminal/chatEngine": {
+      "types": "./dist/terminal/chatEngine.d.ts",
+      "import": "./dist/terminal/chatEngine.js"
+    },
+    "./terminal/commands": {
+      "types": "./dist/terminal/commands.d.ts",
+      "import": "./dist/terminal/commands.js"
+    },
+    "./terminal/nodeConfigSingleton": {
+      "types": "./dist/terminal/nodeConfigSingleton.d.ts",
+      "import": "./dist/terminal/nodeConfigSingleton.js"
     }
   },
   "scripts": {
@@ -226,6 +242,7 @@
     "@ai-sdk/openai": "catalog:",
     "ai": "catalog:",
     "clsx": "catalog:",
+    "conf": "catalog:",
     "croner": "^10.0.1",
     "i18next": "catalog:",
     "idb": "catalog:",

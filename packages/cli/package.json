@@ -15,7 +15,6 @@
     "ai": "catalog:",
     "chalk": "catalog:",
     "commander": "catalog:",
-    "conf": "catalog:",
     "node-fetch": "catalog:",
     "ora": "catalog:"
   },

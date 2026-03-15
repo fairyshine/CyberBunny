@@ -13,7 +13,6 @@
   "dependencies": {
     "@openbunny/shared": "workspace:*",
     "ai": "catalog:",
-    "conf": "catalog:",
     "ink": "catalog:",
     "ink-spinner": "catalog:",
     "ink-text-input": "catalog:",

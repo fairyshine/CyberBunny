@@ -269,9 +269,6 @@ importers:
       commander:
         specifier: 'catalog:'
         version: 11.1.0
-      conf:
-        specifier: 'catalog:'
-        version: 12.0.0
       node-fetch:
         specifier: 'catalog:'
         version: 3.3.2
@@ -458,6 +455,9 @@ importers:
       clsx:
         specifier: 'catalog:'
         version: 2.1.1
+      conf:
+        specifier: 'catalog:'
+        version: 12.0.0
       croner:
         specifier: ^10.0.1
         version: 10.0.1
@@ -507,9 +507,6 @@ importers:
       ai:
         specifier: 'catalog:'
         version: 6.0.111(zod@4.3.6)
-      conf:
-        specifier: 'catalog:'
-        version: 12.0.0
       ink:
         specifier: 'catalog:'
         version: 6.8.0(@types/react@19.2.14)(react-devtools-core@6.1.5)(react@19.2.4)

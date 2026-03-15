@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { Session, Message, LLMConfig, SessionType, Project, MindSessionMeta, ChatSessionMeta } from '../types';
 import { logSettings } from '../services/console/logger';
 import { clearAllSessionPersistence, deleteSessionPersistence, deleteSessionPersistenceBatch, flushAllSessionPersistence, persistSessionMessages } from '../services/storage/sessionPersistence';
@@ -392,6 +392,13 @@ export const useSessionStore = create<SessionState>()(
     }),
     {
       name: 'webagent-sessions',
+      // In Node.js there's no localStorage, so provide a no-op fallback.
+      // initNodePlatform() swaps in the real file-based storage via persist.setOptions().
+      storage: createJSONStorage(() =>
+        typeof localStorage !== 'undefined'
+          ? localStorage
+          : { getItem: () => null, setItem: () => {}, removeItem: () => {} },
+      ),
       // Exclude messages from localStorage persistence — they live in IndexedDB
       partialize: (state) => ({
         sessions: state.sessions.map((s) => ({

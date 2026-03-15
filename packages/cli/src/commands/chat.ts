@@ -2,12 +2,18 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import * as readline from 'readline';
 import { getProviderMeta } from '@openbunny/shared/services/ai';
-import { callLLM } from '@openbunny/shared/services/llm/streaming';
-import { useSessionStore } from '@openbunny/shared/stores/session';
+import {
+  resolveLLMConfig,
+  resolveSystemPrompt,
+  resolveWorkspace,
+  createChatEngine,
+  parseCommand,
+  getHelpInfo,
+  getSessionList,
+  getHistoryInfo,
+  getProviderList,
+} from '@openbunny/shared/terminal';
 import { resolveNodeConfigDir } from '@openbunny/shared/platform/nodeConfig';
-import { flushAllSessionPersistence } from '@openbunny/shared/services/storage/sessionPersistence';
-import type { ModelMessage } from 'ai';
-import { resolveLLMConfig, resolveSystemPrompt, resolveWorkspace } from '../config/store.js';
 
 export const chatCommand = new Command('chat')
   .description('Start an interactive chat session')
@@ -39,49 +45,19 @@ export const chatCommand = new Command('chat')
     const workspace = resolveWorkspace(opts.parent?.workspace);
     const configDir = resolveNodeConfigDir();
 
-    // Wait a tick for Zustand rehydration
-    await new Promise((r) => setTimeout(r, 100));
-
-    const store = useSessionStore.getState();
-    let sessionId: string;
-    let history: ModelMessage[];
+    const engine = await createChatEngine({ config, systemPrompt, sessionName: 'CLI Chat' });
 
     if (opts.resume) {
-      // Resume existing session
-      const match = store.sessions.find((s) => s.id.startsWith(opts.resume));
-      if (!match) {
-        console.error(chalk.red(`No session found matching "${opts.resume}"`));
+      try {
+        const result = await engine.resume(opts.resume);
+        console.log(chalk.green(`Resumed session ${result.sessionId.slice(0, 8)} (${result.name}) — ${result.messageCount} message(s)`));
+      } catch (err) {
+        console.error(chalk.red(err instanceof Error ? err.message : String(err)));
         process.exit(1);
       }
-
-      sessionId = match.id;
-
-      // Load messages if not already in memory
-      if (match.messages.length === 0) {
-        await store.loadSessionMessages(sessionId);
-      }
-
-      const loaded = useSessionStore.getState().sessions.find((s) => s.id === sessionId);
-      const msgs = loaded?.messages ?? [];
-
-      history = systemPrompt ? [{ role: 'system', content: systemPrompt } satisfies ModelMessage] : [];
-      for (const msg of msgs) {
-        if (msg.role === 'user' || msg.role === 'assistant') {
-          history.push({ role: msg.role, content: msg.content });
-        }
-      }
-
-      console.log(chalk.green(`Resumed session ${sessionId.slice(0, 8)} (${match.name}) — ${msgs.length} message(s)`));
     } else {
-      // Create new session
-      const session = store.createSession('CLI Chat');
-      sessionId = session.id;
-      history = systemPrompt ? [{ role: 'system', content: systemPrompt } satisfies ModelMessage] : [];
-      console.log(chalk.green('OpenBunny Chat') + chalk.gray(` [session ${sessionId.slice(0, 8)}]`));
+      console.log(chalk.green('OpenBunny Chat') + chalk.gray(` [session ${engine.sessionId.slice(0, 8)}]`));
     }
-
-    const initialHistory = systemPrompt ? [{ role: 'system', content: systemPrompt } satisfies ModelMessage] : [];
-    let isLoading = false;
 
     console.log(chalk.gray('Type your message and press Enter. Commands: /help, /clear, /history, /save, /quit\n'));
 
@@ -100,77 +76,109 @@ export const chatCommand = new Command('chat')
         return;
       }
 
-      if (input === '/quit' || input === '/exit') {
-        rl.close();
-        return;
-      }
+      const cmd = parseCommand(input);
 
-      if (input === '/help') {
-        console.log('');
-        console.log(chalk.cyan('  Configuration'));
-        console.log(chalk.gray(`    Provider:    ${config.provider}`));
-        console.log(chalk.gray(`    Model:       ${config.model}`));
-        console.log(chalk.gray(`    Temperature: ${config.temperature}`));
-        console.log(chalk.gray(`    Max tokens:  ${config.maxTokens}`));
-        if (workspace) {
-          console.log(chalk.gray(`    Workspace:   ${workspace}`));
+      if (cmd) {
+        switch (cmd.command) {
+          case 'quit':
+          case 'exit':
+            rl.close();
+            return;
+
+          case 'help': {
+            const help = getHelpInfo(config, { workspace, configDir, sessionId: engine.sessionId.slice(0, 8) });
+            console.log('');
+            console.log(chalk.cyan('  Configuration'));
+            console.log(chalk.gray(`    Provider:    ${help.config.provider}`));
+            console.log(chalk.gray(`    Model:       ${help.config.model}`));
+            console.log(chalk.gray(`    Temperature: ${help.config.temperature}`));
+            console.log(chalk.gray(`    Max tokens:  ${help.config.maxTokens}`));
+            if (help.config.workspace) console.log(chalk.gray(`    Workspace:   ${help.config.workspace}`));
+            if (help.config.configDir) console.log(chalk.gray(`    Config dir:  ${help.config.configDir}`));
+            if (help.config.sessionId) console.log(chalk.gray(`    Session:     ${help.config.sessionId}`));
+            console.log('');
+            console.log(chalk.cyan('  Commands'));
+            for (const c of help.commands) {
+              console.log(chalk.gray(`    ${c.name.padEnd(16)}${c.description}`));
+            }
+            console.log('');
+            rl.prompt();
+            return;
+          }
+
+          case 'clear':
+            engine.clear();
+            console.log(chalk.gray('Conversation history cleared.'));
+            rl.prompt();
+            return;
+
+          case 'history':
+            console.log(chalk.gray(getHistoryInfo(engine.sessionId, engine.messageCount())));
+            rl.prompt();
+            return;
+
+          case 'save':
+            await engine.flush();
+            console.log(chalk.gray('Messages flushed to disk.'));
+            rl.prompt();
+            return;
+
+          case 'sessions': {
+            const sessions = getSessionList();
+            if (sessions.length === 0) {
+              console.log(chalk.gray('No sessions found.'));
+            } else {
+              console.log(chalk.green(`Found ${sessions.length} session(s):\n`));
+              for (const s of sessions) {
+                console.log(`  ${chalk.cyan(s.shortId)}  ${chalk.white(s.name)}  ${chalk.gray(`${s.messageCount} msg(s)`)}  ${chalk.gray(s.createdAt)}`);
+              }
+            }
+            rl.prompt();
+            return;
+          }
+
+          case 'resume': {
+            if (!cmd.args) {
+              console.log(chalk.yellow('Usage: /resume <session-id-prefix>'));
+              rl.prompt();
+              return;
+            }
+            try {
+              const result = await engine.resume(cmd.args);
+              console.log(chalk.green(`Resumed session ${result.sessionId.slice(0, 8)} (${result.name}) — ${result.messageCount} message(s)`));
+            } catch (err) {
+              console.error(chalk.red(err instanceof Error ? err.message : String(err)));
+            }
+            rl.prompt();
+            return;
+          }
+
+          case 'providers': {
+            const groups = getProviderList();
+            for (const group of groups) {
+              console.log(chalk.cyan(group.category));
+              for (const p of group.providers) {
+                const apiKeyLabel = p.requiresApiKey ? 'api key' : 'no api key';
+                console.log(`  ${chalk.green(p.id)}  ${p.name}  (${apiKeyLabel})`);
+                console.log(`    ${chalk.gray(p.sampleModels)}`);
+              }
+              console.log('');
+            }
+            rl.prompt();
+            return;
+          }
+
+          default:
+            console.log(chalk.yellow(`Unknown command: /${cmd.command}. Type /help for available commands.`));
+            rl.prompt();
+            return;
         }
-        console.log(chalk.gray(`    Config dir:  ${configDir}`));
-        console.log(chalk.gray(`    Session:     ${sessionId.slice(0, 8)}`));
-        console.log('');
-        console.log(chalk.cyan('  Commands'));
-        console.log(chalk.gray('    /help       Show this help'));
-        console.log(chalk.gray('    /clear      Clear conversation history'));
-        console.log(chalk.gray('    /history    Show session info'));
-        console.log(chalk.gray('    /save       Force-flush messages to disk'));
-        console.log(chalk.gray('    /quit       Exit chat'));
-        console.log('');
-        rl.prompt();
-        return;
       }
 
-      if (input === '/clear') {
-        history = [...initialHistory];
-        console.log(chalk.gray('Conversation history cleared.'));
-        rl.prompt();
-        return;
-      }
-
-      if (input === '/history') {
-        const messageCount = history.filter((message) => message.role !== 'system').length;
-        console.log(chalk.gray(`Session ${sessionId.slice(0, 8)} — ${messageCount} message(s) in history.`));
-        rl.prompt();
-        return;
-      }
-
-      if (input === '/save') {
-        await store.flushMessages(sessionId);
-        console.log(chalk.gray('Messages flushed to disk.'));
-        rl.prompt();
-        return;
-      }
-
-      if (isLoading) {
-        console.log(chalk.yellow('A response is still streaming. Wait for it to finish before sending another message.'));
-        rl.prompt();
-        return;
-      }
-
-      history.push({ role: 'user', content: input });
-
-      // Persist user message to session store
-      useSessionStore.getState().addMessage(sessionId, {
-        id: crypto.randomUUID(),
-        role: 'user',
-        content: input,
-        timestamp: Date.now(),
-      });
-
+      // Regular message
       let lastLen = 0;
-      isLoading = true;
-
       try {
-        const result = await callLLM(config, history, {
+        await engine.send(input, {
           onChunk: (full) => {
             const newPart = full.slice(lastLen);
             process.stdout.write(newPart);
@@ -180,29 +188,15 @@ export const chatCommand = new Command('chat')
             process.stdout.write('\n');
           },
         });
-
-        history.push({ role: 'assistant', content: result });
-
-        // Persist assistant message to session store
-        useSessionStore.getState().addMessage(sessionId, {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: result,
-          timestamp: Date.now(),
-        });
       } catch (error) {
         console.error(chalk.red(error instanceof Error ? error.message : String(error)));
-        history.pop();
-      } finally {
-        isLoading = false;
       }
 
       rl.prompt();
     });
 
     rl.on('close', async () => {
-      // Flush pending messages before exit
-      await flushAllSessionPersistence();
+      await engine.shutdown();
       process.stdout.write('\n');
       process.exit(0);
     });

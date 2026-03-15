@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { useSessionStore, selectActiveSessions } from '@openbunny/shared/stores/session';
+import { getSessionList } from '@openbunny/shared/terminal';
+import { useSessionStore } from '@openbunny/shared/stores/session';
 import { flushAllSessionPersistence } from '@openbunny/shared/services/storage/sessionPersistence';
 
 export const sessionsCommand = new Command('sessions')
@@ -13,7 +14,7 @@ sessionsCommand
     // Wait a tick for rehydration to complete
     await new Promise((r) => setTimeout(r, 100));
 
-    const sessions = selectActiveSessions(useSessionStore.getState());
+    const sessions = getSessionList();
 
     if (sessions.length === 0) {
       console.log(chalk.gray('No sessions found.'));
@@ -23,11 +24,8 @@ sessionsCommand
     console.log(chalk.green(`Found ${sessions.length} session(s):\n`));
 
     for (const session of sessions) {
-      const shortId = session.id.slice(0, 8);
-      const date = new Date(session.createdAt).toLocaleString();
-      const msgCount = session.messages.length;
       console.log(
-        `  ${chalk.cyan(shortId)}  ${chalk.white(session.name)}  ${chalk.gray(`${msgCount} msg(s)`)}  ${chalk.gray(date)}`
+        `  ${chalk.cyan(session.shortId)}  ${chalk.white(session.name)}  ${chalk.gray(`${session.messageCount} msg(s)`)}  ${chalk.gray(session.createdAt)}`
       );
     }
   });

@@ -4,7 +4,7 @@ import ora from 'ora';
 import { getProviderMeta } from '@openbunny/shared/services/ai';
 import { callLLM } from '@openbunny/shared/services/llm/streaming';
 import type { ModelMessage } from 'ai';
-import { resolveLLMConfig, resolveSystemPrompt } from '../config/store.js';
+import { resolveLLMConfig, resolveSystemPrompt } from '@openbunny/shared/terminal';
 
 export const askCommand = new Command('ask')
   .description('Ask a one-shot question')

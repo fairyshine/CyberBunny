@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { clearConfig, deleteConfigValue, getAllConfig, getConfigValue, setConfigValue } from '../config/store.js';
+import { clearConfig, deleteConfigValue, getAllConfig, getConfigValue, setConfigValue } from '@openbunny/shared/terminal';
 
 export const configCommand = new Command('config')
   .description('Manage configuration');
