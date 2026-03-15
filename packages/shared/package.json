@@ -45,6 +45,10 @@
       "types": "./dist/platform/node.d.ts",
       "import": "./dist/platform/node.js"
     },
+    "./platform/nodeConfig": {
+      "types": "./dist/platform/nodeConfig.d.ts",
+      "import": "./dist/platform/nodeConfig.js"
+    },
     "./services/ai": {
       "types": "./dist/services/ai/index.d.ts",
       "import": "./dist/services/ai/index.js"

@@ -1,43 +1,43 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import * as readline from 'readline';
+import { getProviderMeta } from '@openbunny/shared/services/ai';
 import { callLLM } from '@openbunny/shared/services/llm/streaming';
-import { useSessionStore } from '@openbunny/shared/stores/session';
 import type { ModelMessage } from 'ai';
+import { resolveLLMConfig, resolveSystemPrompt } from '../config/store.js';
 
 export const chatCommand = new Command('chat')
   .description('Start an interactive chat session')
-  .option('-m, --model <model>', 'Model to use', 'gpt-4')
-  .option('-p, --provider <provider>', 'Provider (openai|anthropic)', 'openai')
+  .option('-m, --model <model>', 'Model to use (defaults to configured model or gpt-4o)')
+  .option('-p, --provider <provider>', 'Provider ID from `openbunny providers`')
   .option('-k, --api-key <key>', 'API key (or set OPENBUNNY_API_KEY env)')
   .option('-b, --base-url <url>', 'Custom API base URL')
-  .option('-t, --temperature <temp>', 'Temperature', '0.7')
-  .option('--max-tokens <tokens>', 'Max tokens', '4096')
+  .option('-t, --temperature <temp>', 'Temperature')
+  .option('--max-tokens <tokens>', 'Max tokens')
   .option('--system <prompt>', 'System prompt')
   .action(async (opts) => {
-    const apiKey = opts.apiKey || process.env.OPENBUNNY_API_KEY || useSessionStore.getState().llmConfig.apiKey;
+    const config = resolveLLMConfig({
+      apiKey: opts.apiKey,
+      baseUrl: opts.baseUrl,
+      maxTokens: opts.maxTokens,
+      model: opts.model,
+      provider: opts.provider,
+      temperature: opts.temperature,
+    });
+    const providerMeta = getProviderMeta(config.provider);
 
-    if (!apiKey) {
+    if ((providerMeta?.requiresApiKey ?? true) && !config.apiKey) {
       console.error(chalk.red('Error: API key required. Use --api-key, OPENBUNNY_API_KEY env, or `openbunny config set apiKey <key>`'));
       process.exit(1);
     }
 
-    const config = {
-      provider: opts.provider as 'openai' | 'anthropic',
-      apiKey,
-      model: opts.model,
-      baseUrl: opts.baseUrl,
-      temperature: parseFloat(opts.temperature),
-      maxTokens: parseInt(opts.maxTokens),
-    };
-
-    const history: ModelMessage[] = [];
-    if (opts.system) {
-      history.push({ role: 'system', content: opts.system });
-    }
+    const systemPrompt = resolveSystemPrompt(opts.system);
+    const initialHistory = systemPrompt ? [{ role: 'system', content: systemPrompt } satisfies ModelMessage] : [];
+    let history: ModelMessage[] = [...initialHistory];
+    let isLoading = false;
 
     console.log(chalk.green('OpenBunny Chat'));
-    console.log(chalk.gray('Type your message and press Enter. Ctrl+C to exit.\n'));
+    console.log(chalk.gray('Type your message and press Enter. Commands: /help, /clear, /history, /quit\n'));
 
     const rl = readline.createInterface({
       input: process.stdin,
@@ -54,8 +54,40 @@ export const chatCommand = new Command('chat')
         return;
       }
 
+      if (input === '/quit' || input === '/exit') {
+        rl.close();
+        return;
+      }
+
+      if (input === '/help') {
+        console.log(chalk.gray('Commands: /help, /clear, /history, /quit, /exit'));
+        rl.prompt();
+        return;
+      }
+
+      if (input === '/clear') {
+        history = [...initialHistory];
+        console.log(chalk.gray('Conversation history cleared.'));
+        rl.prompt();
+        return;
+      }
+
+      if (input === '/history') {
+        const messageCount = history.filter((message) => message.role !== 'system').length;
+        console.log(chalk.gray(`History contains ${messageCount} message(s).`));
+        rl.prompt();
+        return;
+      }
+
+      if (isLoading) {
+        console.log(chalk.yellow('A response is still streaming. Wait for it to finish before sending another message.'));
+        rl.prompt();
+        return;
+      }
+
       history.push({ role: 'user', content: input });
       let lastLen = 0;
+      isLoading = true;
 
       try {
         const result = await callLLM(config, history, {
@@ -73,6 +105,8 @@ export const chatCommand = new Command('chat')
       } catch (error) {
         console.error(chalk.red(error instanceof Error ? error.message : String(error)));
         history.pop();
+      } finally {
+        isLoading = false;
       }
 
       rl.prompt();

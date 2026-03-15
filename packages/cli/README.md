@@ -21,6 +21,12 @@ pnpm build
 
 ### 命令
 
+#### 0. 查看支持的 Provider
+
+```bash
+openbunny providers
+```
+
 #### 1. 一次性问答
 
 ```bash
@@ -28,7 +34,10 @@ pnpm build
 openbunny ask "什么是 TypeScript?"
 
 # 指定模型和 provider
-openbunny ask "解释 monorepo" -m gpt-4 -p openai -k YOUR_API_KEY
+openbunny ask "解释 monorepo" -m gpt-5-mini -p openai -k YOUR_API_KEY
+
+# 使用本地 Ollama（无需 API Key）
+openbunny ask "解释 monorepo" -p ollama -b http://127.0.0.1:11434/v1 -m qwen3
 
 # 使用系统提示
 openbunny ask "写一个排序算法" --system "你是一个 Python 专家"
@@ -44,7 +53,7 @@ openbunny ask "Hello" --no-stream
 openbunny chat -k YOUR_API_KEY
 
 # 指定模型
-openbunny chat -m gpt-4-turbo -p openai
+openbunny chat -m gpt-5-mini -p openai
 
 # 使用自定义 API
 openbunny chat -b http://localhost:8000 -k local-key
@@ -54,6 +63,7 @@ openbunny chat -b http://localhost:8000 -k local-key
 > /exit      # 退出
 > /clear     # 清空历史
 > /history   # 查看消息数量
+> /help      # 查看命令
 ```
 
 #### 3. 配置管理
@@ -93,7 +103,7 @@ openbunny ask "Hello"
 所有命令支持的通用选项：
 
 - `-m, --model <model>` - 模型名称（默认：gpt-4）
-- `-p, --provider <provider>` - Provider：openai | anthropic（默认：openai）
+- `-p, --provider <provider>` - Provider ID，可通过 `openbunny providers` 查看
 - `-k, --api-key <key>` - API Key
 - `-b, --base-url <url>` - 自定义 API 地址
 - `-t, --temperature <temp>` - 温度参数（默认：0.7）
@@ -169,7 +179,7 @@ openbunny-tui -b http://localhost:8000 -k local-key
 ## 配置优先级
 
 1. 命令行参数（最高优先级）
-2. 环境变量 `OPENBUNNY_API_KEY`
+2. 环境变量（如 `OPENBUNNY_API_KEY`、`OPENBUNNY_MODEL`）
 3. 配置文件（`openbunny config set`）
 
 ---

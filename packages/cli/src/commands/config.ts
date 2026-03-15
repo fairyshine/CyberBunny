@@ -1,8 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import Conf from 'conf';
-
-const store = new Conf({ projectName: 'openbunny' });
+import { clearConfig, deleteConfigValue, getAllConfig, getConfigValue, setConfigValue } from '../config/store.js';
 
 export const configCommand = new Command('config')
   .description('Manage configuration');
@@ -13,7 +11,8 @@ configCommand
   .argument('<key>', 'Configuration key (e.g., apiKey, model, provider)')
   .argument('<value>', 'Configuration value')
   .action((key: string, value: string) => {
-    store.set(key, value);
+    const normalizedValue = key === 'temperature' || key === 'maxTokens' ? Number(value) : value;
+    setConfigValue(key, Number.isNaN(normalizedValue) ? value : normalizedValue);
     console.log(chalk.green(`✓ Set ${key} = ${value}`));
   });
 
@@ -22,7 +21,7 @@ configCommand
   .description('Get a configuration value')
   .argument('<key>', 'Configuration key')
   .action((key: string) => {
-    const value = store.get(key);
+    const value = getConfigValue(key);
     if (value === undefined) {
       console.log(chalk.yellow(`Key "${key}" not found`));
     } else {
@@ -34,7 +33,7 @@ configCommand
   .command('list')
   .description('List all configuration')
   .action(() => {
-    const config = store.store;
+    const config = getAllConfig();
     if (Object.keys(config).length === 0) {
       console.log(chalk.gray('No configuration set'));
     } else {
@@ -54,7 +53,7 @@ configCommand
   .description('Delete a configuration value')
   .argument('<key>', 'Configuration key')
   .action((key: string) => {
-    store.delete(key);
+    deleteConfigValue(key);
     console.log(chalk.green(`✓ Deleted ${key}`));
   });
 
@@ -62,6 +61,6 @@ configCommand
   .command('clear')
   .description('Clear all configuration')
   .action(() => {
-    store.clear();
+    clearConfig();
     console.log(chalk.green('✓ Configuration cleared'));
   });

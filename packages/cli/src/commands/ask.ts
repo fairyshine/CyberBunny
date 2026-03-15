@@ -1,41 +1,42 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
+import { getProviderMeta } from '@openbunny/shared/services/ai';
 import { callLLM } from '@openbunny/shared/services/llm/streaming';
-import { useSessionStore } from '@openbunny/shared/stores/session';
 import type { ModelMessage } from 'ai';
+import { resolveLLMConfig, resolveSystemPrompt } from '../config/store.js';
 
 export const askCommand = new Command('ask')
   .description('Ask a one-shot question')
   .argument('<question>', 'The question to ask')
-  .option('-m, --model <model>', 'Model to use', 'gpt-4')
-  .option('-p, --provider <provider>', 'Provider (openai|anthropic)', 'openai')
+  .option('-m, --model <model>', 'Model to use (defaults to configured model or gpt-4o)')
+  .option('-p, --provider <provider>', 'Provider ID from `openbunny providers`')
   .option('-k, --api-key <key>', 'API key (or set OPENBUNNY_API_KEY env)')
   .option('-b, --base-url <url>', 'Custom API base URL')
-  .option('-t, --temperature <temp>', 'Temperature', '0.7')
-  .option('--max-tokens <tokens>', 'Max tokens', '4096')
+  .option('-t, --temperature <temp>', 'Temperature')
+  .option('--max-tokens <tokens>', 'Max tokens')
   .option('--system <prompt>', 'System prompt')
   .option('--no-stream', 'Disable streaming output')
   .action(async (question: string, opts) => {
-    const apiKey = opts.apiKey || process.env.OPENBUNNY_API_KEY || useSessionStore.getState().llmConfig.apiKey;
+    const config = resolveLLMConfig({
+      apiKey: opts.apiKey,
+      baseUrl: opts.baseUrl,
+      maxTokens: opts.maxTokens,
+      model: opts.model,
+      provider: opts.provider,
+      temperature: opts.temperature,
+    });
+    const providerMeta = getProviderMeta(config.provider);
 
-    if (!apiKey) {
+    if ((providerMeta?.requiresApiKey ?? true) && !config.apiKey) {
       console.error(chalk.red('Error: API key required. Use --api-key, OPENBUNNY_API_KEY env, or `openbunny config set apiKey <key>`'));
       process.exit(1);
     }
 
-    const config = {
-      provider: opts.provider as 'openai' | 'anthropic',
-      apiKey,
-      model: opts.model,
-      baseUrl: opts.baseUrl,
-      temperature: parseFloat(opts.temperature),
-      maxTokens: parseInt(opts.maxTokens),
-    };
-
     const messages: ModelMessage[] = [];
-    if (opts.system) {
-      messages.push({ role: 'system', content: opts.system });
+    const systemPrompt = resolveSystemPrompt(opts.system);
+    if (systemPrompt) {
+      messages.push({ role: 'system', content: systemPrompt });
     }
     messages.push({ role: 'user', content: question });
 

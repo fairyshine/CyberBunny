@@ -4,6 +4,7 @@
 
 import { streamText, type ModelMessage } from 'ai';
 import { createModel } from '../ai/provider';
+import { getProviderMeta } from '../ai/providers';
 import { logLLM } from '../console/logger';
 import type { LLMConfig } from '../../types';
 
@@ -19,8 +20,9 @@ export async function callLLM(
   options: StreamOptions = {}
 ): Promise<string> {
   const { onChunk, onComplete, onError } = options;
+  const providerMeta = getProviderMeta(config.provider);
 
-  if (!config.apiKey) {
+  if ((providerMeta?.requiresApiKey ?? true) && !config.apiKey) {
     throw new Error('API Key not configured');
   }
 

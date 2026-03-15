@@ -52,6 +52,7 @@ export function createProvider(
 
   const baseURL = config.baseUrl || meta.defaultBaseUrl;
   const fetchOpt = customFetch ? { fetch: customFetch } : {};
+  const apiKey = config.apiKey || (meta.requiresApiKey ? '' : 'openbunny-local');
 
   console.log('[Provider] Creating provider:', {
     provider: config.provider,
@@ -63,13 +64,13 @@ export function createProvider(
 
   switch (meta.sdkType) {
     case 'anthropic':
-      return deps.createAnthropic({ apiKey: config.apiKey, baseURL, ...fetchOpt });
+      return deps.createAnthropic({ apiKey, baseURL, ...fetchOpt });
     case 'google':
-      return deps.createGoogleGenerativeAI({ apiKey: config.apiKey, baseURL, ...fetchOpt });
+      return deps.createGoogleGenerativeAI({ apiKey, baseURL, ...fetchOpt });
     case 'openai':
     case 'openai-compatible':
     default:
-      return deps.createOpenAI({ apiKey: config.apiKey, baseURL, ...fetchOpt });
+      return deps.createOpenAI({ apiKey, baseURL, ...fetchOpt });
   }
 }
 

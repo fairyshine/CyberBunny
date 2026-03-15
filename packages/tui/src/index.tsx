@@ -5,31 +5,18 @@ import { initNodePlatform } from '@openbunny/shared/platform/node';
 import type { IPlatformStorage } from '@openbunny/shared/platform';
 import { detectNodeOS } from '@openbunny/shared/platform/detect';
 import { registerZustandAIRuntimeAdapters } from '@openbunny/shared/stores/aiRuntimeAdapters';
-import Conf from 'conf';
-import { useSessionStore } from '@openbunny/shared/stores/session';
+import { getProviderMeta } from '@openbunny/shared/services/ai';
 import App from './App.js';
-
-const store = new Conf({ projectName: 'openbunny' });
-const storage: IPlatformStorage = {
-  getItem: (key: string) => (store.get(key) as string) ?? null,
-  setItem: (key: string, value: string) => store.set(key, value),
-  removeItem: (key: string) => store.delete(key),
-};
-
-initNodePlatform(
-  { type: 'tui', os: detectNodeOS(), isBrowser: false, isDesktop: false, isMobile: false, isCLI: false, isTUI: true },
-  storage,
-);
-registerZustandAIRuntimeAdapters();
+import { createConfigStorage, resolveLLMConfig, resolveSystemPrompt } from './config/store.js';
 
 const args = process.argv.slice(2);
-let model = 'gpt-4';
-let provider: 'openai' | 'anthropic' = 'openai';
-let apiKey = process.env.OPENBUNNY_API_KEY || '';
+let model: string | undefined;
+let provider: string | undefined;
+let apiKey: string | undefined;
 let baseUrl: string | undefined;
 let systemPrompt: string | undefined;
-let temperature = 0.7;
-let maxTokens = 4096;
+let temperature: number | undefined;
+let maxTokens: number | undefined;
 
 for (let i = 0; i < args.length; i++) {
   switch (args[i]) {
@@ -45,13 +32,13 @@ for (let i = 0; i < args.length; i++) {
 openbunny-tui - Interactive terminal UI for OpenBunny
 
 Options:
-  -m, --model <model>       Model to use (default: gpt-4)
-  -p, --provider <provider> Provider: openai|anthropic (default: openai)
+  -m, --model <model>       Model to use
+  -p, --provider <provider> Provider ID from shared registry
   -k, --api-key <key>       API key (or set OPENBUNNY_API_KEY env)
   -b, --base-url <url>      Custom API base URL
   -s, --system <prompt>     System prompt
-  -t, --temperature <temp>  Temperature (default: 0.7)
-  --max-tokens <tokens>     Max tokens (default: 4096)
+  -t, --temperature <temp>  Temperature
+  --max-tokens <tokens>     Max tokens
   -h, --help                Show help
 
 Commands inside TUI:
@@ -62,15 +49,21 @@ Commands inside TUI:
   }
 }
 
-if (!apiKey) {
-  apiKey = useSessionStore.getState().llmConfig.apiKey;
-}
+const storage: IPlatformStorage = createConfigStorage();
 
-if (!apiKey) {
+initNodePlatform(
+  { type: 'tui', os: detectNodeOS(), isBrowser: false, isDesktop: false, isMobile: false, isCLI: false, isTUI: true },
+  storage,
+);
+registerZustandAIRuntimeAdapters();
+
+const config = resolveLLMConfig({ apiKey, baseUrl, maxTokens, model, provider, temperature });
+const providerMeta = getProviderMeta(config.provider);
+const resolvedSystemPrompt = resolveSystemPrompt(systemPrompt);
+
+if ((providerMeta?.requiresApiKey ?? true) && !config.apiKey) {
   console.error('Error: API key required. Use --api-key or set OPENBUNNY_API_KEY env.');
   process.exit(1);
 }
 
-const config = { provider, apiKey, model, baseUrl, temperature, maxTokens };
-
-render(React.createElement(App, { config, systemPrompt }));
+render(React.createElement(App, { config, systemPrompt: resolvedSystemPrompt }));
