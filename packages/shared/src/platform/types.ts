@@ -34,10 +34,27 @@ export interface ExternalFetchOptions {
   proxyUrl?: string;
 }
 
+export interface ShellExecOptions {
+  sessionId?: string;
+  cwd?: string;
+  loginShell?: boolean;
+  timeoutMs?: number;
+}
+
+export interface ShellExecResult {
+  sessionId: string;
+  exitCode: number;
+  output: string;
+  error?: string;
+}
+
 // Platform API interface (for HTTP requests)
 export interface IPlatformAPI {
   fetch(url: string, options?: RequestInit): Promise<Response>;
   createExternalFetch?(options: ExternalFetchOptions): typeof globalThis.fetch | undefined;
+  executeShell?(command: string, options?: ShellExecOptions): Promise<ShellExecResult>;
+  destroyShellSession?(sessionId: string): Promise<void>;
+  listShellSessions?(): Promise<string[]>;
 }
 
 // Platform context (injected by each platform)

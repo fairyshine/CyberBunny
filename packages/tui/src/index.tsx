@@ -14,6 +14,7 @@ let systemPrompt: string | undefined;
 let temperature: number | undefined;
 let maxTokens: number | undefined;
 let workspace: string | undefined;
+let resumeIdPrefix: string | undefined;
 
 for (let i = 0; i < args.length; i++) {
   switch (args[i]) {
@@ -25,6 +26,7 @@ for (let i = 0; i < args.length; i++) {
     case '-t': case '--temperature': temperature = parseFloat(args[++i]); break;
     case '--max-tokens': maxTokens = parseInt(args[++i]); break;
     case '-w': case '--workspace': workspace = args[++i]; break;
+    case '--resume': resumeIdPrefix = args[++i]; break;
     case '-h': case '--help':
       console.log(`
 openbunny-tui - Interactive terminal UI for OpenBunny
@@ -38,17 +40,44 @@ Options:
   -t, --temperature <temp>  Temperature
   --max-tokens <tokens>     Max tokens
   -w, --workspace <dir>     Workspace directory
+  --resume <id>             Resume a previous session by ID prefix
   -h, --help                Show help
 
 Commands inside TUI:
   /quit, /exit              Exit
   /clear                    Clear chat history
   /help                     Show config info and commands
+  /config                   Show current runtime config
+  /model <name>             Set model for this TUI session
+  /provider <id>            Set provider for this TUI session
+  /save-config              Persist current runtime config
+  /agents                   Show available agents
+  /agent <id>               Switch current agent
+  /agent-new <name>         Create a new agent
+  /new                      Create a new session
+  /delete <id>              Permanently delete a session
+  /tools                    Show enabled tools
+  /tool on|off <id>         Toggle a tool
+  /skills                   Show enabled skills
+  /skill on|off <id>        Toggle a skill
+  /mcp                      List MCP connections
+  /mcp add <n> <u> [t]      Add and sync an MCP connection
+  /mcp sync <id>            Refresh an MCP connection
+  /mcp remove <id>          Remove an MCP connection
+  /stop                     Stop the current response
+  /shell <command>          Run a shell command in the workspace
+  /shell reset              Reset the persistent shell session
   /history                  Show session info
   /sessions                 List available sessions
   /resume <id>              Resume a previous session
   /save                     Force-flush messages to disk
   /providers                List supported providers
+
+Sidebar keys:
+  Tab / Up / Down / Enter   Navigate sidebar
+  Ctrl+L / Ctrl+G           Focus sessions / agents
+  Ctrl+T / Ctrl+K           Focus tools / skills
+  Ctrl+P / Ctrl+Y           Focus MCP / settings
 `);
       process.exit(0);
   }
@@ -60,10 +89,15 @@ const config = resolveLLMConfig({ apiKey, baseUrl, maxTokens, model, provider, t
 const providerMeta = getProviderMeta(config.provider);
 const resolvedSystemPrompt = resolveSystemPrompt(systemPrompt);
 const resolvedWorkspace = resolveWorkspace(workspace);
+const startupNotice = (providerMeta?.requiresApiKey ?? true) && !config.apiKey
+  ? `Provider "${config.provider}" requires an API key. Use /api-key <key>, switch with /provider <id>, or restart with --api-key.`
+  : undefined;
 
-if ((providerMeta?.requiresApiKey ?? true) && !config.apiKey) {
-  console.error('Error: API key required. Use --api-key or set OPENBUNNY_API_KEY env.');
-  process.exit(1);
-}
-
-render(React.createElement(App, { config, systemPrompt: resolvedSystemPrompt, workspace: resolvedWorkspace, configDir }));
+render(React.createElement(App, {
+  config,
+  systemPrompt: resolvedSystemPrompt,
+  workspace: resolvedWorkspace,
+  configDir,
+  resumeIdPrefix,
+  startupNotice,
+}));

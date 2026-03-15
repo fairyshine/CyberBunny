@@ -4,7 +4,7 @@
  */
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import { builtinTools } from '../services/ai/tools';
 
 export type MCPTransportType = 'sse' | 'http';
@@ -115,6 +115,11 @@ export const useToolStore = create<ToolState>()(
     }),
     {
       name: 'tool-storage',
+      storage: createJSONStorage(() =>
+        typeof localStorage !== 'undefined'
+          ? localStorage
+          : { getItem: () => null, setItem: () => {}, removeItem: () => {} },
+      ),
       partialize: (state) => ({
         mcpConnections: state.mcpConnections,
       }),

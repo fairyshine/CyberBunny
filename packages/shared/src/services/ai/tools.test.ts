@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { LLMConfig } from '../../types';
 import { getEnabledTools } from './tools';
+import { clearPlatformContextForTests, setPlatformContext } from '../../platform';
+import type { IPlatformContext } from '../../platform';
 
 const llmConfig: LLMConfig = {
   provider: 'openai',
@@ -47,6 +49,60 @@ test('getEnabledTools wires exec tool with injected runtime settings', async () 
   } finally {
     (globalThis as any).window = previousWindow;
   }
+});
+
+test.afterEach(() => {
+  clearPlatformContextForTests();
+});
+
+test('getEnabledTools uses platform executeShell when running in Node terminal environments', async () => {
+  const executeCalls: Array<{ command: string; loginShell?: boolean; timeoutMs?: number }> = [];
+
+  setPlatformContext({
+    info: {
+      type: 'tui',
+      os: 'linux',
+      isBrowser: false,
+      isDesktop: false,
+      isMobile: false,
+      isCLI: false,
+      isTUI: true,
+    },
+    storage: {
+      getItem: () => null,
+      setItem: () => {},
+      removeItem: () => {},
+    },
+    api: {
+      fetch: globalThis.fetch,
+      executeShell: async (command, options) => {
+        executeCalls.push({
+          command,
+          loginShell: options?.loginShell,
+          timeoutMs: options?.timeoutMs,
+        });
+        return {
+          sessionId: 'shell-1',
+          exitCode: 0,
+          output: 'pwd-output',
+        };
+      },
+    },
+  } as IPlatformContext);
+
+  const tools = getEnabledTools(['exec'], {
+    sourceSessionId: 'source-session',
+    llmConfig,
+    runtimeContext: {
+      execLoginShell: false,
+      toolExecutionTimeout: 1234,
+    },
+  });
+
+  const result = await (tools.exec as any).execute({ command: 'pwd', sessionId: undefined });
+  assert.deepEqual(executeCalls, [{ command: 'pwd', loginShell: false, timeoutMs: 1234 }]);
+  assert.match(result, /Session: shell-1/);
+  assert.match(result, /pwd-output/);
 });
 
 test('getEnabledTools wires web search tool with injected search settings', async () => {

@@ -4,7 +4,18 @@ import { initializePlatformStorage } from '../services/storage/bootstrap';
 import { FileMessageBackend } from '../services/storage/fileBackend';
 import { FileStatsBackend } from '../services/storage/fileStatsBackend';
 import { createNodeZustandStorage } from '../services/storage/nodeZustandStorage';
+import { useAgentStore } from '../stores/agent';
 import { useSessionStore } from '../stores/session';
+import { useSettingsStore } from '../stores/settings';
+import { useSkillStore } from '../stores/skills';
+import { useToolStore } from '../stores/tools';
+import { createJSONStorage } from 'zustand/middleware';
+import {
+  destroyAllNodeShellSessions,
+  destroyNodeShellSession,
+  executeNodeShell,
+  listNodeShellSessions,
+} from './nodeExec';
 
 export interface NodePlatformOptions {
   /** Directory for session message JSON files */
@@ -26,6 +37,9 @@ export function initNodePlatform(
 ): IPlatformContext {
   const nodeAPI: IPlatformAPI = {
     fetch: (url: string, opts?: RequestInit) => fetch(url, opts),
+    executeShell: (command, execOptions) => executeNodeShell(command, execOptions),
+    destroyShellSession: (sessionId) => destroyNodeShellSession(sessionId),
+    listShellSessions: () => listNodeShellSessions(),
   };
 
   return initializePlatformRuntime({
@@ -47,10 +61,24 @@ export function initNodePlatform(
 
       if (options?.storeDir) {
         const zustandStorage = createNodeZustandStorage(options.storeDir);
-        useSessionStore.persist.setOptions({ storage: zustandStorage as any });
-        // Trigger rehydration so persisted sessions are loaded from disk
-        void useSessionStore.persist.rehydrate();
+        const storage = createJSONStorage(() => zustandStorage as any);
+        const persistStores = [
+          useSessionStore,
+          useSettingsStore,
+          useAgentStore,
+          useToolStore,
+          useSkillStore,
+        ];
+
+        for (const store of persistStores) {
+          store.persist.setOptions({ storage });
+          void store.persist.rehydrate();
+        }
       }
     },
   });
 }
+
+process.once('exit', () => {
+  destroyAllNodeShellSessions();
+});

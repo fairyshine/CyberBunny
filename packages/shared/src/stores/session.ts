@@ -41,6 +41,7 @@ interface SessionState {
   setCurrentSession: (id: string) => void;
   clearCurrentSession: () => void;
   addMessage: (sessionId: string, message: Message) => void;
+  clearSessionMessages: (sessionId: string) => void;
   updateMessage: (sessionId: string, messageId: string, updates: Partial<Message>) => void;
   setLLMConfig: (config: Partial<LLMConfig>) => void;
   clearAllSessions: () => void;
@@ -192,6 +193,34 @@ export const useSessionStore = create<SessionState>()(
           } : state.sessionStats;
 
           return { sessions: newSessions, sessionStats };
+        });
+      },
+
+      clearSessionMessages: (sessionId: string) => {
+        set((state) => {
+          const session = state.sessions.find((candidate) => candidate.id === sessionId);
+          if (!session || session.deletedAt || session.messages.length === 0) {
+            return state;
+          }
+
+          const clearedAt = Date.now();
+          const totalTokens = session.messages.reduce((sum, message) => sum + getMessageTokenCount(message), 0);
+          const sessions = state.sessions.map((candidate) => (
+            candidate.id === sessionId
+              ? { ...candidate, messages: [], updatedAt: clearedAt }
+              : candidate
+          ));
+
+          persistSessionMessages(sessionId, []);
+
+          return {
+            sessions,
+            sessionStats: {
+              ...state.sessionStats,
+              totalMessages: state.sessionStats.totalMessages - session.messages.length,
+              totalTokens: state.sessionStats.totalTokens - totalTokens,
+            },
+          };
         });
       },
 

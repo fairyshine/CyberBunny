@@ -5,7 +5,7 @@
  */
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import type { Agent, LLMConfig, Session, Message, SessionType, AgentRelationship, AgentGroup, MindSessionMeta, ChatSessionMeta } from '../types';
 import { deleteSessionPersistence, flushAllSessionPersistence, persistSessionMessages } from '../services/storage/sessionPersistence';
 import { flushSessionMessages, loadNormalizedSessionMessages } from '../services/storage/sessionMessages';
@@ -533,6 +533,11 @@ export const useAgentStore = create<AgentState>()(
     }),
     {
       name: 'webagent-agents',
+      storage: createJSONStorage(() =>
+        typeof localStorage !== 'undefined'
+          ? localStorage
+          : { getItem: () => null, setItem: () => {}, removeItem: () => {} },
+      ),
       partialize: (state) => ({
         agents: state.agents,
         currentAgentId: state.currentAgentId,

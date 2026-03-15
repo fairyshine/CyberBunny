@@ -6,6 +6,8 @@
 import type { IPlatformStorage } from '../platform';
 import type { LLMConfig } from '../types';
 import { useSessionStore } from '../stores/session';
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import {
   type LLMConfigOverrides,
   resolveLLMConfig as _resolveLLMConfig,
@@ -35,10 +37,43 @@ export interface NodeConfigFunctions {
   resolveWorkspace: (override?: string) => string | undefined;
 }
 
+interface LocalWorkspaceConfig extends Partial<LLMConfig> {
+  systemPrompt?: string;
+  workspace?: string;
+}
+
+const LOCAL_CONFIG_FILES = ['.openbunny.json', 'openbunny.json'] as const;
+
+function loadLocalWorkspaceConfig(cwd: string = process.cwd()): LocalWorkspaceConfig {
+  for (const fileName of LOCAL_CONFIG_FILES) {
+    const filePath = path.join(cwd, fileName);
+    if (!existsSync(filePath)) {
+      continue;
+    }
+
+    try {
+      const parsed = JSON.parse(readFileSync(filePath, 'utf8')) as LocalWorkspaceConfig;
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        console.warn(`[OpenBunny] Ignoring ${fileName}: expected a JSON object.`);
+        return {};
+      }
+      return parsed;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[OpenBunny] Failed to read ${fileName}: ${message}`);
+      return {};
+    }
+  }
+
+  return {};
+}
+
 export function createNodeConfigFunctions(
   store: IConfigStore,
   env: Record<string, string | undefined> = {},
 ): NodeConfigFunctions {
+  const localWorkspaceConfig = loadLocalWorkspaceConfig();
+
   function getConfigValue<T = ConfigValue>(key: string): T | undefined {
     return store.get(key) as T | undefined;
   }
@@ -76,7 +111,14 @@ export function createNodeConfigFunctions(
 
   function resolveLLMConfig(overrides: LLMConfigOverrides = {}): LLMConfig {
     return _resolveLLMConfig(
-      overrides,
+      {
+        provider: overrides.provider ?? localWorkspaceConfig.provider,
+        apiKey: overrides.apiKey ?? localWorkspaceConfig.apiKey,
+        model: overrides.model ?? localWorkspaceConfig.model,
+        baseUrl: overrides.baseUrl ?? localWorkspaceConfig.baseUrl,
+        temperature: overrides.temperature ?? localWorkspaceConfig.temperature,
+        maxTokens: overrides.maxTokens ?? localWorkspaceConfig.maxTokens,
+      },
       env,
       getConfigValue,
       useSessionStore.getState().llmConfig,
@@ -84,11 +126,11 @@ export function createNodeConfigFunctions(
   }
 
   function resolveSystemPrompt(override?: string): string | undefined {
-    return _resolveSystemPrompt(override, env, getConfigValue);
+    return _resolveSystemPrompt(override ?? localWorkspaceConfig.systemPrompt, env, getConfigValue);
   }
 
   function resolveWorkspace(override?: string): string | undefined {
-    return _resolveWorkspace(override, env, getConfigValue);
+    return _resolveWorkspace(override ?? localWorkspaceConfig.workspace, env, getConfigValue);
   }
 
   return {

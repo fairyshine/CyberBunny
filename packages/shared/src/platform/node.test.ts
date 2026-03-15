@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { initNodePlatform } from './node';
 import { resetPlatformRuntimeForTests } from './bootstrap';
 import { getPlatform } from './detect';
+import { getPlatformCapabilities } from './capabilities';
 import { getDefaultAIRuntimeDefaultsResolver, resetDefaultAIRuntimeDefaultsResolverForTests } from '../services/ai/runtimeDefaults';
 import { getDefaultSessionOwnerStore, resetDefaultSessionOwnerStoreForTests } from '../services/ai/sessionOwnerStore';
 
@@ -25,6 +26,7 @@ test('initNodePlatform initializes node platform context without implicitly wiri
   );
 
   assert.equal(getPlatform().type, 'cli');
+  assert.equal(getPlatformCapabilities(getPlatform()).supportsExec, true);
   assert.throws(
     () => getDefaultAIRuntimeDefaultsResolver().getDefaults(),
     /AI runtime defaults resolver is not configured/,

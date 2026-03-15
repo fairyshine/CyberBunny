@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import { logSettings } from '../services/console/logger';
 import { isMCPToolId } from '../services/ai/mcpToolId';
 import type { UserProfile, AgentProfile, LLMPreset } from '../types';
@@ -278,6 +278,11 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'webagent-settings',
+      storage: createJSONStorage(() =>
+        typeof localStorage !== 'undefined'
+          ? localStorage
+          : { getItem: () => null, setItem: () => {}, removeItem: () => {} },
+      ),
       migrate: (persisted: any, version: number) => {
         if (persisted) {
           // Clean up legacy tool IDs from enabledTools

@@ -8,6 +8,7 @@ import type { StreamOptions } from '../services/llm/streaming';
 import { useSessionStore } from '../stores/session';
 import type { LLMConfig } from '../types';
 import type { ModelMessage } from 'ai';
+import type { Session } from '../types';
 
 export type { StreamOptions } from '../services/llm/streaming';
 
@@ -15,6 +16,7 @@ export interface ChatEngineOptions {
   config: LLMConfig;
   systemPrompt?: string;
   sessionName?: string;
+  resumeIdPrefix?: string;
 }
 
 export interface ChatEngine {
@@ -26,6 +28,9 @@ export interface ChatEngine {
   flush(): Promise<void>;
   shutdown(): Promise<void>;
   getHistory(): readonly ModelMessage[];
+  getSessionInfo(): { sessionId: string; name: string; messageCount: number };
+  getConfig(): Readonly<LLMConfig>;
+  updateConfig(updates: Partial<LLMConfig>): LLMConfig;
 }
 
 export interface ResumeResult {
@@ -35,20 +40,74 @@ export interface ResumeResult {
   displayMessages: { role: 'user' | 'assistant'; content: string }[];
 }
 
+function buildHistory(messages: Session['messages'], systemPrompt?: string): ModelMessage[] {
+  const history: ModelMessage[] = systemPrompt
+    ? [{ role: 'system', content: systemPrompt }]
+    : [];
+
+  for (const msg of messages) {
+    if (msg.role === 'user' || msg.role === 'assistant') {
+      history.push({ role: msg.role, content: msg.content });
+    }
+  }
+
+  return history;
+}
+
+function buildDisplayMessages(messages: Session['messages']): ResumeResult['displayMessages'] {
+  const displayMessages: ResumeResult['displayMessages'] = [];
+
+  for (const msg of messages) {
+    if (msg.role === 'user' || msg.role === 'assistant') {
+      displayMessages.push({ role: msg.role, content: msg.content });
+    }
+  }
+
+  return displayMessages;
+}
+
+async function loadSessionByPrefix(idPrefix: string): Promise<Session> {
+  const state = useSessionStore.getState();
+  const match = state.sessions.find((session) => session.id.startsWith(idPrefix));
+  if (!match) {
+    throw new Error(`No session found matching "${idPrefix}"`);
+  }
+
+  if (match.messages.length === 0) {
+    await state.loadSessionMessages(match.id);
+  }
+
+  const loaded = useSessionStore.getState().sessions.find((session) => session.id === match.id);
+  if (!loaded) {
+    throw new Error(`Session "${idPrefix}" disappeared during resume.`);
+  }
+
+  useSessionStore.getState().openSession(loaded.id);
+  return loaded;
+}
+
 export async function createChatEngine(options: ChatEngineOptions): Promise<ChatEngine> {
-  const { config, systemPrompt, sessionName = 'Chat' } = options;
+  const { config, systemPrompt, sessionName = 'Chat', resumeIdPrefix } = options;
 
   // Wait a tick for Zustand rehydration
   await new Promise((r) => setTimeout(r, 100));
 
   const store = useSessionStore.getState();
-  const session = store.createSession(sessionName);
-  let sessionId = session.id;
+  let activeSession: Session;
+  if (resumeIdPrefix) {
+    activeSession = await loadSessionByPrefix(resumeIdPrefix);
+  } else {
+    activeSession = store.createSession(sessionName);
+    if (systemPrompt) {
+      useSessionStore.getState().setSessionSystemPrompt(activeSession.id, systemPrompt);
+      activeSession = useSessionStore.getState().sessions.find((session) => session.id === activeSession.id) ?? activeSession;
+    }
+  }
 
-  const initialHistory: ModelMessage[] = systemPrompt
-    ? [{ role: 'system', content: systemPrompt }]
-    : [];
-  let history: ModelMessage[] = [...initialHistory];
+  let sessionId = activeSession.id;
+  let activeSystemPrompt = systemPrompt ?? activeSession.systemPrompt;
+  let history: ModelMessage[] = buildHistory(activeSession.messages, activeSystemPrompt);
+  let currentConfig: LLMConfig = { ...config };
   let isLoading = false;
 
   return {
@@ -73,7 +132,7 @@ export async function createChatEngine(options: ChatEngineOptions): Promise<Chat
 
       isLoading = true;
       try {
-        const result = await callLLM(config, history, streaming);
+        const result = await callLLM(currentConfig, history, streaming);
 
         history.push({ role: 'assistant', content: result });
 
@@ -96,44 +155,24 @@ export async function createChatEngine(options: ChatEngineOptions): Promise<Chat
     },
 
     async resume(idPrefix: string): Promise<ResumeResult> {
-      const state = useSessionStore.getState();
-      const match = state.sessions.find((s) => s.id.startsWith(idPrefix));
-      if (!match) {
-        throw new Error(`No session found matching "${idPrefix}"`);
-      }
+      const loaded = await loadSessionByPrefix(idPrefix);
+      const displayMessages = buildDisplayMessages(loaded.messages);
 
-      if (match.messages.length === 0) {
-        await state.loadSessionMessages(match.id);
-      }
-
-      const loaded = useSessionStore.getState().sessions.find((s) => s.id === match.id);
-      const msgs = loaded?.messages ?? [];
-
-      const newHistory: ModelMessage[] = systemPrompt
-        ? [{ role: 'system', content: systemPrompt }]
-        : [];
-      const displayMessages: { role: 'user' | 'assistant'; content: string }[] = [];
-
-      for (const msg of msgs) {
-        if (msg.role === 'user' || msg.role === 'assistant') {
-          newHistory.push({ role: msg.role, content: msg.content });
-          displayMessages.push({ role: msg.role, content: msg.content });
-        }
-      }
-
-      sessionId = match.id;
-      history = newHistory;
+      sessionId = loaded.id;
+      activeSystemPrompt = systemPrompt ?? loaded.systemPrompt;
+      history = buildHistory(loaded.messages, activeSystemPrompt);
 
       return {
-        sessionId: match.id,
-        name: match.name,
-        messageCount: msgs.length,
+        sessionId: loaded.id,
+        name: loaded.name,
+        messageCount: loaded.messages.length,
         displayMessages,
       };
     },
 
     clear() {
-      history = [...initialHistory];
+      useSessionStore.getState().clearSessionMessages(sessionId);
+      history = buildHistory([], activeSystemPrompt);
     },
 
     messageCount() {
@@ -151,6 +190,24 @@ export async function createChatEngine(options: ChatEngineOptions): Promise<Chat
 
     getHistory() {
       return history;
+    },
+
+    getSessionInfo() {
+      const session = useSessionStore.getState().sessions.find((candidate) => candidate.id === sessionId);
+      return {
+        sessionId,
+        name: session?.name ?? sessionName,
+        messageCount: session?.messages.length ?? history.filter((message) => message.role !== 'system').length,
+      };
+    },
+
+    getConfig() {
+      return { ...currentConfig };
+    },
+
+    updateConfig(updates: Partial<LLMConfig>) {
+      currentConfig = { ...currentConfig, ...updates };
+      return { ...currentConfig };
     },
   };
 }

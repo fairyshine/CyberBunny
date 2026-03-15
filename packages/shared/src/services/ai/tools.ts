@@ -12,6 +12,7 @@ import { getErrorMessage } from '../../utils/errors';
 import type { AgentRuntimeContext } from './runtimeContext';
 import { snapshotScheduledTaskContext } from './scheduledTaskContext';
 import i18n from '../../i18n';
+import { getPlatformCapabilities, getPlatformContext } from '../../platform';
 
 const t = () => i18n.t.bind(i18n);
 
@@ -493,7 +494,7 @@ export function createChatTool(context?: ToolExecutionContext) {
 
 function createExecTool(context?: ToolExecutionContext) {
   return tool({
-    description: 'Execute shell commands in a persistent session (Desktop only: macOS/Linux). Maintains shell state across commands.',
+    description: 'Execute shell commands in a persistent session on supported desktop or terminal platforms. Maintains shell state across commands.',
     inputSchema: z.object({
       command: z.string().describe('Shell command to execute'),
       sessionId: z.string().optional().describe('Session ID for persistent shell (optional, auto-generated if not provided)'),
@@ -512,7 +513,28 @@ function createExecTool(context?: ToolExecutionContext) {
           return `Error: ${error instanceof Error ? error.message : String(error)}`;
         }
       }
-      return 'Error: exec tool is only available on desktop platforms (macOS/Linux)';
+
+      try {
+        const platformContext = getPlatformContext();
+        const capabilities = getPlatformCapabilities(platformContext.info);
+        if (!capabilities.supportsExec || !platformContext.api.executeShell) {
+          return 'Error: exec tool is not available on this platform';
+        }
+
+        const result = await platformContext.api.executeShell(command, {
+          sessionId,
+          loginShell: execLoginShell,
+          timeoutMs: timeout,
+        });
+
+        if (result.error) {
+          return `Error:\n${result.error}`;
+        }
+
+        return `Session: ${result.sessionId}\nExit Code: ${result.exitCode}\n\nOutput:\n\`\`\`\n${result.output}\n\`\`\``;
+      } catch {
+        return 'Error: exec tool is only available on supported desktop or terminal platforms';
+      }
     },
   });
 }

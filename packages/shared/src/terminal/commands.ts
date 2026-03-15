@@ -157,9 +157,10 @@ export async function resumeSession(
 
   const loaded = useSessionStore.getState().sessions.find((s) => s.id === match.id);
   const msgs = loaded?.messages ?? [];
+  const resolvedSystemPrompt = systemPrompt ?? loaded?.systemPrompt ?? match.systemPrompt;
 
-  const history: import('ai').ModelMessage[] = systemPrompt
-    ? [{ role: 'system', content: systemPrompt }]
+  const history: import('ai').ModelMessage[] = resolvedSystemPrompt
+    ? [{ role: 'system', content: resolvedSystemPrompt }]
     : [];
   const displayMessages: { role: 'user' | 'assistant'; content: string }[] = [];
 

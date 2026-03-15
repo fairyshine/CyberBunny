@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useSessionStore } from '@openbunny/shared/stores/session';
 import { useAgentStore, DEFAULT_AGENT_ID } from '@openbunny/shared/stores/agent';
 import { useSettingsStore } from '@openbunny/shared/stores/settings';
-import type { Session } from '@openbunny/shared/types';
+import type { Session, SessionType } from '@openbunny/shared/types';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { SessionContextMenu } from './SessionContextMenu';
@@ -54,6 +54,8 @@ export function SessionItem({
   const isEditing = editingId === session.id;
   const isAgentSession = session.sessionType === 'agent';
   const isMindSession = session.sessionType === 'mind';
+  const sessionType: SessionType = session.sessionType || 'user';
+  const TypeIcon = SESSION_TYPE_ICONS[sessionType];
   const readOnly = isAgentSession || isMindSession;
   const isLinkedAgentSession = isAgentSession && !!session.chatSession?.peerSessionId;
   const displayName = isMindSession
@@ -123,42 +125,49 @@ export function SessionItem({
         draggedSessionId === session.id ? 'opacity-50' : ''
       }`}
     >
-      <div className="flex-1 min-w-0">
-        {isEditing ? (
-          <input
-            ref={editInputRef}
-            value={editingName}
-            onChange={(e) => onEditingNameChange(e.target.value)}
-            onBlur={onCommitRename}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') onCommitRename();
-              if (e.key === 'Escape') onCancelRename();
-            }}
-            onClick={(e) => e.stopPropagation()}
-            className="w-full text-sm font-medium bg-transparent border-b border-primary outline-none py-0"
-          />
-        ) : (
-          <div className="flex items-center gap-1.5 min-w-0">
-            {!isMindSession && session.sessionType && session.sessionType !== 'user' && (() => {
-              const TypeIcon = SESSION_TYPE_ICONS[session.sessionType];
-              return <TypeIcon className="w-3 h-3 shrink-0 text-muted-foreground" />;
-            })()}
-            <p className="font-medium truncate text-sm flex-1 min-w-0">{displayName}</p>
-            {session.interruptedAt && !session.isStreaming && (
-              <Badge variant="outline" className="shrink-0 border-amber-500/40 px-1 py-0 text-[10px] leading-none text-amber-700 dark:text-amber-300">
-                {t('sidebar.interrupted')}
-              </Badge>
-            )}
-            {isAgentSession && (
-              <span className="shrink-0 text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground leading-none">
-                {t('sidebar.readOnly')}
-              </span>
-            )}
+      <div className="flex flex-1 min-w-0 items-start gap-1.5">
+        {!isEditing && (
+          <div
+            className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground"
+            title={t(`sidebar.sessionType.${sessionType}`)}
+          >
+            <TypeIcon className="h-3 w-3" />
           </div>
         )}
-        <p className="text-xs text-muted-foreground mt-0.5">
-          {formatDate(session.updatedAt)}
-        </p>
+
+        <div className="flex-1 min-w-0">
+          {isEditing ? (
+            <input
+              ref={editInputRef}
+              value={editingName}
+              onChange={(e) => onEditingNameChange(e.target.value)}
+              onBlur={onCommitRename}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') onCommitRename();
+                if (e.key === 'Escape') onCancelRename();
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full text-sm font-medium bg-transparent border-b border-primary outline-none py-0"
+            />
+          ) : (
+            <div className="flex items-center gap-1 min-w-0">
+              <p className="font-medium truncate text-sm flex-1 min-w-0">{displayName}</p>
+              {session.interruptedAt && !session.isStreaming && (
+                <Badge variant="outline" className="shrink-0 border-amber-500/40 px-1 py-0 text-[10px] leading-none text-amber-700 dark:text-amber-300">
+                  {t('sidebar.interrupted')}
+                </Badge>
+              )}
+              {isAgentSession && (
+                <span className="shrink-0 text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground leading-none">
+                  {t('sidebar.readOnly')}
+                </span>
+              )}
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {formatDate(session.updatedAt)}
+          </p>
+        </div>
       </div>
 
       {!isEditing && (

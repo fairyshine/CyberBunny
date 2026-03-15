@@ -12,6 +12,7 @@ import {
   getSessionList,
   getHistoryInfo,
   getProviderList,
+  type ChatEngine,
 } from '@openbunny/shared/terminal';
 import { resolveNodeConfigDir } from '@openbunny/shared/platform/nodeConfig';
 
@@ -24,6 +25,7 @@ export const chatCommand = new Command('chat')
   .option('-t, --temperature <temp>', 'Temperature')
   .option('--max-tokens <tokens>', 'Max tokens')
   .option('--system <prompt>', 'System prompt')
+  .option('-w, --workspace <dir>', 'Workspace directory')
   .option('--resume <id>', 'Resume a previous session by ID (prefix match)')
   .action(async (opts) => {
     const config = resolveLLMConfig({
@@ -42,21 +44,27 @@ export const chatCommand = new Command('chat')
     }
 
     const systemPrompt = resolveSystemPrompt(opts.system);
-    const workspace = resolveWorkspace(opts.parent?.workspace);
+    const workspace = resolveWorkspace(opts.workspace ?? opts.parent?.workspace);
     const configDir = resolveNodeConfigDir();
 
-    const engine = await createChatEngine({ config, systemPrompt, sessionName: 'CLI Chat' });
+    let engine: ChatEngine;
+    try {
+      engine = await createChatEngine({
+        config,
+        systemPrompt,
+        sessionName: 'CLI Chat',
+        resumeIdPrefix: opts.resume,
+      });
+    } catch (err) {
+      console.error(chalk.red(err instanceof Error ? err.message : String(err)));
+      process.exit(1);
+    }
 
+    const sessionInfo = engine.getSessionInfo();
     if (opts.resume) {
-      try {
-        const result = await engine.resume(opts.resume);
-        console.log(chalk.green(`Resumed session ${result.sessionId.slice(0, 8)} (${result.name}) — ${result.messageCount} message(s)`));
-      } catch (err) {
-        console.error(chalk.red(err instanceof Error ? err.message : String(err)));
-        process.exit(1);
-      }
+      console.log(chalk.green(`Resumed session ${sessionInfo.sessionId.slice(0, 8)} (${sessionInfo.name}) — ${sessionInfo.messageCount} message(s)`));
     } else {
-      console.log(chalk.green('OpenBunny Chat') + chalk.gray(` [session ${engine.sessionId.slice(0, 8)}]`));
+      console.log(chalk.green('OpenBunny Chat') + chalk.gray(` [session ${sessionInfo.sessionId.slice(0, 8)}]`));
     }
 
     console.log(chalk.gray('Type your message and press Enter. Commands: /help, /clear, /history, /save, /quit\n'));

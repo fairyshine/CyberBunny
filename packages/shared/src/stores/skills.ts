@@ -8,6 +8,7 @@
  */
 
 import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import {
   loadAllSkills,
   saveSkill,
@@ -78,93 +79,100 @@ interface SkillState {
 }
 
 export const useSkillStore = create<SkillState>()(
-  (set, get) => ({
-    skills: [],
-    enabledSkillIds: (() => {
-      try {
-        const saved = localStorage.getItem('openbunny-enabled-skills');
-        return saved ? JSON.parse(saved) : BUILTIN_SKILLS.map(s => s.id);
-      } catch {
-        return BUILTIN_SKILLS.map(s => s.id);
-      }
-    })(),
-    activatedSkills: new Set<string>(),
-    loading: false,
-    error: null,
+  persist(
+    (set, get) => ({
+      skills: [],
+      enabledSkillIds: BUILTIN_SKILLS.map((skill) => skill.id),
+      activatedSkills: new Set<string>(),
+      loading: false,
+      error: null,
 
-    loadSkills: async () => {
-      set({ loading: true, error: null });
-      try {
-        const userSkills = await loadAllSkills();
-        const builtinIds = new Set(BUILTIN_SKILLS.map(s => s.id));
-        const filteredUser = userSkills.filter(s => !builtinIds.has(s.id));
-        const allSkills = [...BUILTIN_SKILLS, ...filteredUser];
-        // Clean up enabledSkillIds to only include known skills
+      loadSkills: async () => {
+        set({ loading: true, error: null });
+        try {
+          const userSkills = await loadAllSkills();
+          const builtinIds = new Set(BUILTIN_SKILLS.map(s => s.id));
+          const filteredUser = userSkills.filter(s => !builtinIds.has(s.id));
+          const allSkills = [...BUILTIN_SKILLS, ...filteredUser];
+          const { enabledSkillIds } = get();
+          const knownIds = new Set(allSkills.map((skill) => skill.id));
+          const cleaned = enabledSkillIds.filter((id) => knownIds.has(id));
+          set({ skills: allSkills, enabledSkillIds: cleaned, loading: false });
+        } catch (error) {
+          console.error('[SkillStore] Failed to load skills:', error);
+          set({ skills: [...BUILTIN_SKILLS], loading: false, error: String(error) });
+        }
+      },
+
+      toggleSkill: (skillId: string) => {
         const { enabledSkillIds } = get();
-        const knownIds = new Set([...allSkills.map(s => s.id)]);
-        const cleaned = enabledSkillIds.filter(id => knownIds.has(id));
-        set({ skills: allSkills, enabledSkillIds: cleaned, loading: false });
-      } catch (error) {
-        console.error('[SkillStore] Failed to load skills:', error);
-        set({ skills: [...BUILTIN_SKILLS], loading: false, error: String(error) });
-      }
-    },
+        const next = enabledSkillIds.includes(skillId)
+          ? enabledSkillIds.filter(id => id !== skillId)
+          : [...enabledSkillIds, skillId];
+        set({ enabledSkillIds: next });
+      },
 
-    toggleSkill: (skillId: string) => {
-      const { enabledSkillIds } = get();
-      const next = enabledSkillIds.includes(skillId)
-        ? enabledSkillIds.filter(id => id !== skillId)
-        : [...enabledSkillIds, skillId];
-      set({ enabledSkillIds: next });
-      try {
-        localStorage.setItem('openbunny-enabled-skills', JSON.stringify(next));
-      } catch { /* ignore */ }
-    },
+      markActivated: (skillName: string) => {
+        const { activatedSkills } = get();
+        const next = new Set(activatedSkills);
+        next.add(skillName);
+        set({ activatedSkills: next });
+      },
 
-    markActivated: (skillName: string) => {
-      const { activatedSkills } = get();
-      const next = new Set(activatedSkills);
-      next.add(skillName);
-      set({ activatedSkills: next });
-    },
+      isActivated: (skillName: string) => {
+        return get().activatedSkills.has(skillName);
+      },
 
-    isActivated: (skillName: string) => {
-      return get().activatedSkills.has(skillName);
-    },
+      resetActivations: () => {
+        set({ activatedSkills: new Set<string>() });
+      },
 
-    resetActivations: () => {
-      set({ activatedSkills: new Set<string>() });
-    },
+      createSkill: async (name: string, description: string) => {
+        const content = generateSkillTemplate(name, description);
+        const skill = await saveSkill(name, content);
+        await get().loadSkills();
+        return skill;
+      },
 
-    createSkill: async (name: string, description: string) => {
-      const content = generateSkillTemplate(name, description);
-      const skill = await saveSkill(name, content);
-      await get().loadSkills();
-      return skill;
-    },
+      updateSkill: async (name: string, skillMdContent: string) => {
+        const skill = await saveSkill(name, skillMdContent);
+        await get().loadSkills();
+        return skill;
+      },
 
-    updateSkill: async (name: string, skillMdContent: string) => {
-      const skill = await saveSkill(name, skillMdContent);
-      await get().loadSkills();
-      return skill;
-    },
+      removeSkill: async (name: string) => {
+        const skill = get().skills.find(s => s.name === name);
+        if (skill?.source === 'builtin') {
+          throw new Error('Cannot delete built-in skills');
+        }
+        await deleteSkill(name);
+        await get().loadSkills();
+      },
 
-    removeSkill: async (name: string) => {
-      const skill = get().skills.find(s => s.name === name);
-      if (skill?.source === 'builtin') {
-        throw new Error('Cannot delete built-in skills');
-      }
-      await deleteSkill(name);
-      await get().loadSkills();
+      getSkillContent: async (name: string) => {
+        const skill = get().skills.find(s => s.name === name);
+        if (!skill) return null;
+        if (skill.source === 'builtin') {
+          return `---\nname: "${skill.name}"\ndescription: ${skill.description}\nmetadata:\n  author: system\n  version: "1.0"\n---\n\n${skill.body}`;
+        }
+        return readSkillMd(name);
+      },
+    }),
+    {
+      name: 'openbunny-skills',
+      storage: createJSONStorage(() =>
+        typeof localStorage !== 'undefined'
+          ? localStorage
+          : { getItem: () => null, setItem: () => {}, removeItem: () => {} },
+      ),
+      partialize: (state) => ({
+        enabledSkillIds: state.enabledSkillIds,
+      }),
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...(persistedState as Partial<SkillState>),
+        activatedSkills: new Set<string>(),
+      }),
     },
-
-    getSkillContent: async (name: string) => {
-      const skill = get().skills.find(s => s.name === name);
-      if (!skill) return null;
-      if (skill.source === 'builtin') {
-        return `---\nname: "${skill.name}"\ndescription: ${skill.description}\nmetadata:\n  author: system\n  version: "1.0"\n---\n\n${skill.body}`;
-      }
-      return readSkillMd(name);
-    },
-  })
+  )
 );
